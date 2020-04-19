@@ -90,12 +90,14 @@ class Black(PricingModel):
         Nsim = int(Nsim)
         martingale = np.zeros((Nsim,len(fixings)))
         for i in range (len(fixings)):
-                Z = np.random.normal(0,1,Nsim)
-                #Z = np.concatenate((Z,-Z))
+                Z = np.random.normal(0,1,int(Nsim*0.5))
+                Z = np.concatenate((Z,-Z))   #antithetic sampling
                 martingale.T[i] = exp(-0.5*(self.volatility**2)*fixings[i]+self.volatility*sqrt(fixings[i])*Z)
+
         return martingale*self.forward_curve(fixings)
 
     def Call_PayOff(self,St,strike): #Monte Carlo call payoff
         zero = np.zeros((len(St),len(St.T)))
         pay = St-strike
-        return np.maximum(pay,zero)
+        pay1,pay2 = np.split(np.maximum(pay,zero),2) #for antithetic sampling
+        return 0.5*(pay1+pay2)

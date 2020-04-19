@@ -104,7 +104,7 @@ class Black(PricingModel):
     def newton_implied_volatility(self, S, C, i, r=0, q=0):
         """Implied volatility"""
         xold = 0
-        xnew = np.sqrt((2*np.pi)/self.fixings[i])*(C[i]/S[i])
+        xnew = 0.23#np.sqrt((2*np.pi)/self.fixings[i])*(C[i]/S[i])
         tolerance = 0.0001
         counter = 0
         while abs(xnew - xold) > tolerance:
