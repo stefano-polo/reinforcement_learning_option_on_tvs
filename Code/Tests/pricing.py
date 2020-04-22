@@ -14,12 +14,17 @@ def d2(S, K, T, r, q, sigma):
     """d_2 function for BS model"""
     return  (log(S / K) + (r - q - 0.5 * sigma ** 2) * T) / (sigma * sqrt(T))
 
-def Call_Closed(S, K, T, r, q, sigma):
+def Black_closed_form(S=None, K=None, T=None, r=None, q=None, sigma=None, typo = 1):
     """Closed form of Call Option for BS model"""
     d_1 = d1(S, K, T, r, q, sigma)
     d_2 = d2(S, K, T, r, q, sigma)
-    return S * exp(-q * T) * si.norm.cdf(d_1, 0.0, 1.0) - K * exp(-r * T) * si.norm.cdf(d_2, 0.0, 1.0)
-
+    if typo ==1:
+        """Call option"""
+        return S * exp(-q * T) * si.norm.cdf(d_1, 0.0, 1.0) - K * exp(-r * T) * si.norm.cdf(d_2, 0.0, 1.0)
+    elif typo==-1:
+        """Put option"""
+        return K * exp(-r * T) * si.norm.cdf(-d_2, 0.0, 1.0) - S * exp(-q * T) * si.norm.cdf(-d_1, 0.0, 1.0)
+    
 def vega(S, K, T, r, q, sigma):
     """Vega"""
     d_1 = d1(S, K, T, r, q, sigma)
@@ -96,8 +101,13 @@ class Black(PricingModel):
 
         return martingale*self.forward_curve(fixings)
 
-    def Call_PayOff(self,St,strike): #Monte Carlo call payoff
+    def Vanilla_PayOff(self,St=None,strike=None, typo = 1): #Monte Carlo call payoff
         zero = np.zeros((len(St),len(St.T)))
-        pay = St-strike
+        if typo ==1:
+            """Call option"""
+            pay = St-strike
+        elif typo ==-1:
+            """Put option"""
+            pay = strike - St
         pay1,pay2 = np.split(np.maximum(pay,zero),2) #for antithetic sampling
         return 0.5*(pay1+pay2)
