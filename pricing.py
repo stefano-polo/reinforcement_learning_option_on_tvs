@@ -5,32 +5,6 @@ import scipy.stats as si  #for gaussian cdf
 from scipy import exp, log, sqrt
 
 
-"""Functions for Black & Scholes Formula"""
-def d1(S, K, T, r, q, sigma):
-    """d_1 function for BS model"""
-    return (log(S / K) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * sqrt(T))
-
-def d2(S, K, T, r, q, sigma):
-    """d_2 function for BS model"""
-    return  (log(S / K) + (r - q - 0.5 * sigma ** 2) * T) / (sigma * sqrt(T))
-
-def Black_closed_form(S=None, K=None, T=None, r=None, q=None, sigma=None, typo = 1):
-    """Closed form of Call Option for BS model"""
-    d_1 = d1(S, K, T, r, q, sigma)
-    d_2 = d2(S, K, T, r, q, sigma)
-    if typo ==1:
-        """Call option"""
-        return S * exp(-q * T) * si.norm.cdf(d_1, 0.0, 1.0) - K * exp(-r * T) * si.norm.cdf(d_2, 0.0, 1.0)
-    elif typo==-1:
-        """Put option"""
-        return K * exp(-r * T) * si.norm.cdf(-d_2, 0.0, 1.0) - S * exp(-q * T) * si.norm.cdf(-d_1, 0.0, 1.0)
-    
-def vega(S, K, T, r, q, sigma):
-    """Vega"""
-    d_1 = d1(S, K, T, r, q, sigma)
-    return (1 / sqrt(2 * np.pi)) * S * exp(-q * T) * sqrt(T) * exp((-d_1 ** 2) * 0.5)
-
-
 """Classes for my simulation"""
 
 class Curve:
@@ -93,11 +67,15 @@ class Black(PricingModel):
     def simulate(self, fixings=None, Nsim=1, seed=14,**kwargs):
         np.random.seed(seed)
         Nsim = int(Nsim)
-        martingale = np.zeros((Nsim,len(fixings)))
-        for i in range (len(fixings)):
+        martingale = np.ones((Nsim,len(fixings)))
+        if fixings[0] != 0.0:
+            Z = np.random.normal(0,1,int(Nsim*0.5))
+            Z = np.concatenate((Z,-Z)) #antithetic sampling
+            martingale.T[0] = exp(-0.5*(self.volatility**2)*(fixings[0])+self.volatility*sqrt(fixings[0])*Z)
+        for i in range (1,len(fixings)):
                 Z = np.random.normal(0,1,int(Nsim*0.5))
-                Z = np.concatenate((Z,-Z))   #antithetic sampling
-                martingale.T[i] = exp(-0.5*(self.volatility**2)*fixings[i]+self.volatility*sqrt(fixings[i])*Z)
+                Z = np.concatenate((Z,-Z))   
+                martingale.T[i] = martingale.T[i-1]*exp(-0.5*(self.volatility**2)*(fixings[i]-fixings[i-1])+self.volatility*sqrt(fixings[i]-fixings[i-1])*Z)
 
         return martingale*self.forward_curve(fixings)
 
@@ -110,4 +88,15 @@ class Black(PricingModel):
             """Put option"""
             pay = strike - St
         pay1,pay2 = np.split(np.maximum(pay,zero),2) #for antithetic sampling
+        return 0.5*(pay1+pay2)
+    
+    def Asian_PayOff(self,GM=None,strike=None, typo = 1): #Monte Carlo call payoff
+        zero = np.zeros(len(GM))
+        if typo ==1:
+            """Call option"""
+            pay = GM-strike
+        elif typo ==-1:
+            """Put option"""
+            pay = strike - GM
+        pay1, pay2 = np.split(np.maximum(pay,zero),2)
         return 0.5*(pay1+pay2)
