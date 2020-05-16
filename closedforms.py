@@ -1,9 +1,7 @@
 import numpy as np
-import random as rnd
-from scipy.interpolate import interp1d
 import scipy.stats as si  #for gaussian cdf
 from scipy import exp, log, sqrt
-
+from scipy.stats.mstats import gmean
 
 """Functions for Black & Scholes Formula"""
 def d1(S, K, T, r, q, sigma):
@@ -25,7 +23,13 @@ def European_closed_form(S=None, K=None, T=None, r=None, q=None, sigma=None, typ
         """Put option"""
         return K * exp(-r * T) * si.norm.cdf(-d_2, 0.0, 1.0) - S * exp(-q * T) * si.norm.cdf(-d_1, 0.0, 1.0)
 
-def vega(S, K, T, r, q, sigma):
+def Delta(S, K, T, r, q, sigma):
+    return si.norm.cdf(d1(S, K, T, r, q, sigma))
+
+def StrikeFromDelta(F,T,delta,sigma):
+    return F(T)*np.exp(0.5*(sigma**2)*T-sigma*np.sqrt(T)*si.norm.ppf(delta))
+    
+def Vega(S, K, T, r, q, sigma):
     d_1 = d1(S, K, T, r, q, sigma)
     return S * np.exp(-q * T) * np.sqrt(T) * si.norm.pdf(d_1)   
     
@@ -37,7 +41,7 @@ def implied_vol_newton(C,S,K,T,r,q,kind):
     while abs(xnew-xold)>=tolerance:
         xold = xnew
         f = Black_closed_form(S, K, T, r, q, xold, kind)
-        v = vega(S, K, T, r, q, xold)
+        v = Vega(S, K, T, r, q, xold)
         xnew = xold - (f-C)/v
         counter = counter+1
      
@@ -45,15 +49,34 @@ def implied_vol_newton(C,S,K,T,r,q,kind):
 
 
 """Geometric Average Asian Option"""
-def sigma_z(m,sigma):
+def vol_asian(m,sigma):
     return sigma * sqrt((2.*m+1)/(6.*(m+1)))
 
-def rho_drift(m,r,sigma):
+def r_asian(m,r,sigma):
     vol_z = sigma_z(m,sigma)
     return 0.5 * (r - 0.5*(sigma**2)+vol_z**2)
 
 def GMAsian_closed_form(m,S,K,T,r,q,sigma,typo):
-    rho = rho_drift(m,r,sigma)
-    vol_z = sigma_z(m,sigma)
+    rho = r_asian(m,r,sigma)
+    vol_z = vol_asian(m,sigma)
     price = European_closed_form(S, K, T, rho, q, vol_z, typo)
     return price * exp((rho-r)*T)
+
+
+
+"""Geometric averaged basket option in d dimensions"""
+def vol_basket(sigma,corr):
+    S = np.identity(len(sigma))*sigma
+    S = np.dot(np.dot(S,corr),S)
+    return (1/len(sigma))*sqrt(np.sum(S))
+
+def Forward_basket(S, sigma, tilda, r, T):
+    prod = gmean(S)
+    return prod * exp((r-(0.5/len(sigma))*np.sum(sigma**2) + 0.5*(tilda**2))*T)
+
+def GM_Basket_closed_form(S,K,T,r,sigma,corr):
+    tilda = vol_basket(sigma,corr)
+    F =  Forward_basket(S, sigma, tilda, r, T)
+    d_1 = (log(F/K)+0.5*(tilda**2)*T)/(tilda*sqrt(T))
+    d_2 = d_1-tilda*sqrt(T)
+    return exp(-r*T)*(F*si.norm.cdf(d_1, 0.0, 1.0)-K*si.norm.cdf(d_2, 0.0, 1.0))  

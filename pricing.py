@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy import exp, sqrt, log, heaviside
 from scipy.integrate import quad
-
+from numpy.linalg import cholesky
 
 """Classes for my simulation"""
 
@@ -16,33 +16,39 @@ class Curve:
 
         return self.curve(date)
 
-
+    
 class EquityForwardCurve(Curve):
 
     def __init__(self, spot=None, reference=None, discounting_curve=None,
                 repo_rates=None, repo_dates=None):
         self.spot = spot
-        self.reference = reference
+        self.reference = reference 
         self.discounting_curve = discounting_curve
-        self.q = interp1d(repo_dates,repo_rates)   #linear interpolation for repo repo_rates
-
+        self.q = repo_rates
+        self.T = repo_dates
+        
     def curve(self, date):
-        return (self.spot/self.discounting_curve(date))*exp(-self.q(date-self.reference)*(date-self.reference))
+        q = piecewise_function(date-self.reference,self.T,self.q)
+        return (self.spot/self.discounting_curve(date))*exp(-q*(date-self.reference))
 
 
 class DiscountingCurve(Curve):
 
     def __init__(self, reference=None, discounts=None, dates=None):
-
         self.reference = reference
-        self.r = interp1d(dates,(-1./dates)*log(discounts)) #linear interpolation of the zero_rates
-
+        self.T = dates
+        self.r = np.array([-1/self.T[0]*log(discounts[0])]) #zero rate from 0 to T1
+        for i in range(1,len(self.T)):
+            self.r = np.append(self.r,-1./(self.T[i]-self.T[i-1])* log(discounts[i]/discounts[i-1]))
+        print("Forward zero rate: ", self.r)
+   
     def curve(self, date):
-        return exp(-self.r(date-self.reference)*(date-self.reference))
+        r = piecewise_function(date-self.reference,self.T,self.r)
+        return exp(-r*(date-self.reference))
 
 
-class ForwardVariance(Curve):  #I calculate the variance and not the volatility for convenience of computation in the GBM
-
+class ForwardVariance(Curve):  #I calculate the variance and not the volatility for convenience of computation
+    
     def __init__(self, reference=None, spot_volatility=None, strikes=None, maturities=None, strike_interp=None):
         self.reference = reference #pricing date of the implied volatilities
         self.T = maturities
@@ -52,24 +58,12 @@ class ForwardVariance(Curve):  #I calculate the variance and not the volatility 
             alpha = ((self.T[i]-self.reference)*(self.spot_vol[i]**2)-(self.T[i-1]-self.reference)*
                      (self.spot_vol[i-1]**2))/(self.T[i]-self.T[i-1])
             self.forward_vol = np.append(self.forward_vol, sqrt(alpha))
-        print(self.forward_vol)
+        print("Forward volatility: ",self.forward_vol)
+   
+    def curve(self,date): 
+        return piecewise_function(date,self.T,self.forward_vol**2)
 
-    def curve(self,date):
-        date = np.array(date)
-        if date.shape!=():  #date = vector input
-            val = np.ones(len(date))
-            y = (heaviside(date,val)-heaviside(date-self.T[0],val))*(self.forward_vol[0]**2)
-            for i in range(1,len(self.T)):
-                y = y + (heaviside(date-self.T[i-1],val)-heaviside(date-self.T[i],val))*(self.forward_vol[i]**2)
-            return y
-        else:
-            val = 1  #date = scalar input
-            y = (heaviside(date,val)-heaviside(date-self.T[0],val))*(self.forward_vol[0]**2)
-            for i in range(1,len(self.T)):
-                y = y + (heaviside(date-self.T[i-1],val)-heaviside(date-self.T[i],val))*(self.forward_vol[i]**2)
-            return y
-
-
+    
 class PricingModel:
 
     def __init__(self, **kwargs):
@@ -88,38 +82,69 @@ class Black(PricingModel):
         self.variance = variance
         self.forward_curve = forward_curve
 
-    def simulate(self, fixings=None, Nsim=1, seed=14,**kwargs):
+    def simulate(self, fixings=None, Ndim = 1, corr = None, Nsim=1, seed=14,**kwargs):
         np.random.seed(seed)
         Nsim = int(Nsim)
-        logmartingale = np.zeros((Nsim,len(fixings)))
-        for i in range (len(fixings)):
-            Z = np.random.normal(0,1,int(Nsim*0.5))
-            Z = np.concatenate((Z,-Z))
-            if i ==0:
-                logmartingale.T[i]=-0.5*quad(self.variance,0,fixings[i])[0]+sqrt(quad(self.variance,0,fixings[i])[0])*Z
-            elif i!=0:
-                logmartingale.T[i]=logmartingale.T[i-1]-0.5*quad(self.variance,fixings[i-1],fixings[i])[0]+sqrt(quad(self.variance,fixings[i-1],fixings[i])[0])*Z
+        if Ndim == 1:
+            print("Single Asset Simulation")
+            logmartingale = np.zeros((Nsim,len(fixings)))
+            for i in range (len(fixings)):
+                Z = np.random.normal(0,1,int(Nsim*0.5))
+                Z = np.concatenate((Z,-Z))
+                if i ==0:
+                    logmartingale.T[i]=-0.5*quad(self.variance,0,fixings[i])[0]+sqrt(quad(self.variance,0,fixings[i])[0])*Z
+                elif i!=0:    
+                    logmartingale.T[i]=logmartingale.T[i-1]-0.5*quad(self.variance,fixings[i-1],fixings[i])[0]+sqrt(quad(self.variance,fixings[i-1],fixings[i])[0])*Z
+            return exp(logmartingale)*self.forward_curve(fixings)
+        
+        else:
+            print("Multi Asset Simulation")
+            logmartingale = np.zeros((int(2*Nsim),len(fixings),Ndim))
+            R = cholesky(corr)
+            for i in range (len(fixings)):
+                Z = np.random.normal(0,1,(Nsim,Ndim))
+                Z = np.concatenate((Z,-Z)) #matrix of uncorrelated random variables
+                ep = np.dot(R,Z.T)   #matrix of correlated random variables
+                for j in range(Ndim):
+                    if i ==0:
+                        logmartingale[:,i,j]=-0.5*quad(self.variance[j],0,fixings[i])[0]+sqrt(quad(self.variance[j],0,fixings[i])[0])*ep[j]
+                    elif i!=0:    
+                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*quad(self.variance[j],fixings[i-1],fixings[i])[0]+sqrt(quad(self.variance[j],fixings[i-1],fixings[i])[0])*ep[j]
+            M = exp(logmartingale)
+            for i in range(Ndim):
+                M[:,:,i] = M[:,:,i]*self.forward_curve[i](fixings)
+            return M
 
-        return exp(logmartingale)*self.forward_curve(fixings)
+    
+"""Payoff Functions"""
+def Vanilla_PayOff(St=None,strike=None, typo = 1): #Monte Carlo call payoff
+    zero = np.zeros(St.shape)
+    if typo ==1:
+        """Call option payoff"""
+        pay = St-strike
+    elif typo ==-1:
+        """Put option payoff"""
+        pay = strike - St
+    pay1,pay2 = np.split(np.maximum(pay,zero),2) #for antithetic sampling
+    return 0.5*(pay1+pay2)
+ 
+    
+"""Definition of a piecewise function"""
 
-    def Vanilla_PayOff(self,St=None,strike=None, typo = 1): #Monte Carlo call payoff
-        zero = np.zeros((len(St),len(St.T)))
-        if typo ==1:
-            """Call option"""
-            pay = St-strike
-        elif typo ==-1:
-            """Put option"""
-            pay = strike - St
-        pay1,pay2 = np.split(np.maximum(pay,zero),2) #for antithetic sampling
-        return 0.5*(pay1+pay2)
-
-    def Asian_PayOff(self,GM=None,strike=None, typo = 1): #Monte Carlo call payoff
-        zero = np.zeros(len(GM))
-        if typo ==1:
-            """Call option"""
-            pay = GM-strike
-        elif typo ==-1:
-            """Put option"""
-            pay = strike - GM
-        pay1, pay2 = np.split(np.maximum(pay,zero),2)
-        return 0.5*(pay1+pay2)
+def piecewise_function(date,interval,value):
+    """date = x where I evaluate my function
+    interval = intervals in which my function is costant
+    value = costant value of my function in a interval"""
+    date = np.array(date)
+    if date.shape!=():  #vector input
+        val = np.ones(len(date))
+        y = (heaviside(date,val)-heaviside(date-interval[0],val))*(value[0])
+        for i in range(1,len(interval)):
+            y = y + (heaviside(date-interval[i-1],val)-heaviside(date-interval[i],val))*(value[i])
+        return y
+    else:
+        val = 1  #scalar input
+        y = (heaviside(date,val)-heaviside(date-interval[0],val))*(value[0])
+        for i in range(1,len(interval)):
+            y = y + (heaviside(date-interval[i-1],val)-heaviside(date-interval[i],val))*(value[i])
+        return y

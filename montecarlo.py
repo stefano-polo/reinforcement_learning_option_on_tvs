@@ -15,8 +15,22 @@ def error_vector(AV,AV2,n):  # Function for statistical uncertainty estimation
     else:
         return np.sqrt((AV2[n] - AV[n]**2)/n)
     
+
+def MC(data):
+    """mean and error of MC simulation"""
+    mean = np.mean(data,axis=0)
+    std = np.std(data,axis=0)/np.sqrt(len(data))
+    return mean, std    
+
+
+def MC_Analisys(data,N_block):
+    if data.ndim == 1:
+        return MC_Analisys_vector(data,N_block)
+    elif data.ndim == 2:
+        return MC_Analisys_matrix(data,N_block)
+
     
-def Monte_Carlo_Analisys(data,N_block): #method to check convergence of the MC result
+def MC_Analisys_matrix(data,N_block): #method to check convergence of the MC result
     """Data blocking method for a matrix"""
     N = N_block
     M= int(len(data))              # Total number of throws
@@ -51,14 +65,7 @@ def Monte_Carlo_Analisys(data,N_block): #method to check convergence of the MC r
 
 
 
-def MC(data):
-    """mean and error of MC simulation"""
-    mean = np.mean(data,axis=0)
-    std = np.std(data,axis=0)/np.sqrt(len(data))
-    return mean, std
-
-
-def Monte_Carlo_Analisys_vector(data,N_block): #method to check convergence of the MC result
+def MC_Analisys_vector(data,N_block): #method to check convergence of the MC result
     """Data blocking method vector"""
     M=int(len(data))              # Total number of throws
     N=N_block                 # Number of blocks
