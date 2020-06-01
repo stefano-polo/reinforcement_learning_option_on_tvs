@@ -2,8 +2,8 @@ import numpy as np
 from scipy import exp, sqrt, log, heaviside
 from pricing import piecewise_function, Curve, PricingModel
 from numpy.linalg import cholesky
-
-
+from scipy.optimize import minimize
+from scipy.integrate import quad
 """Notation of pallavicini and daluiso draft"""
 
 
@@ -12,14 +12,20 @@ class Drift(Curve):
     def __init__(self, forward_curves = None):
         self.T = time_grid_union(curve_array_list = forward_curves)
         Ndim = len(forward_curves)
-        self.mu = np.zeros((len(self.T)+1,Ndim))
-        for i in range(len(self.T)+1):
+        mu_zero = np.zeros((len(self.T),Ndim))
+        """Calculating the zero repo rates"""
+        for i in range(len(self.T)):
             for j in range(Ndim):
-                if i ==0:
-                    self.mu[i,j] = forward_curves[j].q[i]
+                 mu_zero[i,j] = (1/(forward_curves[j].reference-self.T[i]))*log((forward_curves[j](self.T[i])*forward_curves[j].discounting_curve(self.T[i]))/forward_curves[j].spot)
+
+        """Calculating the forward repo rates"""
+        self.mu = np.zeros((len(self.T),Ndim))
+        for i in range(len(self.T)):
+            for j in range(Ndim):
+                if i==0:
+                    self.mu[i][j] = mu_zero[i,j]
                 else:
-                    self.mu[i,j] = (1./(forward_curves[j].reference-self.T[i-1])) * log((forward_curves[j](self.T[i-1])*forward_curves[j].discounting_curve(self.T[i-1]))/forward_curves[j].spot)  #repo rates
-        self.mu = np.delete(self.mu, len(self.mu)-1,axis=0)
+                    self.mu[i][j] = ((self.T[i]-forward_curves[j].reference)*(mu_zero[i][j])-(self.T[i-1]-forward_curves[j].reference)*(mu_zero[i-1][j]))/(self.T[i]-self.T[i-1])
         print("Drift time grid:",self.T)
         print("Drift values:", self.mu)
 
@@ -38,15 +44,17 @@ class CholeskyTDependent(Curve):
             if i == 0:
                 for j in range(Ndim):
                     vol[j] = variance_curves[j].forward_vol[i]
-                    vol = np.identity(Ndim)*vol
-                    self.nu[:,:,i] = np.dot(np.dot(vol,correlation),vol)
+                vol = np.identity(Ndim)*vol
+                self.nu[:,:,i] = np.dot(np.dot(vol,correlation),vol)
+                
             else:
                 for j in range(Ndim):
                     vol[j] = sqrt(variance_curves[j](self.T[i-1]))
-                    vol = np.identity(Ndim)*vol
-                    self.nu[:,:,i] = np.dot(np.dot(vol,correlation),vol)
+                vol = np.identity(Ndim)*vol
+                self.nu[:,:,i] = np.dot(np.dot(vol,correlation),vol)
+                
         self.nu = np.delete(self.nu,len(self.nu.T)-1,axis=2)
-        for i in range(len(self.nu.T)):
+        for i in range(len(self.T)):
             self.nu[:,:,i] = cholesky(self.nu[:,:,i])
         print("Cholesky covariance-variance time grid:",self.T)
         print("Cholesky covariance-variance matrix values:", self.nu)
@@ -61,36 +69,57 @@ class Strategy(Curve):
         self.alpha_t = strategy
         self.T = dates
 
-    def optimal(self, mu = None, nu = None, Ntrials = 10, seed=14):
-        Ntrials = int(Ntrials)
-        np.random.seed(seed)
+    def Mark_strategy(self,mu = None, nu = None):
         Ndim = len(mu(0))
         self.T = np.array([])
         self.T = np.append(self.T,mu.T)
         self.T = np.append(self.T,nu.T)
         self.T = np.sort(np.asarray(list(set(self.T))))
-        self.alpha_t = np.zeros((len(self.T)+1,Ndim))   #time dependent allocation strategy
-        for i in range(len(self.T)+1):
-            alpha = np.random.uniform(0,1,(Ntrials,Ndim ))
-            norm = np.sum(alpha,axis=1)       #normalization
-            alpha = (alpha.T/norm).T              #allocation strategy matrix (sum along each row is 1)
+        self.alpha_t = np.zeros((len(self.T),Ndim))   #time dependent allocation strategy
+        for i in range(len(self.T)):
+            
             if i==0:
-                f = np.dot(alpha,mu(0.))/np.linalg.norm(np.dot(alpha,nu(0.)),axis=1)  #score function vector
+                Cov = np.dot(nu(0.),nu(0.).T)
+                self.alpha_t[i] = Markowitz((-1)*mu(0.),Cov)  #score function vector
             else:
-                d= np.linalg.norm(np.dot(alpha,nu(self.T[i-1])),axis=1)
-                if np.sum(d)==0:   #if divide by zero
-                    f = 0
-                else:
-                    f = np.dot(alpha,mu(self.T[i-1]))/d
-            self.alpha_t[i] = alpha[np.argmin(f)]
+                Cov = np.dot(nu(self.T[i-1]),nu(self.T[i-1]).T)
+                self.alpha_t[i] = Markowitz((-1)*mu(self.T[i-1]),Cov)  #score function vector
 
-        self.alpha_t = np.delete(self.alpha_t, len(self.alpha_t)-1,axis=0)
-        print("Optimal strategy time grid :",self.T)
-        print("Optimal strategy : ",self.alpha_t)
-
-
+       # self.alpha_t = np.delete(self.alpha_t, len(self.alpha_t)-1,axis=0)
+        print("Markowitz strategy time grid :",self.T)
+        print("Markowitz strategy : ",self.alpha_t)
+        
+    def Intuitive_strategy1(self, forward_curves=None, maturity_date=None):
+        """Invest all on the asset with maximum growth at maturity"""
+        asset = Max_forward_maturity(forward_curves=forward_curves,maturity=maturity_date)
+        self.T = np.array([0,maturity_date])
+        self.alpha_t = np.zeros((2,len(forward_curves)))
+        self.alpha_t[:,asset] = 1
+        print("Strategy time grid: ",self.T)
+        print("Intuitive strategy (invest all on the asset with maximum growth at maturity ",self.alpha_t)
+    
+    def Intuitive_strategy2(self,mu=None): 
+        """Invest all on the asset with minimum mu parameter"""
+        asset = Min_mu_each_time(drift=mu)
+        self.T = mu.T
+        self.alpha_t = np.zeros((len(asset),len(mu(0.))))
+        for j in range (len(asset)):
+            self.alpha_t[j,int(asset[j])] = 1
+        print("Strategy time grid: ",self.T)
+        print("Intuitive strategy (invest all on the asset with minimum mu parameter",self.alpha_t)      
+    
+    def Intuitive_strategy3(self,mu=None,nu=None):
+        """Invest all on the asset with minimum mu/nu variable"""
+        asset,self.T = Min_mu_nu_each_time(drift=mu,nu=nu)
+        self.alpha_t = np.zeros((len(asset),len(mu(0.))))
+        for j in range (len(asset)):
+            self.alpha_t[j,int(asset[j])] = 1
+        print("Strategy time grid: ",self.T)
+        print("Intuitive strategy (invest all on the asset with minimum mu/nu parameter",self.alpha_t)      
+    
     def curve(self, date):
         return piecewise_function(date,self.T,self.alpha_t)
+
 
 
 class TVSForwardCurve(Curve):
@@ -107,11 +136,12 @@ class TVSForwardCurve(Curve):
         self.D = discounting_curve
 
     def curve(self,date):
-        phi = piecewise_function(date-self.reference,self.T,self.phi)
-        omega_t = self.vol/np.linalg.norm(np.dot(self.alpha(date),self.nu(date)))
-        l = omega_t * np.dot(self.alpha(date),self.mu(date))
-        return (self.I_0/self.D(date)) * exp(-(phi+l)*(date-self.reference))
+        phi = piecewise_function
+        l = lambda x: self.vol*(np.dot(self.alpha(x),self.mu(x))/np.linalg.norm(np.dot(self.alpha(x),self.nu(x))))
+        return (self.I_0/self.D(date)) * exp(-quad(l,self.reference,date)[0])*exp(-quad(phi,self.reference,date,args=(self.T,self.phi))[0])
 
+    
+ 
 
 class TargetVolatilityStrategy(PricingModel):
     """Simulation based on the exact solution of the SDE of the TVS price process"""
@@ -155,36 +185,40 @@ def time_grid_union(curve_array_list = None):
     return T
 
 
-class TargetVolatilityEuler(PricingModel):
-    """Simulate the TVS price process with the Euler Method"""
-    def __init__(self, reference = None, vola_target = None, spot_price = None, strategy = None, mu = None,nu = None, discounting_curve = None, fees = None, fees_dates = None):
-        self.reference = 0
-        self.vol = vola_target
-        self.alpha = strategy
-        self.I_0 = spot_price
-        self.mu = mu
-        self.nu = nu
-        self.phi = fees
-        self.T = fees_dates
-        self.D = discounting_curve
+def Max_forward_maturity(forward_curves=None,maturity=None):
+    Ndim = len(forward_curves)
+    F = np.zeros(Ndim)
+    for i in range(Ndim):
+        F[i] = forward_curves[i](maturity)
+    return np.argmax(F)
+        
+def Min_mu_each_time(drift=None):
+    n_times = len(drift.T)
+    asset = np.zeros(n_times)
+    for i in range (n_times):
+        if i == 0:
+            asset[i] = np.argmin(drift(0.))
+        else:
+            asset[i] = np.argmin(drift(drift.T[i-1]))
+    return asset
 
-    def simulate(self, fixings=None, Nsim=1, seed=14,**kwargs):
-        np.random.seed(seed)
-        Nsim = int(Nsim)
-        Ndim = int(len(self.nu(0)))
-        I_t = np.zeros((2*Nsim,len(fixings)))
-        for i in range (len(fixings)):
-            Z = np.random.normal(0,1,(Nsim,Ndim))
-            Z = np.concatenate((Z,-Z))
-            t = i-1
-            r = piecewise_function(fixings[t],self.D.T,self.D.r)
-            phi = piecewise_function(fixings[t],self.T,self.phi)
+def Min_mu_nu_each_time(drift=None,nu=None):
+    T = np.array([])
+    T = np.append(T,drift.T)
+    T = np.append(T,nu.T)
+    T = np.sort(np.asarray(list(set(T))))
+    n_times = len(T)
+    asset = np.zeros(n_times)
+    for i in range (n_times):
+        if i == 0:
+            asset[i] = np.argmin(drift(0.)/np.linalg.norm(nu(0.)))
+        else:
+            asset[i] = np.argmin(drift(T[i-1])/np.linalg.norm(nu(T[i-1])))
+    return asset, T
 
-            if i == 0:
-                omega = (self.vol*self.alpha(0.))/np.linalg.norm(np.dot(self.alpha(0.),self.nu(0.)))
-                I_t[:,i] = self.I_0+ self.I_0 * (r-phi-np.dot(omega,self.mu(0.)))*(fixings[i]) + self.I_0*sqrt(fixings[i])*np.dot(np.dot(omega,self.nu(0.)),Z.T)
-
-            else:
-                omega = (self.vol*self.alpha(fixings[t]))/np.linalg.norm(np.dot(self.alpha(fixings[t]),self.nu(fixings[t])))
-                I_t[:,i] = I_t[:,i-1]+ I_t[:,i-1] * (r-phi-np.dot(omega,self.mu(fixings[t])))*(fixings[i]-fixings[i-1]) + I_t[:,i-1]*sqrt(fixings[i]-fixings[i-1])*np.dot(np.dot(omega,self.nu(fixings[t])),Z.T)
-        return I_t
+def Markowitz(asset_return,covariance_matrix):
+    W = np.linalg.inv(covariance_matrix)
+    e = np.ones(len(asset_return))
+    numerator = np.dot(W,(-asset_return))
+    denominator = np.dot(np.dot(e.T,W),(-asset_return))
+    return numerator/denominator
