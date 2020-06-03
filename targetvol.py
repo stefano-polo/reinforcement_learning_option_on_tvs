@@ -80,14 +80,39 @@ class Strategy(Curve):
             
             if i==0:
                 Cov = np.dot(nu(0.),nu(0.).T)
-                self.alpha_t[i] = Markowitz((-1)*mu(0.),Cov)  #score function vector
+                self.alpha_t[i] = Markowitz(mu(0.),Cov)  #score function vector
             else:
                 Cov = np.dot(nu(self.T[i-1]),nu(self.T[i-1]).T)
-                self.alpha_t[i] = Markowitz((-1)*mu(self.T[i-1]),Cov)  #score function vector
+                self.alpha_t[i] = Markowitz(mu(self.T[i-1]),Cov)  #score function vector
 
-       # self.alpha_t = np.delete(self.alpha_t, len(self.alpha_t)-1,axis=0)
         print("Markowitz strategy time grid :",self.T)
         print("Markowitz strategy : ",self.alpha_t)
+        
+    def optimal(self, mu = None, nu = None, Ntrials = 10, seed=14):
+        Ntrials = int(Ntrials)
+        np.random.seed(seed)
+        Ndim = len(mu(0))
+        self.T = np.array([])
+        self.T = np.append(self.T,mu.T)
+        self.T = np.append(self.T,nu.T)
+        self.T = np.sort(np.asarray(list(set(self.T))))
+        self.alpha_t = np.zeros((len(self.T),Ndim))   #time dependent allocation strategy
+        bnds = ((-4,4),(-4,4))    
+        for i in range(len(self.T)):
+            if i ==0:
+                x0 = np.ones(Ndim)*0.2
+                cons = ({'type': 'eq','fun' : lambda x: np.sum(x)-1})
+                f = lambda x: np.dot(x,mu(0.))/np.linalg.norm(np.dot(x,nu(0.)))
+                res = minimize(f, x0,constraints=cons)
+            else:
+                x0 = res.x
+                cons = ({'type': 'eq','fun' : lambda x: np.sum(x)-1})
+                f = lambda x: np.dot(x,mu(self.T[i-1]))/np.linalg.norm(np.dot(x,nu(self.T[i-1])))
+                res = minimize(f, x0,constraints=cons)
+            self.alpha_t[i] = res.x
+        print("Optimal strategy time grid :",self.T)
+        print("Optimal strategy through minimization: ",self.alpha_t)
+    
         
     def Intuitive_strategy1(self, forward_curves=None, maturity_date=None):
         """Invest all on the asset with maximum growth at maturity"""
