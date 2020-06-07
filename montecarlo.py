@@ -1,21 +1,6 @@
 import numpy as np
 
 
-def error(AV,AV2,n,l):  # Function for statistical uncertainty estimation
-    """Error Function"""
-    if n==0:
-        return 0
-    else:
-        return np.sqrt((AV2[n][l] - AV[n][l]**2)/n)
-
-def error_vector(AV,AV2,n):  # Function for statistical uncertainty estimation
-    """Error Function"""
-    if n==0:
-        return 0
-    else:
-        return np.sqrt((AV2[n] - AV[n]**2)/n)
-    
-
 def MC(data):
     """mean and error of MC simulation"""
     mean = np.mean(data,axis=0)
@@ -24,6 +9,7 @@ def MC(data):
 
 
 def MC_Analisys(data,N_block):
+    """Data blocking algorithm"""
     if data.ndim == 1:
         return MC_Analisys_vector(data,N_block)
     elif data.ndim == 2:
@@ -94,3 +80,16 @@ def MC_Analisys_vector(data,N_block): #method to check convergence of the MC res
         err_prog[i] = error_vector(sum_prog,su2_prog,i) # Statistical uncertainty
     return x, sum_prog, err_prog  
 
+def error(AV,AV2,n,l):  # Function for statistical uncertainty estimation
+    """Error Function for matrix"""
+    if n==0:
+        return 0
+    else:
+        return np.sqrt((AV2[n][l] - AV[n][l]**2)/n)
+
+def error_vector(AV,AV2,n):  # Function for statistical uncertainty estimation
+    """Error Function for vector"""
+    if n==0:
+        return 0
+    else:
+        return np.sqrt((AV2[n] - AV[n]**2)/n)
