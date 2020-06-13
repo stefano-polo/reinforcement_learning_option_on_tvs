@@ -37,9 +37,9 @@ class EquityForwardCurve(Curve):
         q = piecewise_function
         date = np.array(date)
         if date.shape!=():
-            return  np.asarray([(self.spot/self.discounting_curve(extreme))*exp(-quad(q,self.reference,extreme,args=(self.T,self.q))[0]) for extreme in date])
+            return  np.asarray([(self.spot/self.discounting_curve(extreme))*exp(-quad(q,self.reference,extreme,args=(self.T,self.q),limit=100)[0]) for extreme in date])
         else:
-            return (self.spot/self.discounting_curve(date))*exp(-quad(q,self.reference,date,args=(self.T,self.q))[0])
+            return (self.spot/self.discounting_curve(date))*exp(-quad(q,self.reference,date,args=(self.T,self.q),limit=100)[0])
 
 
 class DiscountingCurve(Curve):
@@ -60,9 +60,9 @@ class DiscountingCurve(Curve):
         r = piecewise_function
         date = np.array(date)
         if date.shape!=():
-            return  np.asarray([exp(-quad(r,self.reference,extreme,args=(self.T,self.r))[0]) for extreme in date])
+            return  np.asarray([exp(-quad(r,self.reference,extreme,args=(self.T,self.r),limit=100)[0]) for extreme in date])
         else:
-            return exp(-quad(r,self.reference,date,args=(self.T,self.r))[0])
+            return exp(-quad(r,self.reference,date,args=(self.T,self.r),limit=100)[0])
   
 
 class ForwardVariance(Curve):  #I calculate the variance and not the volatility for convenience of computation

@@ -37,7 +37,7 @@ def Vega(forward=None, strike=None, maturity=None, reference=None, dividends=Non
 def implied_vol_newton(market_price=None, forward=None, strike=None, maturity=None, reference=None, zero_interest_rate=None, dividends=None, volatility=None, kind=None):
     """Newton algorithm for implied volatility"""
     xold = 0.
-    xnew = 0.25#sqrt((2.*np.pi)/T)*(C/S)
+    xnew = 0.25
     counter = 0
     tolerance = 0.0000001
     while abs(xnew-xold)>=tolerance:
