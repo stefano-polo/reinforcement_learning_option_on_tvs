@@ -88,28 +88,30 @@ class Strategy(Curve):
         print("Markowitz strategy time grid :",self.T)
         print("Markowitz strategy : ",self.alpha_t)
 
-    def optimal(self, mu = None, nu = None, Ntrials = 10, seed=14):
-        Ntrials = int(Ntrials)
-        np.random.seed(seed)
+    def optimization_constrained(self, mu = None, nu = None, long_limit = 25/100, short_limit = 25/100, N_trial = 20, seed = 13, typo = 1):
         Ndim = len(mu(0))
         self.T = np.array([])
         self.T = np.append(self.T,mu.T)
         self.T = np.append(self.T,nu.T)
         self.T = np.sort(np.asarray(list(set(self.T))))
         self.alpha_t = np.zeros((len(self.T),Ndim))   #time dependent allocation strategy
-        bnds = ((-4,4),(-4,4))
         for i in range(len(self.T)):
             if i ==0:
-                x0 = np.ones(Ndim)*(-0.1)
-                cons = ({'type': 'eq','fun' : lambda x: np.linalg.norm(x@nu(0.))-1})
-                f = lambda x: np.dot(x,mu(0.))
-                res = minimize(f, x0,constraints=cons)
+                if typo == 1:
+                    result = optimization_only_long(mu(0.), nu(0.),N_trial,seed)
+                elif typo == 2:
+                    result = optimization_limit_position(mu(0.), nu(0.), long_limit,N_trial,seed)
+                else:
+                    result = optimization_long_short_position(mu(0.), nu(0.), long_limit, short_limit,N_trial,seed)
             else:
-                x0 = res.x
-                cons = ({'type': 'eq','fun' : lambda x: np.linalg.norm(x@nu(self.T[i-1]))-1})
-                f = lambda x: np.dot(x,mu(self.T[i-1]))
-                res = minimize(f, x0,constraints=cons)
-            self.alpha_t[i] = res.x
+                if typo == 1:
+                    result = optimization_only_long(mu(self.T[i-1]), nu(self.T[i-1]),N_trial,seed)
+                elif typo == 2:
+                    result = optimization_limit_position(mu(self.T[i-1]), nu(self.T[i-1]), long_limit,N_trial,seed)
+                else:
+                    result = optimization_long_short_position(mu(self.T[i-1]), nu(self.T[i-1]), long_limit, short_limit,N_trial,seed)
+            
+            self.alpha_t[i] = result
         print("Optimal strategy time grid :",self.T)
         print("Optimal strategy through minimization: ",self.alpha_t)
 
@@ -282,6 +284,51 @@ def Markowitz_solution(mu,nu,sign):
     norm = sign*0.5*np.linalg.norm((S_1@mu)@nu)
     return 0.5*(1/norm)*(S_1@mu)
 
-def loss_function(alpha,mu,nu):
+def loss_function(x,mu,nu):
     """Target function to minimize"""
-    return (alpha@mu)/np.linalg.norm(alpha@nu)
+    return (x@mu)/np.linalg.norm(x@nu)
+
+def optimization_only_long(mu, nu, N_trial,seed):
+    """Constrained optimization with only long position and sum of weights equal to 1"""
+    np.random.seed(seed)
+    f = loss_function
+    cons = ({'type': 'eq','fun' : lambda x: np.sum(x)-1},{'type': 'ineq','fun' : lambda x: x})
+    r = np.zeros((N_trial,len(mu)))
+    valutation = np.zeros(N_trial)
+    for i in range (N_trial):
+        x0 =np.random.uniform(0.,1.,len(mu))  #initial position for the optimization algorithm 
+        res = minimize(f, x0, args=(mu,nu),constraints=cons)
+        r[i] = res.x
+        valutation[i] = f(res.x,mu,nu)
+    print("Minumum: "+str(np.min(valutation))+" at "+str(np.argmin(valutation)))
+    return r[np.argmin(valutation)]
+
+def optimization_limit_position(mu, nu, limit_position,N_trial,seed):
+    """Constrained optimization with each |weight|<limit_position"""
+    np.random.seed(seed)
+    f = loss_function
+    cons = ({'type': 'ineq','fun' : lambda x: -abs(x)+limit_position})
+    r = np.zeros((N_trial,len(mu)))
+    valutation = np.zeros(N_trial)
+    for i in range (N_trial):
+        x0 =np.random.uniform(-limit_position,limit_position,len(mu))
+        res = minimize(f, x0, args=(mu,nu),constraints=cons)
+        r[i] = res.x
+        valutation[i] = f(res.x,mu,nu)
+    print("Minumum: "+str(np.min(valutation))+" at "+str(np.argmin(valutation)))
+    return r[np.argmin(valutation)]
+
+def optimization_long_short_position(mu, nu, long_limit, short_limit,N_trial,seed):
+    """Constrained optimization with each limit on maximum """
+    np.random.seed(seed)
+    f = loss_function
+    cons = ({'type': 'ineq','fun' : lambda x: -np.sum(x[np.where(x>0)[0]])+long_limit},{'type': 'ineq','fun' : lambda x: -abs(np.sum(x[np.where(x<0)[0]]))+short_limit})
+    r = np.zeros((N_trial,len(mu)))
+    valutation = np.zeros(N_trial)
+    for i in range (N_trial):
+        x0 =np.random.uniform(-short_limit,long_limit,len(mu))
+        res = minimize(f, x0, args=(mu,nu),constraints=cons)
+        r[i] = res.x
+        valutation[i] = f(res.x,mu,nu)
+    print("Minumum: "+str(np.min(valutation))+" at "+str(np.argmin(valutation)))
+    return r[np.argmin(valutation)]   
