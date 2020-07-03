@@ -16,18 +16,17 @@ class Curve:
 
         return self.curve(date)
 
-
 class EquityForwardCurve(Curve):
-
+    
     def __init__(self, spot=None, reference=None, discounting_curve=None,
                 repo_rates=None, repo_dates=None):
         self.spot = spot
         self.reference = reference
         self.discounting_curve = discounting_curve
-        self.T = repo_dates
+        self.T = ACT_360(repo_dates,self.reference)
         self.q = np.array([repo_rates[0]]) 
         for i in range(1,len(self.T)):
-            alpha = ((self.T[i]-self.reference)*(repo_rates[i])-(self.T[i-1]-self.reference)*
+            alpha = ((self.T[i])*(repo_rates[i])-(self.T[i-1])*
                      (repo_rates[i-1]))/(self.T[i]-self.T[i-1])
             self.q = np.append(self.q,alpha)
         print("Forward repo time grid",self.T)
@@ -37,43 +36,41 @@ class EquityForwardCurve(Curve):
         q = piecewise_function
         date = np.array(date)
         if date.shape!=():
-            return  np.asarray([(self.spot/self.discounting_curve(extreme))*exp(-quad(q,self.reference,extreme,args=(self.T,self.q),limit=100)[0]) for extreme in date])
+            return  np.asarray([(self.spot/self.discounting_curve(extreme))*exp(-quad(q,0,extreme,args=(self.T,self.q),limit=200)[0]) for extreme in date])
         else:
-            return (self.spot/self.discounting_curve(date))*exp(-quad(q,self.reference,date,args=(self.T,self.q),limit=100)[0])
-
-
+            return (self.spot/self.discounting_curve(date))*exp(-quad(q,0,date,args=(self.T,self.q),limit=200)[0])    
+    
+    
 class DiscountingCurve(Curve):
 
     def __init__(self, reference=None, discounts=None, dates=None):
         self.reference = reference
-        self.T = dates
-        r_zero = (1./(self.reference-dates))*log(discounts)
-        self.r = np.array([r_zero[0]]) #zero rate from 0 to T1
-        for i in range(1,len(self.T)):
-            alpha = ((self.T[i]-self.reference)*(r_zero[i])-(self.T[i-1]-self.reference)*
-                     (r_zero[i-1]))/(self.T[i]-self.T[i-1])
-            self.r = np.append(self.r,alpha)
-        print("Forward interest rate time grid",self.T)
-        print("Forward interest rate: ", self.r)
+        self.T = ACT_365(dates,self.reference)
+        if self.T[0] ==0:
+            r_zero = np.array([0])   #at reference date the discount is 1
+            r_zero = np.append(r_zero,(1./((self.reference-dates[1:])/365))*log(discounts[1:]))
+        else:
+            r_zero = (1./((self.reference-dates)/365))*log(discounts)
+        self.r = interp1d(self.T,r_zero) #zero rate from 0 to T1
+        print("zero interest rate time grid",self.T)
+        print("zero interest rate: ",r_zero)
 
     def curve(self, date):
-        r = piecewise_function
-        date = np.array(date)
-        if date.shape!=():
-            return  np.asarray([exp(-quad(r,self.reference,extreme,args=(self.T,self.r),limit=100)[0]) for extreme in date])
-        else:
-            return exp(-quad(r,self.reference,date,args=(self.T,self.r),limit=100)[0])
+        return exp(-self.r(date)*date)
   
 
 class ForwardVariance(Curve):  #I calculate the variance and not the volatility for convenience of computation
 
-    def __init__(self, reference=None, spot_volatility=None, strikes=None, maturities=None, strike_interp=None):
+    def __init__(self, reference=None, spot_volatility=None, strikes=None, maturities=None, forward=None):
         self.reference = reference #pricing date of the implied volatilities
-        self.T = maturities
-        self.spot_vol = interp1d(strikes,spot_volatility,axis=0)(strike_interp)
+        self.T = ACT_365(maturities,self.reference)
+        matrix_interpolated = interp1d(strikes,spot_volatility,axis=1)(forward(self.T))
+        self.spot_vol = np.array([])
+        for i in range (len(maturities)):
+            self.spot_vol = np.append(self.spot_vol,matrix_interpolated[i,i])
         self.forward_vol = np.array([self.spot_vol[0]]) #forward volatility from 0 to T1
         for i in range (1,len(self.T)):
-            alpha = ((self.T[i]-self.reference)*(self.spot_vol[i]**2)-(self.T[i-1]-self.reference)*
+            alpha = ((self.T[i])*(self.spot_vol[i]**2)-(self.T[i-1])*
                      (self.spot_vol[i-1]**2))/(self.T[i]-self.T[i-1])
             self.forward_vol = np.append(self.forward_vol, sqrt(alpha))
         print("Forward volatility time grid: ",self.T)
@@ -178,3 +175,11 @@ def piecewise_function(date,interval,value):
             for i in range(1,len(interval)):
                 y = y + (heaviside(date-interval[i-1],val)-heaviside(date-interval[i],val))*(value[i])
             return y
+
+def ACT_365(date1,date2):
+    """Day count convention for a normal year"""
+    return abs(date1-date2)/365
+
+def ACT_360(date1,date2):
+    """Day count convention for a 360 year"""
+    return abs(date1-date2)/360

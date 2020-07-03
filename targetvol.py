@@ -4,6 +4,7 @@ from pricing import piecewise_function, Curve, PricingModel
 from numpy.linalg import cholesky
 from scipy.optimize import minimize
 from scipy.integrate import quad
+
 """Notation of pallavicini and daluiso draft"""
 
 
@@ -16,7 +17,10 @@ class Drift(Curve):
         """Calculating the zero repo rates"""
         for i in range(len(self.T)):
             for j in range(Ndim):
-                 mu_zero[i,j] = (1/(forward_curves[j].reference-self.T[i]))*log((forward_curves[j](self.T[i])*forward_curves[j].discounting_curve(self.T[i]))/forward_curves[j].spot)
+                if i ==0:
+                    mu_zero[i,j] = forward_curves[j].q[0]
+                else: 
+                    mu_zero[i,j] = (1/(-self.T[i]))*log((forward_curves[j](self.T[i])*forward_curves[j].discounting_curve(self.T[i]))/forward_curves[j].spot)
 
         """Calculating the forward repo rates"""
         self.mu = np.zeros((len(self.T),Ndim))
@@ -25,7 +29,7 @@ class Drift(Curve):
                 if i==0:
                     self.mu[i][j] = mu_zero[i,j]
                 else:
-                    self.mu[i][j] = ((self.T[i]-forward_curves[j].reference)*(mu_zero[i][j])-(self.T[i-1]-forward_curves[j].reference)*(mu_zero[i-1][j]))/(self.T[i]-self.T[i-1])
+                    self.mu[i][j] = ((self.T[i])*(mu_zero[i][j])-(self.T[i-1])*(mu_zero[i-1][j]))/(self.T[i]-self.T[i-1])
         print("Drift time grid:",self.T)
         print("Drift values:", self.mu)
 
@@ -39,19 +43,26 @@ class CholeskyTDependent(Curve):
         self.T = time_grid_union(curve_array_list = variance_curves)
         Ndim = len(variance_curves)
         self.nu = np.zeros((Ndim,Ndim,len(self.T)))
+        z = np.array([]) #to check when the covariance matrix is no more positive definite
         for i in range(len(self.T)):
             vol = np.zeros(Ndim)
             if i == 0:
                 for j in range(Ndim):
                     vol[j] = sqrt(variance_curves[j](0.))
                 vol = np.identity(Ndim)*vol
-                self.nu[:,:,i] = cholesky(vol@(correlation@vol))
+                self.nu[:,:,i] = (vol@(correlation@vol))
             else:
                 for j in range(Ndim):
                     vol[j] = sqrt(variance_curves[j](self.T[i-1]))
+                    if vol[j]==0:
+                        z = np.append(z,i)
                 vol = np.identity(Ndim)*vol
-                self.nu[:,:,i] = cholesky(vol@(correlation@vol))
-               
+                self.nu[:,:,i] = (vol@(correlation@vol))
+        z = int(z[0])
+        self.T = self.T[:z]
+        self.nu = self.nu[:,:,:z]
+        for i in range (len(self.T)):
+            self.nu[:,:,i] = cholesky(self.nu[:,:,i])
         print("Cholesky covariance-variance time grid:",self.T)
         print("Cholesky covariance-variance matrix values:", self.nu)
 
@@ -68,6 +79,8 @@ class Strategy(Curve):
     def Mark_strategy(self,mu = None, nu = None):
         Ndim = len(mu(0))
         self.T = np.union1d(mu.T,nu.T)
+        if np.max(mu.T)>np.max(nu.T):   #check control to avoid denominator divergence
+            self.T = self.T[np.where(self.T<=np.max(nu.T))[0]]
         self.alpha_t = np.zeros((len(self.T),Ndim))   #time dependent allocation strategy
         for i in range(len(self.T)):
             if i==0:
@@ -90,10 +103,9 @@ class Strategy(Curve):
 
     def optimization_constrained(self, mu = None, nu = None, long_limit = 25/100, short_limit = 25/100, N_trial = 20, seed = 13, typo = 1):
         Ndim = len(mu(0))
-        self.T = np.array([])
-        self.T = np.append(self.T,mu.T)
-        self.T = np.append(self.T,nu.T)
-        self.T = np.sort(np.asarray(list(set(self.T))))
+        self.T = np.union1d(mu.T,nu.T)
+        if np.max(mu.T)>np.max(nu.T):    #check control to avoid denominator divergence
+            self.T = self.T[np.where(self.T<=np.max(nu.T))[0]]
         self.alpha_t = np.zeros((len(self.T),Ndim))   #time dependent allocation strategy
         for i in range(len(self.T)):
             if i ==0:
@@ -186,6 +198,7 @@ class TargetVolatilityStrategy(PricingModel):
         np.random.seed(seed)
         Ndim = int(len(self.nu(0)))
         logI = np.zeros((2*Nsim,len(fixings)))
+        print("Martingale simulation")
         for i in range(len(fixings)):
             Z = np.random.normal(0,1,(Nsim,Ndim))
             Z = np.concatenate((Z,-Z))
@@ -197,8 +210,10 @@ class TargetVolatilityStrategy(PricingModel):
                 logI[:,i] = logI[:,i-1] -0.5*(np.linalg.norm(omega_t*(self.alpha(fixings[i-1])@self.nu(fixings[i-1])))**2)*(fixings[i]-fixings[i-1])+sqrt(fixings[i]-fixings[i-1])*((omega_t*self.alpha(fixings[i-1])@self.nu(fixings[i-1]))@Z.T)
 
         I =  np.zeros((2*Nsim,len(fixings)))
+        print("Forward calculation")
         for i in range (len(fixings)):
             I[:,i] = exp(logI[:,i])*self.forward(fixings[i])
+       
         return I
 
 class TargetVolatilityEuler(PricingModel):
@@ -300,7 +315,7 @@ def optimization_only_long(mu, nu, N_trial,seed):
         res = minimize(f, x0, args=(mu,nu),constraints=cons)
         r[i] = res.x
         valutation[i] = f(res.x,mu,nu)
-    print("Minumum: "+str(np.min(valutation))+" at "+str(np.argmin(valutation)))
+    print("Minumum: ", np.min(valutation))
     return r[np.argmin(valutation)]
 
 def optimization_limit_position(mu, nu, limit_position,N_trial,seed):
@@ -315,7 +330,7 @@ def optimization_limit_position(mu, nu, limit_position,N_trial,seed):
         res = minimize(f, x0, args=(mu,nu),constraints=cons)
         r[i] = res.x
         valutation[i] = f(res.x,mu,nu)
-    print("Minumum: "+str(np.min(valutation))+" at "+str(np.argmin(valutation)))
+    print("Minumum: ", np.min(valutation))
     return r[np.argmin(valutation)]
 
 def optimization_long_short_position(mu, nu, long_limit, short_limit,N_trial,seed):
@@ -330,5 +345,5 @@ def optimization_long_short_position(mu, nu, long_limit, short_limit,N_trial,see
         res = minimize(f, x0, args=(mu,nu),constraints=cons)
         r[i] = res.x
         valutation[i] = f(res.x,mu,nu)
-    print("Minumum: "+str(np.min(valutation))+" at "+str(np.argmin(valutation)))
+    print("Minumum: ", np.min(valutation))
     return r[np.argmin(valutation)]   
