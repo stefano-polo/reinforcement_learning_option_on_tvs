@@ -177,7 +177,10 @@ class TVSForwardCurve(Curve):
     def curve(self,date):
         phi = piecewise_function
         l = lambda x: self.vol*((self.alpha(x)@self.mu(x))/np.linalg.norm(self.alpha(x)@self.nu(x)))
-        return (self.I_0/self.D(date)) * exp(-quad(l,self.reference,date,limit=500)[0])*exp(-quad(phi,self.reference,date,args=(self.T,self.phi),limit=500)[0])
+        if date.shape!=():
+            return np.asarray([(self.I_0/self.D(extreme)) * exp(-quad(l,self.reference,extreme,limit=500)[0])*exp(-quad(phi,self.reference,extreme,args=(self.T,self.phi),limit=500)[0]) for extreme in date])
+        else:
+            return (self.I_0/self.D(date)) * exp(-quad(l,self.reference,date,limit=500)[0])*exp(-quad(phi,self.reference,date,args=(self.T,self.phi),limit=500)[0])
 
 
 
@@ -193,7 +196,7 @@ class TargetVolatilityStrategy(PricingModel):
         self.D = self.forward.D
         self.vol = self.forward.vol      #target volatility
 
-    def simulate(self, fixings=None, Nsim=1, seed=14,**kwargs):
+    def simulate(self, fixings=None, Nsim=1, seed=14, ret_forward = 0, **kwargs):
         Nsim = int(Nsim)
         np.random.seed(seed)
         Ndim = int(len(self.nu(0)))
@@ -210,11 +213,15 @@ class TargetVolatilityStrategy(PricingModel):
                 logI[:,i] = logI[:,i-1] -0.5*(np.linalg.norm(omega_t*(self.alpha(fixings[i-1])@self.nu(fixings[i-1])))**2)*(fixings[i]-fixings[i-1])+sqrt(fixings[i]-fixings[i-1])*((omega_t*self.alpha(fixings[i-1])@self.nu(fixings[i-1]))@Z.T)
 
         I =  np.zeros((2*Nsim,len(fixings)))
-        print("Forward calculation")
-        for i in range (len(fixings)):
-            I[:,i] = exp(logI[:,i])*self.forward(fixings[i])
-       
-        return I
+        if ret_forward == 0:
+            print("Forward calculation")
+            I = exp(logI)*self.forward(fixings)
+            return I
+        else:
+            print("Forward calculation")
+            forward_curve = self.forward(fixings)
+            I = exp(logI)*forward_curve
+            return I, forward_curve
 
 class TargetVolatilityEuler(PricingModel):
     """Simulate the TVS price process with the Euler Method"""
@@ -315,7 +322,7 @@ def optimization_only_long(mu, nu, N_trial,seed):
         res = minimize(f, x0, args=(mu,nu),constraints=cons)
         r[i] = res.x
         valutation[i] = f(res.x,mu,nu)
-    print("Minumum: ", np.min(valutation))
+    #print("Minumum: ", np.min(valutation))
     return r[np.argmin(valutation)]
 
 def optimization_limit_position(mu, nu, limit_position,N_trial,seed):
@@ -330,7 +337,7 @@ def optimization_limit_position(mu, nu, limit_position,N_trial,seed):
         res = minimize(f, x0, args=(mu,nu),constraints=cons)
         r[i] = res.x
         valutation[i] = f(res.x,mu,nu)
-    print("Minumum: ", np.min(valutation))
+    #print("Minumum: ", np.min(valutation))
     return r[np.argmin(valutation)]
 
 def optimization_long_short_position(mu, nu, long_limit, short_limit,N_trial,seed):
@@ -345,5 +352,5 @@ def optimization_long_short_position(mu, nu, long_limit, short_limit,N_trial,see
         res = minimize(f, x0, args=(mu,nu),constraints=cons)
         r[i] = res.x
         valutation[i] = f(res.x,mu,nu)
-    print("Minumum: ", np.min(valutation))
+    #print("Minumum: ", np.min(valutation))
     return r[np.argmin(valutation)]   
