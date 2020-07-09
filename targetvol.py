@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import exp, sqrt, log, heaviside
-from pricing import piecewise_function, Curve, PricingModel
+from pricing import piecewise_function, Curve, PricingModel, quad_piecewise
 from numpy.linalg import cholesky
 from scipy.optimize import minimize
 from scipy.integrate import quad
@@ -58,9 +58,10 @@ class CholeskyTDependent(Curve):
                         z = np.append(z,i)
                 vol = np.identity(Ndim)*vol
                 self.nu[:,:,i] = (vol@(correlation@vol))
-        z = int(z[0])
-        self.T = self.T[:z]
-        self.nu = self.nu[:,:,:z]
+        if len(z)!=0:
+            z = int(z[0])
+            self.T = self.T[:z]
+            self.nu = self.nu[:,:,:z]
         for i in range (len(self.T)):
             self.nu[:,:,i] = cholesky(self.nu[:,:,i])
         print("Cholesky covariance-variance time grid:",self.T)
@@ -68,7 +69,7 @@ class CholeskyTDependent(Curve):
 
 
     def curve(self,date):
-        return piecewise_function(date,self.T,self.nu)
+        return piecewise_function(date,self.T,self.nu.T)
 
 class Strategy(Curve):
     """Create the time dependent optimal strategy for BS model"""
@@ -163,8 +164,8 @@ class Strategy(Curve):
 
 class TVSForwardCurve(Curve):
 
-    def __init__(self, reference = None, vola_target = None, spot_price = None, strategy = None, mu = None,nu = None, discounting_curve = None, fees = None, fees_dates = None):
-        self.reference = 0
+    def __init__(self, reference = 0, vola_target = None, spot_price = None, strategy = None, mu = None,nu = None, discounting_curve = None, fees = None, fees_dates = None):
+        self.reference = reference
         self.vol = vola_target     #target volatility
         self.alpha = strategy
         self.I_0 = spot_price
@@ -175,12 +176,12 @@ class TVSForwardCurve(Curve):
         self.D = discounting_curve
 
     def curve(self,date):
-        phi = piecewise_function
+        phi = lambda x: piecewise_function(x,self.T,self.phi)
         l = lambda x: self.vol*((self.alpha(x)@self.mu(x))/np.linalg.norm(self.alpha(x)@self.nu(x)))
         if date.shape!=():
-            return np.asarray([(self.I_0/self.D(extreme)) * exp(-quad(l,self.reference,extreme,limit=500)[0])*exp(-quad(phi,self.reference,extreme,args=(self.T,self.phi),limit=500)[0]) for extreme in date])
+            return np.asarray([(self.I_0/self.D(extreme)) * exp(-quad_piecewise(l,self.alpha.T,self.reference,extreme))*exp(-quad_piecewise(phi,self.T,self.reference,extreme)) for extreme in date])
         else:
-            return (self.I_0/self.D(date)) * exp(-quad(l,self.reference,date,limit=500)[0])*exp(-quad(phi,self.reference,date,args=(self.T,self.phi),limit=500)[0])
+            return (self.I_0/self.D(date)) * exp(-quad_piecewise(l,self.alpha.T,self.reference,date))*exp(-quad_piecewise(phi,self.T,self.reference,date))
 
 
 
@@ -201,7 +202,6 @@ class TargetVolatilityStrategy(PricingModel):
         np.random.seed(seed)
         Ndim = int(len(self.nu(0)))
         logI = np.zeros((2*Nsim,len(fixings)))
-        print("Martingale simulation")
         for i in range(len(fixings)):
             Z = np.random.normal(0,1,(Nsim,Ndim))
             Z = np.concatenate((Z,-Z))
@@ -214,11 +214,9 @@ class TargetVolatilityStrategy(PricingModel):
 
         I =  np.zeros((2*Nsim,len(fixings)))
         if ret_forward == 0:
-            print("Forward calculation")
             I = exp(logI)*self.forward(fixings)
             return I
         else:
-            print("Forward calculation")
             forward_curve = self.forward(fixings)
             I = exp(logI)*forward_curve
             return I, forward_curve
@@ -353,4 +351,19 @@ def optimization_long_short_position(mu, nu, long_limit, short_limit,N_trial,see
         r[i] = res.x
         valutation[i] = f(res.x,mu,nu)
     #print("Minumum: ", np.min(valutation))
-    return r[np.argmin(valutation)]   
+    return r[np.argmin(valutation)]
+
+def step_function_integration(f, time_grid, t_in, t_fin):
+    index_in = np.where(time_grid==t_in)[0]
+    index_fin = np.where(time_grid==t_fin)[0]
+    y = np.array([])
+    dt = np.array([])
+    if (index_fin != 0) & (t_in==0):
+        for i in range(index_in[0],index_fin[0]+1):
+            if i ==0:
+                y = np.append(y,f(0))
+                dt = np.append(dt,time_grid[i])
+            else:
+                y = np.append(y,f(time_grid[i]))
+                dt = np.append(dt,time_grid[i]-time_grid[i-1])
+    return np.sum(y*dt)
