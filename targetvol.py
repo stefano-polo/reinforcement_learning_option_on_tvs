@@ -43,27 +43,18 @@ class CholeskyTDependent(Curve):
         self.T = time_grid_union(curve_array_list = variance_curves)
         Ndim = len(variance_curves)
         self.nu = np.zeros((Ndim,Ndim,len(self.T)))
-        z = np.array([]) #to check when the covariance matrix is no more positive definite
         for i in range(len(self.T)):
             vol = np.zeros(Ndim)
             if i == 0:
                 for j in range(Ndim):
                     vol[j] = sqrt(variance_curves[j](0.))
                 vol = np.identity(Ndim)*vol
-                self.nu[:,:,i] = (vol@(correlation@vol))
+                self.nu[:,:,i] = cholesky(vol@(correlation@vol))
             else:
                 for j in range(Ndim):
                     vol[j] = sqrt(variance_curves[j](self.T[i-1]))
-                    if vol[j]==0:
-                        z = np.append(z,i)
                 vol = np.identity(Ndim)*vol
-                self.nu[:,:,i] = (vol@(correlation@vol))
-        if len(z)!=0:
-            z = int(z[0])
-            self.T = self.T[:z]
-            self.nu = self.nu[:,:,:z]
-        for i in range (len(self.T)):
-            self.nu[:,:,i] = cholesky(self.nu[:,:,i])
+                self.nu[:,:,i] = cholesky(vol@(correlation@vol))
         print("Cholesky covariance-variance time grid:",self.T)
         print("Cholesky covariance-variance matrix values:", self.nu)
 
@@ -80,8 +71,6 @@ class Strategy(Curve):
     def Mark_strategy(self,mu = None, nu = None):
         Ndim = len(mu(0))
         self.T = np.union1d(mu.T,nu.T)
-        if np.max(mu.T)>np.max(nu.T):   #check control to avoid denominator divergence
-            self.T = self.T[np.where(self.T<=np.max(nu.T))[0]]
         self.alpha_t = np.zeros((len(self.T),Ndim))   #time dependent allocation strategy
         for i in range(len(self.T)):
             if i==0:
@@ -352,18 +341,3 @@ def optimization_long_short_position(mu, nu, long_limit, short_limit,N_trial,see
         valutation[i] = f(res.x,mu,nu)
     #print("Minumum: ", np.min(valutation))
     return r[np.argmin(valutation)]
-
-def step_function_integration(f, time_grid, t_in, t_fin):
-    index_in = np.where(time_grid==t_in)[0]
-    index_fin = np.where(time_grid==t_fin)[0]
-    y = np.array([])
-    dt = np.array([])
-    if (index_fin != 0) & (t_in==0):
-        for i in range(index_in[0],index_fin[0]+1):
-            if i ==0:
-                y = np.append(y,f(0))
-                dt = np.append(dt,time_grid[i])
-            else:
-                y = np.append(y,f(time_grid[i]))
-                dt = np.append(dt,time_grid[i]-time_grid[i-1])
-    return np.sum(y*dt)

@@ -184,6 +184,7 @@ def piecewise_function(date, interval, value):
     y = 0
     for i in range(len(interval)):
         y = y+ value[i]*mask[i]
+    y = y+value[len(value)-1]*(date>=interval[len(value)-1])  #from the last date to infinity I assume as value that one of the last intervall
     return y
 
 def quad_piecewise(f, time_grid, t_in, t_fin):
