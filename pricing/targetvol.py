@@ -1,9 +1,9 @@
 import numpy as np
-from scipy import exp, sqrt, log, heaviside
+from numpy import exp, sqrt, log
 from pricing import piecewise_function, Curve, PricingModel, quad_piecewise
 from numpy.linalg import cholesky
 from scipy.optimize import minimize
-from scipy.integrate import quad
+
 
 """Notation of pallavicini and daluiso draft"""
 
@@ -192,7 +192,7 @@ class TargetVolatilityStrategy(PricingModel):
         Ndim = int(len(self.nu(0)))
         logI = np.zeros((2*Nsim,len(fixings)))
         for i in range(len(fixings)):
-            Z = np.random.normal(0,1,(Nsim,Ndim))
+            Z = np.random.randn(Nsim,Ndim)
             Z = np.concatenate((Z,-Z))
             if i ==0:
                 omega_t = (self.vol)/np.linalg.norm(self.alpha(0.)@self.nu(0.))
@@ -210,44 +210,6 @@ class TargetVolatilityStrategy(PricingModel):
             I = exp(logI)*forward_curve
             return I, forward_curve
 
-class TargetVolatilityEuler(PricingModel):
-    """Simulate the TVS price process with the Euler Method"""
-    def __init__(self, reference = None, vola_target = None, spot_price = None, strategy = None, mu = None,nu = None, discounting_curve = None, fees = None, fees_dates = None):
-        self.reference = 0
-        self.vol = vola_target
-        self.alpha = strategy
-        self.I_0 = spot_price
-        self.mu = mu
-        self.nu = nu
-        self.phi = fees
-        self.T = fees_dates
-        self.D = discounting_curve
-
-    def simulate(self, timegrid=None, Nsim=1, seed=14,**kwargs):
-        np.random.seed(seed)
-        Nsim = int(Nsim)
-        Ndim = int(len(self.nu(0)))
-        I_t_old = np.zeros(2*Nsim)
-        I_t_new = np.zeros(2*Nsim)
-        for i in range (len(timegrid)):
-            Z = np.random.normal(0,1,(Nsim,Ndim))
-            Z = np.concatenate((Z,-Z))
-            t = i-1
-            if i%500==0:
-                print(i)
-            if i == 0:
-                r = piecewise_function(0.,self.D.T,self.D.r)
-                phi = piecewise_function(0.,self.T,self.phi)
-                omega = (self.vol*self.alpha(0.))/np.linalg.norm(self.alpha(0.)@self.nu(0.))
-                I_t_old = self.I_0+ self.I_0 * (r-phi-omega@self.mu(0.))*(timegrid[i]) + self.I_0*sqrt(timegrid[i])*((omega@self.nu(0.))@Z.T)
-
-            else:
-                r = piecewise_function(timegrid[t],self.D.T,self.D.r)
-                phi = piecewise_function(timegrid[t],self.T,self.phi)
-                omega = (self.vol*self.alpha(timegrid[t]))/np.linalg.norm(self.alpha(timegrid[t])@self.nu(timegrid[t]))
-                I_t_new = I_t_old+ I_t_old * (r-phi-omega@self.mu(timegrid[t]))*(timegrid[i]-timegrid[i-1]) + I_t_old*sqrt(timegrid[i]-timegrid[i-1])*((omega@self.nu(timegrid[t]))@Z.T)
-                I_t_old = I_t_new
-        return I_t_new
 
 def time_grid_union(curve_array_list = None):
     """Create a unique temporal structure for calculation of optimal strategy"""

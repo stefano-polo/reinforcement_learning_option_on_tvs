@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy import exp, sqrt, log, heaviside
+from numpy import exp, sqrt, log
 from scipy.integrate import quad
 from numpy.linalg import cholesky
 
@@ -127,12 +127,12 @@ class Black(PricingModel):
             print("Single Asset Simulation")
             logmartingale = np.zeros((int(2*Nsim),len(fixings)))
             for i in range (len(fixings)):
-                Z = np.random.normal(0,1,Nsim)
+                Z = np.random.randn(Nsim)
                 Z = np.concatenate((Z,-Z))
                 if i ==0:
-                    logmartingale.T[i]=-0.5*quad(self.variance,0,fixings[i])[0]+sqrt(quad(self.variance,0,fixings[i])[0])*Z
+                    logmartingale.T[i]=-0.5*quad_piecewise(self.variance,self.variance.T,0,fixings[i])+sqrt(quad_piecewise(self.variance,self.variance.T,0,fixings[i]))*Z
                 elif i!=0:
-                    logmartingale.T[i]=logmartingale.T[i-1]-0.5*quad(self.variance,fixings[i-1],fixings[i])[0]+sqrt(quad(self.variance,fixings[i-1],fixings[i])[0])*Z
+                    logmartingale.T[i]=logmartingale.T[i-1]-0.5*quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i])+sqrt(quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i]))*Z
             return exp(logmartingale)*self.forward_curve(fixings)
 
         else:
@@ -140,14 +140,14 @@ class Black(PricingModel):
             logmartingale = np.zeros((int(2*Nsim),len(fixings),Ndim))
             R = cholesky(corr)
             for i in range (len(fixings)):
-                Z = np.random.normal(0,1,(Nsim,Ndim))
+                Z = np.random.randn(Nsim,Ndim)
                 Z = np.concatenate((Z,-Z)) #matrix of uncorrelated random variables
                 ep = np.dot(R,Z.T)   #matrix of correlated random variables
                 for j in range(Ndim):
                     if i ==0:
-                        logmartingale[:,i,j]=-0.5*quad(self.variance[j],0,fixings[i])[0]+sqrt(quad(self.variance[j],0,fixings[i])[0])*ep[j]
+                        logmartingale[:,i,j]=-0.5*quad_piecewise(self.variance[j],0,fixings[i])[0]+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,0,fixings[i]))*ep[j]
                     elif i!=0:
-                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*quad(self.variance[j],fixings[i-1],fixings[i])[0]+sqrt(quad(self.variance[j],fixings[i-1],fixings[i])[0])*ep[j]
+                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i])[0]+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i]))*ep[j]
             M = exp(logmartingale)
             for i in range(Ndim):
                 M[:,:,i] = M[:,:,i]*self.forward_curve[i](fixings)
@@ -191,6 +191,8 @@ def quad_piecewise(f, time_grid, t_in, t_fin):
     """integral of a piecewise constant function"""
     y = np.array([])
     dt = np.array([])
+    if t_in == t_fin:
+        return 0
     if t_fin in time_grid:
         time_grid = time_grid[np.where(time_grid<=t_fin)[0]]
     if t_in in time_grid:

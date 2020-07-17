@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.stats as si  #for gaussian cdf
-from scipy import exp, log, sqrt
-from scipy.stats.mstats import gmean
+from numpy import exp, log, sqrt
+
 
 """Functions for Black & Scholes Formula"""
 def d1(forward = None, strike= None, maturity=None, reference=None, volatility=None):
