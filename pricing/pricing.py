@@ -17,7 +17,7 @@ class Curve:
         return self.curve(date)
 
 class EquityForwardCurve(Curve):
-    
+
     def __init__(self, spot=None, reference=None, discounting_curve=None,
                 repo_rates=None, repo_dates=None, act = "No"):
         self.spot = spot
@@ -29,7 +29,7 @@ class EquityForwardCurve(Curve):
             self.T = ACT_365(repo_dates,self.reference)
         else:
             self.T = abs(repo_dates - self.reference)
-        self.q = np.array([repo_rates[0]]) 
+        self.q = np.array([repo_rates[0]])
         for i in range(1,len(self.T)):
             alpha = ((self.T[i])*(repo_rates[i])-(self.T[i-1])*
                      (repo_rates[i-1]))/(self.T[i]-self.T[i-1])
@@ -43,9 +43,9 @@ class EquityForwardCurve(Curve):
         if date.shape!=():
             return  np.asarray([(self.spot/self.discounting_curve(extreme))*exp(-quad_piecewise(q,self.T,0,extreme)) for extreme in date])
         else:
-            return (self.spot/self.discounting_curve(date))*exp(-quad_piecewise(q,self.T,0,date))    
-    
-    
+            return (self.spot/self.discounting_curve(date))*exp(-quad_piecewise(q,self.T,0,date))
+
+
 class DiscountingCurve(Curve):
 
     def __init__(self, reference=None, discounts=None, dates=None, act = "No"):
@@ -59,7 +59,7 @@ class DiscountingCurve(Curve):
         if self.T[0] ==0:
             r_zero = np.array([0])   #at reference date the discount is 1
             r_zero = np.append(r_zero,(-1./((self.T[1:])))*log(discounts[1:]))
-            r_zero[0] = r_zero[1] 
+            r_zero[0] = r_zero[1]
         else:
             r_zero = (-1./(self.T))*log(discounts)
         self.r = interp1d(self.T,r_zero) #zero rate from 0 to T1
@@ -68,7 +68,7 @@ class DiscountingCurve(Curve):
 
     def curve(self, date):
         return exp(-self.r(date)*date)
-  
+
 
 class ForwardVariance(Curve):  #I calculate the variance and not the volatility for convenience of computation
 
@@ -89,7 +89,7 @@ class ForwardVariance(Curve):  #I calculate the variance and not the volatility 
         else:
             """Interpolation with the ATM spot"""
             self.spot_vol = interp1d(strikes,spot_volatility,axis=0)(strike_interp)
-        
+
         self.forward_vol = np.array([self.spot_vol[0]]) #forward volatility from 0 to T1
         for i in range (1,len(self.T)):
             alpha = ((self.T[i])*(self.spot_vol[i]**2)-(self.T[i-1])*
@@ -145,9 +145,9 @@ class Black(PricingModel):
                 ep = np.dot(R,Z.T)   #matrix of correlated random variables
                 for j in range(Ndim):
                     if i ==0:
-                        logmartingale[:,i,j]=-0.5*quad_piecewise(self.variance[j],0,fixings[i])[0]+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,0,fixings[i]))*ep[j]
+                        logmartingale[:,i,j]=-0.5*quad_piecewise(self.variance[j],self.variance[j].T,0,fixings[i])+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,0,fixings[i]))*ep[j]
                     elif i!=0:
-                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i])[0]+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i]))*ep[j]
+                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i])+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i]))*ep[j]
             M = exp(logmartingale)
             for i in range(Ndim):
                 M[:,:,i] = M[:,:,i]*self.forward_curve[i](fixings)
