@@ -11,7 +11,7 @@ register(
 
 register(
     id='VanillaOption-v0',
-    entry_point='envs.call_option:PlainVanillaOption',
+    entry_point='envs.plain_vanilla:PlainVanillaOption',
 )
 
 register(
