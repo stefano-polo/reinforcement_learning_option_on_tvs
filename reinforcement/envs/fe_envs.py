@@ -11,10 +11,10 @@ register(
 
 register(
     id='VanillaOption-v0',
-    entry_point='envs.plain_vanilla:PlainVanillaOption',
+    entry_point='envs.call_option:PlainVanillaOption',
 )
 
 register(
-    id='VanillaHedge-v0',
-    entry_point='envs:Vanilla',
+    id='TVS_simple-v0',
+    entry_point='envs.tvs_simple_env:TVS_simple',
 )
