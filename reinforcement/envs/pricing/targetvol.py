@@ -1,6 +1,6 @@
 import numpy as np
-from numpy import exp, sqrt, log
-from pricing.pricing import piecewise_function, Curve, PricingModel, quad_piecewise
+from numpy import exp, sqrt, log, array
+from envs.pricing.pricing import piecewise_function, Curve, PricingModel, quad_piecewise
 from numpy.linalg import cholesky
 from scipy.optimize import minimize
 
@@ -19,7 +19,7 @@ class Drift(Curve):
             for j in range(Ndim):
                 if i ==0:
                     mu_zero[i,j] = forward_curves[j].q[0]
-                else: 
+                else:
                     mu_zero[i,j] = (1/(-self.T[i]))*log((forward_curves[j](self.T[i])*forward_curves[j].discounting_curve(self.T[i]))/forward_curves[j].spot)
 
         """Calculating the forward repo rates"""
@@ -30,8 +30,6 @@ class Drift(Curve):
                     self.mu[i][j] = mu_zero[i,j]
                 else:
                     self.mu[i][j] = ((self.T[i])*(mu_zero[i][j])-(self.T[i-1])*(mu_zero[i-1][j]))/(self.T[i]-self.T[i-1])
-        print("Drift time grid:",self.T)
-        print("Drift values:", self.mu)
 
     def curve(self,date):
         return piecewise_function(date,self.T,self.mu)
@@ -55,8 +53,6 @@ class CholeskyTDependent(Curve):
                     vol[j] = sqrt(variance_curves[j](self.T[i-1]))
                 vol = np.identity(Ndim)*vol
                 self.nu[:,:,i] = cholesky(vol@(correlation@vol))
-        print("Cholesky covariance-variance time grid:",self.T)
-        print("Cholesky covariance-variance matrix values:", self.nu)
 
 
     def curve(self,date):
@@ -112,7 +108,7 @@ class Strategy(Curve):
                     result = optimization_limit_position(mu(self.T[i-1]), nu(self.T[i-1]), long_limit,N_trial,seed)
                 else:
                     result = optimization_long_short_position(mu(self.T[i-1]), nu(self.T[i-1]), long_limit, short_limit,N_trial,seed)
-            
+
             self.alpha_t[i] = result
         print("Optimal strategy time grid :",self.T)
         print("Optimal strategy through minimization: ",self.alpha_t)
@@ -153,7 +149,7 @@ class Strategy(Curve):
 
 class TVSForwardCurve(Curve):
 
-    def __init__(self, reference = 0, vola_target = None, spot_price = None, strategy = None, mu = None,nu = None, discounting_curve = None, fees = None, fees_dates = None):
+    def __init__(self, reference = 0, vola_target = None, spot_price = None, strategy = None, mu = None,nu = None, discounting_curve = None, fees = array([0,0]), fees_dates = array([1,100])):
         self.reference = reference
         self.vol = vola_target     #target volatility
         self.alpha = strategy
@@ -186,14 +182,12 @@ class TargetVolatilityStrategy(PricingModel):
         self.D = self.forward.D
         self.vol = self.forward.vol      #target volatility
 
-    def simulate(self, fixings=None, Nsim=1, seed=14, ret_forward = 0, **kwargs):
+    def simulate(self, fixings=None, Nsim=1, random_gen=None, ret_forward = 0, **kwargs):
         Nsim = int(Nsim)
-        np.random.seed(seed)
         Ndim = int(len(self.nu(0)))
-        logI = np.zeros((2*Nsim,len(fixings)))
+        logI = np.zeros((Nsim,len(fixings)))
         for i in range(len(fixings)):
-            Z = np.random.randn(Nsim,Ndim)
-            Z = np.concatenate((Z,-Z))
+            Z = random_gen.randn(Nsim,Ndim)
             if i ==0:
                 omega_t = (self.vol)/np.linalg.norm(self.alpha(0.)@self.nu(0.))
                 logI[:,i] = -0.5*(np.linalg.norm(omega_t*(self.alpha(0.)@self.nu(0.)))**2)*fixings[i]+sqrt(fixings[i])*((omega_t*self.alpha(0.)@self.nu(0.))@Z.T)
@@ -267,7 +261,7 @@ def optimization_only_long(mu, nu, N_trial,seed):
     r = np.zeros((N_trial,len(mu)))
     valutation = np.zeros(N_trial)
     for i in range (N_trial):
-        x0 =np.random.uniform(0.,1.,len(mu))  #initial position for the optimization algorithm 
+        x0 =np.random.uniform(0.,1.,len(mu))  #initial position for the optimization algorithm
         res = minimize(f, x0, args=(mu,nu),constraints=cons)
         r[i] = res.x
         valutation[i] = f(res.x,mu,nu)
