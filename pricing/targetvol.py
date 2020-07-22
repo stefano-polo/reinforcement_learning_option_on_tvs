@@ -19,7 +19,7 @@ class Drift(Curve):
             for j in range(Ndim):
                 if i ==0:
                     mu_zero[i,j] = forward_curves[j].q[0]
-                else: 
+                else:
                     mu_zero[i,j] = (1/(-self.T[i]))*log((forward_curves[j](self.T[i])*forward_curves[j].discounting_curve(self.T[i]))/forward_curves[j].spot)
 
         """Calculating the forward repo rates"""
@@ -112,7 +112,7 @@ class Strategy(Curve):
                     result = optimization_limit_position(mu(self.T[i-1]), nu(self.T[i-1]), long_limit,N_trial,seed)
                 else:
                     result = optimization_long_short_position(mu(self.T[i-1]), nu(self.T[i-1]), long_limit, short_limit,N_trial,seed)
-            
+
             self.alpha_t[i] = result
         print("Optimal strategy time grid :",self.T)
         print("Optimal strategy through minimization: ",self.alpha_t)
@@ -165,6 +165,7 @@ class TVSForwardCurve(Curve):
         self.D = discounting_curve
 
     def curve(self,date):
+        date = np.array(date)
         phi = lambda x: piecewise_function(x,self.T,self.phi)
         l = lambda x: self.vol*((self.alpha(x)@self.mu(x))/np.linalg.norm(self.alpha(x)@self.nu(x)))
         if date.shape!=():
@@ -267,7 +268,7 @@ def optimization_only_long(mu, nu, N_trial,seed):
     r = np.zeros((N_trial,len(mu)))
     valutation = np.zeros(N_trial)
     for i in range (N_trial):
-        x0 =np.random.uniform(0.,1.,len(mu))  #initial position for the optimization algorithm 
+        x0 =np.random.uniform(0.,1.,len(mu))  #initial position for the optimization algorithm
         res = minimize(f, x0, args=(mu,nu),constraints=cons)
         r[i] = res.x
         valutation[i] = f(res.x,mu,nu)

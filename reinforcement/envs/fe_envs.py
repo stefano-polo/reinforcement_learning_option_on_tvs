@@ -18,3 +18,8 @@ register(
     id='TVS_simple-v0',
     entry_point='envs.tvs_simple_env:TVS_simple',
 )
+
+refister{
+    id='TVS-v0'
+    entry_point='envs.tvs_env:TVS_enviroment'
+}

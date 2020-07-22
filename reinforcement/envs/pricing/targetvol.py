@@ -161,6 +161,7 @@ class TVSForwardCurve(Curve):
         self.D = discounting_curve
 
     def curve(self,date):
+        date = np.array(date)
         phi = lambda x: piecewise_function(x,self.T,self.phi)
         l = lambda x: self.vol*((self.alpha(x)@self.mu(x))/np.linalg.norm(self.alpha(x)@self.nu(x)))
         if date.shape!=():
