@@ -19,7 +19,7 @@ register(
     entry_point='envs.tvs_simple_env:TVS_simple',
 )
 
-refister{
+register(
     id='TVS-v0'
     entry_point='envs.tvs_env:TVS_enviroment'
-}
+)
