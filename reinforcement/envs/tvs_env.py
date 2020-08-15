@@ -14,12 +14,12 @@ class TVS_enviroment(gym.Env):
     def __init__(self, =None, spot_I = 100, target_volatility=0.2,strike_opt=100., maturity=1.):
         """Loading Market data and preparing the BS model"""
         self.reader = MarketDataReader(filename)
-        self.N_equity = MarketDataReader.get_stock_number()
-        self.spot_prices = MarketDataReader.get_spot_prices()
-        self.correlation_matrix = MarketDataReader.get_correlation()
-        self.D = MarketDataReader.get_discounts()
-        self.F = MarketDataReader.get_forward_curves(self.D)
-        self.V = MarketDataReader.get_volatilities(self.F)
+        self.N_equity = reader.get_stock_number() - 6
+        self.spot_prices = reader.get_spot_prices()
+        self.correlation_matrix = reader.get_correlation()
+        self.D = reader.get_discounts()
+        self.F = reader.get_forward_curves()
+        self.V = reader.get_volatilities()
         self.model = Black(forward_curve = self.F, variance = self.V)
         """Creating the objects for the TVS"""
         self.mu = Drift(forward_curves = self.F)
@@ -29,10 +29,11 @@ class TVS_enviroment(gym.Env):
         self.strike_option = strike_opt
         self.current_time = 0
         self.T = maturity
-        self.time_index = 1
+        self.time_index = 0
         self.time_grid = np.linspace(0,self.T,12)   #the agent observe the enviroment each month
-        self.asset_history = np.array([])
+        self.asset_history = self.spot_prices
         """Observation space and action space of the RL agent"""
+        
         low_action = np.ones(self.N_equity-1)*1e-8   #the agent can choose the asset allocation strategy only for N-1 equities (the N one is set by 1-sum(weights_of_other_equities))
         high_action = np.ones(self.N_equity-1)
         self.action_space = spaces.Box(low = low_action, high = high_action)
@@ -43,7 +44,7 @@ class TVS_enviroment(gym.Env):
         self.reset()
 
 
-def step(self, action):  # metodo che mi dice come evolve il sistema una volta arrivata una certa azione
+    def step(self, action):  # metodo che mi dice come evolve il sistema una volta arrivata una certa azione
         assert self.action_space.contains(action)   #gli arriva una certa azione
 
         #if current time is = 0 evolve the prices of the equities along all the time grid of the simulation
@@ -52,29 +53,25 @@ def step(self, action):  # metodo che mi dice come evolve il sistema una volta a
 
         if self.current_time < self.T:
         #for t<T the agent oberve the universe of assets and its actions (allocation strategy) are stored along all the simulation
-            self.current_time = self.time_grid[self.time_index]
-            self.current_asset = self.asset_history[self.time_index]
-            if self.time_index == 1:
-                action = np.append(action, 1-np.sum(action))
+            if self.time_index == 0:
                 self.alpha_t = action
             else:
-                action = np.append(action,1-np.sum(action))
                 self.alpha_t = np.vstack([self.alpha_t, action])
             state = np.append(self.current_asset, self.current_time)
             done = False
             reward = 0.
             self.time_index = self.time_index+1
+            self.current_time = self.time_grid[self.time_index]
+            self.current_asset = self.asset_history[self.time_index]
             return state, reward, done, {}
 
       ##### in t = T the agent collect its reward
         if self.current_time == self.T:
             done = True
-            action = np.append(action,1-np.sum(action))
-            self.alpha_t = np.vstack([self.alpha_t, action])
             self.current_asset = self.S_t[self.time_index-1]
             self.current_time = self.time_grid[self.time_index-1]
             state = np.append(self.current_asset, self.current_time)
-            alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid)
+            alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid[:-1])
             TVSF = TVSForwardCurve(reference = self.reference, vola_target = self.target_vol, spot_price = self.spot_I, strategy = alpha, mu = self.mu, nu = self.nu, discounting_curve = self.D)
             TVS = TargetVolatilityStrategy(forward_curve=TVSF)
             I_t = TVS.simulate(fixings=array([self.T]), random_gen=self.np_random)[0,0]
@@ -84,9 +81,9 @@ def step(self, action):  # metodo che mi dice come evolve il sistema una volta a
 
     def reset(self):
         self.current_time = 0.
-        self.time_index = 1
+        self.time_index = 0
         self.alpha_t  = np.array([])
-        self.asset_history = np.array([])
+        self.asset_history = self.spot_prices
         self.current_asset = self.spot_prices
         state = np.append(self.current_asset, self.current_time)
         return state

@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
+from pricing import EquityForwardCurve, DiscountingCurve, ForwardVariance
 from numpy import array, delete, zeros, reshape, append, max
-from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, ForwardVariance
 
 
 class MarketDataReader:
@@ -8,7 +8,6 @@ class MarketDataReader:
     def __init__(self,filename = None):
         tree = ET.parse(filename)
         self.root = tree.getroot()
-
 
     def get_stock_number(self):
         return len(self.root[3][0][1][1][1][0])
@@ -23,8 +22,8 @@ class MarketDataReader:
 
     def get_correlation(self):
         N_stocks = self.get_stock_number()
-        correlation_matrix = zeros(N_stocks*N_stocks)
-        for i in range (N_stocks*N_stocks):
+        correlation_matrix = zeros(N_stocks**2)
+        for i in range (N_stocks**2):
             correlation_matrix[i] = float(self.root[3][0][1][1][0][0][i].text)
         correlation_matrix = reshape(correlation_matrix, (N_stocks,N_stocks))
         """Delete cash bank"""
@@ -56,7 +55,8 @@ class MarketDataReader:
             j = j+1
         return spot_prices
 
-    def get_forward_curves(self, discountingcurve):
+    def get_forward_curves(self):
+        discountingcurve = self.get_discounts()
         index_equity = [1,2,3,4,5,6,7,8,9,10]
         F = []
         max_dates = array([])
@@ -79,9 +79,10 @@ class MarketDataReader:
             index = index+1
         return F
 
-    def get_volatilities(self, forward_curve):
+    def get_volatilities(self):
         V = []
         index = 0
+        forward_curve = self.get_forward_curves()
         reference_date = self.get_reference_date()
         index_equity = [1,2,3,4,5,6,7,8,9,10]
         for i in index_equity:
