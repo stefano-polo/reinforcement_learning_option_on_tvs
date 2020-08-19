@@ -7,13 +7,13 @@ from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, Black, Fo
 from envs.pricing.closedforms import European_option_closed_form
 from envs.pricing.targetvol import Drift, CholeskyTDependent, Strategy, TVSForwardCurve, TargetVolatilityStrategy
 from envs.pricing.read_market import MarketDataReader
-
+from envs.pricing.n_sphere import n_sphere_to_cartesian, sign_renormalization
 
 class TVS_enviroment(gym.Env):
     """Target volatility Option environment"""
-    def __init__(self, =None, spot_I = 100, target_volatility=0.2,strike_opt=100., maturity=1.):
-        """Loading Market data and preparing the BS model"""
-        self.reader = MarketDataReader(filename)
+    def __init__(self, filename= "TVS_example.xml", spot_I = 100, target_volatility=0.1,strike_opt=100., maturity=1., constraint = "free"):
+        #Loading Market data and preparing the BS model"""
+        reader = MarketDataReader(filename)
         self.N_equity = reader.get_stock_number() - 6
         self.spot_prices = reader.get_spot_prices()
         self.correlation_matrix = reader.get_correlation()
@@ -21,69 +21,80 @@ class TVS_enviroment(gym.Env):
         self.F = reader.get_forward_curves()
         self.V = reader.get_volatilities()
         self.model = Black(forward_curve = self.F, variance = self.V)
-        """Creating the objects for the TVS"""
+        #Creating the objects for the TVS
         self.mu = Drift(forward_curves = self.F)
         self.nu = CholeskyTDependent(variance_curves = self.V, correlation = self.correlation_matrix)
-        """Preparing Time grid for the RL agent"""
+        #Preparing Time grid for the RL agent
         self.I_0 = spot_I
         self.strike_option = strike_opt
+        self.target_vol = target_volatility
         self.current_time = 0
         self.T = maturity
         self.time_index = 0
         self.time_grid = np.linspace(0,self.T,12)   #the agent observe the enviroment each month
-        self.asset_history = self.spot_prices
-        """Observation space and action space of the RL agent"""
+       # self.asset_history = self.spot_prices
+        self.constraint = constraint
+        #Observation space and action space of the RL agent
+        if self.constraint != "only_long":
+            low_action = np.ones(self.N_equity)*(-0.25)   #the agent can choose the asset allocation strategy only for N-1 equities (the N one is set by 1-sum(weights_of_other_equities))
+            high_action = np.ones(self.N_equity)*(0.25)
+        else: 
+            low_action = np.zeros(self.N_equity-1)
+            high_action = np.ones(self.N_equity-2)*np.pi
+            high_action = np.append(high_action, np.pi*2)
         
-        low_action = np.ones(self.N_equity-1)*1e-8   #the agent can choose the asset allocation strategy only for N-1 equities (the N one is set by 1-sum(weights_of_other_equities))
-        high_action = np.ones(self.N_equity-1)
-        self.action_space = spaces.Box(low = low_action, high = high_action)
+        self.action_space = spaces.Box(low = np.float32(low_action),high = np.float32(high_action))
         low_bound = np.zeros(1+self.N_equity)                      #the observation space is the prices space plus the time space
         high_bound = np.append(self.spot_prices*10000,self.T+1/365)
-        self.observation_space = spaces.Box(low=low_bound,high=high_bound)
+        self.observation_space = spaces.Box(low=np.float32(low_bound),high=np.float32(high_bound))
         self.seed()
         self.reset()
 
 
-    def step(self, action):  # metodo che mi dice come evolve il sistema una volta arrivata una certa azione
-        assert self.action_space.contains(action)   #gli arriva una certa azione
-
-        #if current time is = 0 evolve the prices of the equities along all the time grid of the simulation
-        if self.current_time == 0:
-            self.asset_history = self.model.simulate(fixings=self.time_grid, Ndim= self.N_equity, corr = self.correlation_matrix, random_gen = self.np_random)[0]
-
+    def step(self, action):  
+        assert self.action_space.contains(action)  
+        #Modify action of the agent to satisfy constraint over the allocation strategy
+        if self.constraint == "only_long":
+            action = n_sphere_to_cartesian(1,action)**2
+        elif self.constraint == "long_short_limit":
+            action = sign_renormalization(action,20/100,10/100)
+        
+        if self.time_index == 0:
+            #evolve the Black and Scholes model
+            self.S_t = self.model.simulate(fixings=self.time_grid, Ndim= self.N_equity, corr = self.correlation_matrix, random_gen = self.np_random)[0]
+            #storing the rl agent's action
+            self.alpha_t = action
+        else:
+            self.alpha_t = np.vstack([self.alpha_t, action])
+        #evolving enviroment from t to t+1
+        self.time_index = self.time_index+1
+        self.current_time = self.time_grid[self.time_index]
+        self.current_asset = self.S_t[self.time_index]
         if self.current_time < self.T:
-        #for t<T the agent oberve the universe of assets and its actions (allocation strategy) are stored along all the simulation
-            if self.time_index == 0:
-                self.alpha_t = action
-            else:
-                self.alpha_t = np.vstack([self.alpha_t, action])
-            state = np.append(self.current_asset, self.current_time)
+            #before the maturity the agent's reward is zero
             done = False
             reward = 0.
-            self.time_index = self.time_index+1
-            self.current_time = self.time_grid[self.time_index]
-            self.current_asset = self.asset_history[self.time_index]
-            return state, reward, done, {}
-
-      ##### in t = T the agent collect its reward
-        if self.current_time == self.T:
+        else:
+            #at maturity the agent collects its reward that is the discounted payoff of the TVS call option
             done = True
-            self.current_asset = self.S_t[self.time_index-1]
-            self.current_time = self.time_grid[self.time_index-1]
-            state = np.append(self.current_asset, self.current_time)
-            alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid[:-1])
-            TVSF = TVSForwardCurve(reference = self.reference, vola_target = self.target_vol, spot_price = self.spot_I, strategy = alpha, mu = self.mu, nu = self.nu, discounting_curve = self.D)
+            alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid[1:])
+            TVSF = TVSForwardCurve(reference = 0, vola_target = self.target_vol, spot_price = self.I_0, strategy = alpha, mu = self.mu, nu = self.nu, discounting_curve = self.D)
             TVS = TargetVolatilityStrategy(forward_curve=TVSF)
-            I_t = TVS.simulate(fixings=array([self.T]), random_gen=self.np_random)[0,0]
-            reward = np.maximum(I_t-self.strike_opt,0)*self.D(self.T)
-            return state, reward, done, {}
-
+            I_t = TVS.simulate(fixings=np.array([self.T]), random_gen=self.np_random)[0,0]
+            reward = np.maximum(I_t-self.strike_option,0)*self.D(self.T)
+            
+        #self.asset_history = np.append(self.asset_history,self.current_asset)
+        state = np.append(self.current_asset, self.current_time)
+        return state, reward, done, {}
+        
+        
+        
 
     def reset(self):
         self.current_time = 0.
         self.time_index = 0
         self.alpha_t  = np.array([])
-        self.asset_history = self.spot_prices
+        #self.asset_history = self.spot_prices
         self.current_asset = self.spot_prices
         state = np.append(self.current_asset, self.current_time)
         return state
@@ -101,4 +112,10 @@ class TVS_enviroment(gym.Env):
 
 
     def theoretical_price(self):
-        return European_option_closed_form(forward = self.s0*exp(self.r*self.t1), strike= self.strike_opt, maturity=self.t1, reference=0, zero_interest_rate = self.r, volatility=self.sigma, typo=1)
+        s_righ = Strategy()
+        if self.constraint = "only_long":
+            s_right.optimization_constrained(mu=self.mu, self.nu, N_trial= 50)
+        else:
+            s_right.Mark_strategy(mu = self.mu, nu = self.nu)
+        TVSF = TVSForwardCurve(reference = 0, vola_target = self.target_vol, spot_price = self.I_0, strategy = s_right, mu = self.mu, nu = self.nu, discounting_curve = self.D)
+        return European_option_closed_form(TVSF(self.T),self.strike_option,self.T,0,self.D.r(self.T),self.target_vol,1)

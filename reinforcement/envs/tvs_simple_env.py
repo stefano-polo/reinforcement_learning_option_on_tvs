@@ -11,7 +11,7 @@ from envs.pricing.n_sphere import n_sphere_to_cartesian
 
 class TVS_simple(gym.Env):
     """Compound Option environment"""
-    def __init__(self, N_equity= 3, target_volatility=0.1, I_0 = 100, r=1/100., strike_opt=100., maturity=1., constraint = "free"):
+    def __init__(self, N_equity= 2, target_volatility=0.1, I_0 = 100, r=1/100., strike_opt=100., maturity=1., constraint = "only_long"):
         self.reference =0
         self.r = r
         self.constraint = constraint
@@ -100,53 +100,46 @@ class TVS_simple(gym.Env):
             else:
                 low_action = np.zeros(self.N_equity-1)
                 high_action = np.ones(1)*np.pi*2
-        self.action_space = spaces.Box(low = low_action, high = high_action)            #due azioni binarie
+        self.action_space = spaces.Box(low = np.float32(low_action), high = np.float32(high_action))            #due azioni binarie
         low_bound = np.zeros(1+N_equity)
         high_bound = np.append(self.spot_prices*10000,self.T+1/365)
-        self.observation_space = spaces.Box(low=low_bound,high=high_bound)   #è un continuo, dove si tratta di un box per il prezzo e il tempo
+        self.observation_space = spaces.Box(low=np.float32(low_bound),high=np.float32(high_bound))   #è un continuo, dove si tratta di un box per il prezzo e il tempo
         self.seed()
         self.reset()
 
 #current time start at zero
     def step(self, action):  # metodo che mi dice come evolve il sistema una volta arrivata una certa azione
         assert self.action_space.contains(action)   #gli arriva una certa azione
-        if self.current_time == 0:
+            
+        if self.time_index == 0:
             self.S_t = self.model.simulate(fixings=self.time_grid, Ndim= self.N_equity, corr = self.correlation, random_gen = self.np_random)[0]
+            if self.constraint == "free":
+                self.alpha_t = action
+            elif self.constraint == "only_long":
+                self.alpha_t = n_sphere_to_cartesian(1,action)**2
+        else:
+            if self.constraint == "free":
+                self.alpha_t = np.vstack([self.alpha_t, action])
+            elif self.constraint == "only_long":
+                self.alpha_t = np.vstack([self.alpha_t, n_sphere_to_cartesian(1,action)**2])
             
-            
+        self.time_index = self.time_index+1
+        self.current_time = self.time_grid[self.time_index]
+        self.current_asset = self.S_t[self.time_index]
         if self.current_time < self.T:
-            if self.time_index == 0:
-                if self.constraint == "free":
-                    self.alpha_t = action
-                elif self.constraint == "only_long":
-                    self.alpha_t = n_sphere_to_cartesian(1,action)**2
-            else:
-                if self.constraint == "free":
-                    self.alpha_t = np.vstack([self.alpha_t, action])
-                elif self.constraint == "only_long":
-                    self.alpha_t = np.vstack([self.alpha_t, n_sphere_to_cartesian(1,action)**2])
-            state = np.append(self.current_asset, self.current_time)
-            self.asset_history = np.append(self.asset_history,self.current_asset)
             done = False
             reward = 0.
-            self.time_index = self.time_index+1
-            self.current_time = self.time_grid[self.time_index]
-            self.current_asset = self.S_t[self.time_index]
-            return state, reward, done, {}
-
-        if self.current_time == self.T:
+        else:
             done = True
-            self.current_asset = self.S_t[self.time_index-1]
-            self.current_time = self.time_grid[self.time_index-1]
-            state = np.append(self.current_asset, self.current_time)
-            print(len(self.alpha_t))
-            self.asset_history = np.append(self.asset_history,self.current_asset)
-            alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid[:-1])
+            alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid[1:])
             TVSF = TVSForwardCurve(reference = self.reference, vola_target = self.target_vol, spot_price = self.spot_I, strategy = alpha, mu = self.mu, nu = self.nu, discounting_curve = self.D)
             TVS = TargetVolatilityStrategy(forward_curve=TVSF)
             I_t = TVS.simulate(fixings=np.array([self.T]), random_gen=self.np_random)[0,0]
             reward = np.maximum(I_t-self.strike_opt,0)*self.D(self.T)
-            return state, reward, done, {}
+            
+        self.asset_history = np.append(self.asset_history,self.current_asset)
+        state = np.append(self.current_asset, self.current_time)
+        return state, reward, done, {}
 
 
     def reset(self):

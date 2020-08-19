@@ -1,7 +1,7 @@
 import gym
 from gym import spaces
 from gym.utils import seeding
-from numpy import array, exp, linspace
+from numpy import array, exp, linspace, float32
 from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, ForwardVariance, Black
 from envs.pricing.closedforms import European_option_closed_form
 
@@ -27,7 +27,7 @@ class PlainVanillaOption(gym.Env):
         self.BS = Black(variance=V, forward_curve=F)
         # possible actions are exercise(1) or not (0)
         self.action_space = spaces.Discrete(2)
-        self.observation_space = spaces.Box(low=array([0.,0.]),high=array([self.s0*10000.,self.T+1./365.]))
+        self.observation_space = spaces.Box(low=float32(array([0.,0.])),high=float32(array([self.s0*10000.,self.T+1./365.])))
         self.seed()
         self.reset()
 

@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from pricing import EquityForwardCurve, DiscountingCurve, ForwardVariance
+from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, ForwardVariance
 from numpy import array, delete, zeros, reshape, append, max
 
 
