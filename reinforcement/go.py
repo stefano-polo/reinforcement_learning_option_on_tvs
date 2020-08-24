@@ -28,7 +28,7 @@ import envs.fe_envs
 
 def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
                train_timesteps, test_episodes, print_episodes, print_period, activation=None,
-               value_network=None, lam=None, noise=None, beta=None, ent=None,
+               value_network=None, lam=None, noise=None, beta=None, ent=None, restart_training=None, initial_guess=None,
                batch=None, custom_options=None, custom_suffix=None):
     """Utility function for the most common argument configurations."""
 
@@ -82,17 +82,34 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
        options.append('--print_episodes=' + print_episodes)
        options.append('--print_period=' + print_period)
 
-    args = [
-        '--gamma=1.',
-        '--env=' + env,
-        '--num_env=' + num_env,
-        '--num_layers=' + num_layers,
-        '--num_hidden=' + num_hidden,
-        '--alg=' + alg,
-        '--{}_path={}'.format(agent_mode, agent_path),
-        '--num_timesteps=' + train_timesteps,
-        '--seed=' + seed
-    ]
+    if do_train and restart_training:
+        if initial_guess is None:
+            raise Exception("You have to provide the inizial guess where to start the training")
+        initial_guess = './trained_agents/'+str(env)+'/'+str(initial_guess)
+        args = [
+                '--gamma=1.',
+                '--env=' + env,
+                '--num_env=' + num_env,
+                '--num_layers=' + num_layers,
+                '--num_hidden=' + num_hidden,
+                '--alg=' + alg,
+                '--{}_path={}'.format(agent_mode, agent_path),
+                '--load_path={}'.format(initial_guess),
+                '--num_timesteps=' + train_timesteps,
+                '--seed=' + seed
+            ]
+    else:
+        args = [
+            '--gamma=1.',
+            '--env=' + env,
+            '--num_env=' + num_env,
+            '--num_layers=' + num_layers,
+            '--num_hidden=' + num_hidden,
+            '--alg=' + alg,
+            '--{}_path={}'.format(agent_mode, agent_path),
+            '--num_timesteps=' + train_timesteps,
+            '--seed=' + seed
+        ]
 
     return args + options
 
@@ -103,19 +120,21 @@ if __name__ == '__main__':
 
     cur_args = build_args(
        do_train=True,
-       do_test=True,
-       env='VanillaOption-v0',
+       do_test=False,
+       restart_training = False,
+       env='TVS_simple-v0',#'TVS_simple-v0',
        alg='ppo2',
-       num_layers='5',
-       num_hidden='4',
-       num_env='2',
+       num_layers='2',
+       num_hidden='2',
+       num_env='3',
        lr='3e-4',
-       train_timesteps='1e6',
+       train_timesteps='1e7',
        test_episodes='1e5',
-       print_episodes='0',
-       print_period='10000',
+       print_episodes='1',
+       print_period='64',
+       #activation='sigmoid',
        value_network='copy',
-       custom_suffix='my_code'
+       custom_suffix='long_month_observation'   #test on one_month 6,10,1e6
     )
 
     main(cur_args)

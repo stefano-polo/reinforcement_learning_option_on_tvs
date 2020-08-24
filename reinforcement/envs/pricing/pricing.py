@@ -124,6 +124,7 @@ class Black(PricingModel):
         fixings = np.array(fixings)
         if fixings.shape==():
             fixings = np.array([fixings])
+        Ndim = len(corr)
         Nsim = int(Nsim)
         if corr is None:
             logmartingale = np.zeros((int(Nsim),len(fixings)))
