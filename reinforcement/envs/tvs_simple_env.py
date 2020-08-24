@@ -112,7 +112,7 @@ class TVS_simple(gym.Env):
         assert self.action_space.contains(action)   #gli arriva una certa azione
             
         if self.time_index == 0:
-            self.S_t = self.model.simulate(fixings=self.time_grid, Ndim= self.N_equity, corr = self.correlation, random_gen = self.np_random)[0]
+            self.S_t = self.model.simulate(fixings=self.time_grid, corr = self.correlation, random_gen = self.np_random)[0]
             if self.constraint == "free":
                 self.alpha_t = action
             elif self.constraint == "only_long":

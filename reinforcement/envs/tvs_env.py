@@ -14,9 +14,9 @@ class TVS_enviroment(gym.Env):
     def __init__(self, filename= "TVS_example.xml", spot_I = 100, target_volatility=0.1,strike_opt=100., maturity=1., constraint = "free"):
         #Loading Market data and preparing the BS model"""
         reader = MarketDataReader(filename)
-        self.N_equity = reader.get_stock_number() - 6
         self.spot_prices = reader.get_spot_prices()
         self.correlation_matrix = reader.get_correlation()
+        self.N_equity = len(self.correlation_matrix)
         self.D = reader.get_discounts()
         self.F = reader.get_forward_curves()
         self.V = reader.get_volatilities()
@@ -61,7 +61,7 @@ class TVS_enviroment(gym.Env):
         
         if self.time_index == 0:
             #evolve the Black and Scholes model
-            self.S_t = self.model.simulate(fixings=self.time_grid, Ndim= self.N_equity, corr = self.correlation_matrix, random_gen = self.np_random)[0]
+            self.S_t = self.model.simulate(fixings=self.time_grid, corr = self.correlation_matrix, random_gen = self.np_random)[0]
             #storing the rl agent's action
             self.alpha_t = action
         else:
@@ -113,8 +113,8 @@ class TVS_enviroment(gym.Env):
 
     def theoretical_price(self):
         s_righ = Strategy()
-        if self.constraint = "only_long":
-            s_right.optimization_constrained(mu=self.mu, self.nu, N_trial= 50)
+        if self.constraint == "only_long":
+            s_right.optimization_constrained(mu=self.mu, nu=self.nu, N_trial= 50)
         else:
             s_right.Mark_strategy(mu = self.mu, nu = self.nu)
         TVSF = TVSForwardCurve(reference = 0, vola_target = self.target_vol, spot_price = self.I_0, strategy = s_right, mu = self.mu, nu = self.nu, discounting_curve = self.D)

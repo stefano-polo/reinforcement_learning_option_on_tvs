@@ -120,8 +120,12 @@ class Black(PricingModel):
         self.variance = variance
         self.forward_curve = forward_curve
 
-    def simulate(self, fixings=None, random_gen = None, Ndim = 1, corr = None, Nsim=1,**kwargs):
-        if Ndim == 1:
+    def simulate(self, fixings=None, random_gen = None, corr = None, Nsim=1,**kwargs):
+        fixings = np.array(fixings)
+        if fixings.shape==():
+            fixings = np.array([fixings])
+        Nsim = int(Nsim)
+        if corr is None:
             logmartingale = np.zeros((int(Nsim),len(fixings)))
             for i in range (len(fixings)):
                 Z = random_gen.randn(Nsim)

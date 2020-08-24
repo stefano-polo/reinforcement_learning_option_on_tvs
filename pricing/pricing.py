@@ -120,10 +120,13 @@ class Black(PricingModel):
         self.variance = variance
         self.forward_curve = forward_curve
 
-    def simulate(self, fixings=None, Ndim = 1, corr = None, Nsim=1, seed=14,**kwargs):
+    def simulate(self, fixings=None, corr = None, Nsim=1, seed=14,**kwargs):
         np.random.seed(seed)
+        fixings = np.array(fixings)
+        if fixings.shape==():
+            fixings = np.array([fixings])
         Nsim = int(Nsim)
-        if Ndim == 1:
+        if corr is None:
             print("Single Asset Simulation")
             logmartingale = np.zeros((int(2*Nsim),len(fixings)))
             for i in range (len(fixings)):
@@ -137,6 +140,7 @@ class Black(PricingModel):
 
         else:
             print("Multi Asset Simulation")
+            Ndim = len(corr)
             logmartingale = np.zeros((int(2*Nsim),len(fixings),Ndim))
             R = cholesky(corr)
             for i in range (len(fixings)):
