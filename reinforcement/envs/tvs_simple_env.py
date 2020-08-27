@@ -10,8 +10,8 @@ from envs.pricing.read_market import MarketDataReader
 from envs.pricing.n_sphere import n_sphere_to_cartesian
 
 class TVS_simple(gym.Env):
-    """Compound Option environment"""
-    def __init__(self, N_equity= 2, target_volatility=0.1, I_0 = 100, r=1/100., strike_opt=100., maturity=1., constraint = "only_long"):
+    """Target volatility strategy Option environment with a simple market"""
+    def __init__(self, N_equity= 2, target_volatility=5/100, I_0 = 1., r=1/100., strike_opt=1., maturity=1., constraint = "free", action_bound=25/100, sum_long = None, sum_short=None):
         self.reference =0
         self.r = r
         self.constraint = constraint
@@ -87,12 +87,17 @@ class TVS_simple(gym.Env):
         self.model = Black(variance=self.V,forward_curve = self.F)
         self.mu = Drift(self.F)
         self.nu = CholeskyTDependent(self.V,self.correlation)
-
+        
+        if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
+            raise Exception("You should provide the sum limit for short and long position")
+        if sum_long is not None and sum_short is not None:
+            self.sum_long = sum_long
+            self.sum_short = sum_short
         # possible actions are exercise(1) or not (0)
-        if constraint == "free":
-            low_action = np.ones(self.N_equity)*(-50)
-            high_action = np.ones(self.N_equity)*50
-        elif constraint == "only_long":
+        if self.constraint != "only_long":
+            low_action = np.ones(self.N_equity)*(-abs(action_bound))
+            high_action = np.ones(self.N_equity)*abs(action_bound)
+        else:
             if self.N_equity > 2:
                 low_action = np.zeros(self.N_equity-1)
                 high_action = np.ones(self.N_equity-2)*np.pi
@@ -100,7 +105,8 @@ class TVS_simple(gym.Env):
             else:
                 low_action = np.zeros(self.N_equity-1)
                 high_action = np.ones(1)*np.pi*2
-        self.action_space = spaces.Box(low = np.float32(low_action), high = np.float32(high_action))            #due azioni binarie
+        self.action_space = spaces.Box(low = np.float32(low_action), high = np.float32(high_action))
+        
         low_bound = np.zeros(1+N_equity)
         high_bound = np.append(self.spot_prices*10000,self.T+1/365)
         self.observation_space = spaces.Box(low=np.float32(low_bound),high=np.float32(high_bound))   #è un continuo, dove si tratta di un box per il prezzo e il tempo
@@ -110,18 +116,17 @@ class TVS_simple(gym.Env):
 #current time start at zero
     def step(self, action):  # metodo che mi dice come evolve il sistema una volta arrivata una certa azione
         assert self.action_space.contains(action)   #gli arriva una certa azione
+         
+        if self.constraint == "only_long":
+            action = n_sphere_to_cartesian(1,action)**2
+        elif self.constraint == "long_short_limit":
+            action = sign_renormalization(action,self.how_long,self.how_short)
             
         if self.time_index == 0:
             self.S_t = self.model.simulate(fixings=self.time_grid, corr = self.correlation, random_gen = self.np_random)[0]
-            if self.constraint == "free":
-                self.alpha_t = action
-            elif self.constraint == "only_long":
-                self.alpha_t = n_sphere_to_cartesian(1,action)**2
+            self.alpha_t = action
         else:
-            if self.constraint == "free":
-                self.alpha_t = np.vstack([self.alpha_t, action])
-            elif self.constraint == "only_long":
-                self.alpha_t = np.vstack([self.alpha_t, n_sphere_to_cartesian(1,action)**2])
+            self.alpha_t = np.vstack([self.alpha_t, action])
             
         self.time_index = self.time_index+1
         self.current_time = self.time_grid[self.time_index]
@@ -156,7 +161,6 @@ class TVS_simple(gym.Env):
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
-
 
     def render(self, mode='human'):
         print()

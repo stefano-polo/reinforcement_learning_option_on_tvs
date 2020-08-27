@@ -10,8 +10,8 @@ from envs.pricing.read_market import MarketDataReader
 from envs.pricing.n_sphere import n_sphere_to_cartesian, sign_renormalization
 
 class TVS_enviroment(gym.Env):
-    """Target volatility Option environment"""
-    def __init__(self, filename= "TVS_example.xml", spot_I = 100, target_volatility=0.1,strike_opt=100., maturity=1., constraint = "free"):
+    """Target volatility strategy Option environment"""
+    def __init__(self, filename= "TVS_example.xml", spot_I = 100, target_volatility=0.1,strike_opt=100., maturity=1., constraint = "free", action_bound = 25/100, sum_long=None, sum_short=None):
         #Loading Market data and preparing the BS model"""
         reader = MarketDataReader(filename)
         self.spot_prices = reader.get_spot_prices()
@@ -34,10 +34,15 @@ class TVS_enviroment(gym.Env):
         self.time_grid = np.linspace(0,self.T,12)   #the agent observe the enviroment each month
        # self.asset_history = self.spot_prices
         self.constraint = constraint
+        if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
+            raise Exception("You should provide the sum limit for short and long position")
+        if sum_long is not None and sum_short is not None:
+            self.sum_long = sum_long
+            self.sum_short = sum_short
         #Observation space and action space of the RL agent
         if self.constraint != "only_long":
-            low_action = np.ones(self.N_equity)*(-0.25)   #the agent can choose the asset allocation strategy only for N-1 equities (the N one is set by 1-sum(weights_of_other_equities))
-            high_action = np.ones(self.N_equity)*(0.25)
+            low_action = np.ones(self.N_equity)*(-abs(action_bound))   #the agent can choose the asset allocation strategy only for N-1 equities (the N one is set by 1-sum(weights_of_other_equities))
+            high_action = np.ones(self.N_equity)*(abs(action_bound))
         else: 
             low_action = np.zeros(self.N_equity-1)
             high_action = np.ones(self.N_equity-2)*np.pi
@@ -57,7 +62,7 @@ class TVS_enviroment(gym.Env):
         if self.constraint == "only_long":
             action = n_sphere_to_cartesian(1,action)**2
         elif self.constraint == "long_short_limit":
-            action = sign_renormalization(action,20/100,10/100)
+            action = sign_renormalization(action,self.sum_long,self.sum_short)
         
         if self.time_index == 0:
             #evolve the Black and Scholes model
