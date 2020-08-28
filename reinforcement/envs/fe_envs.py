@@ -20,6 +20,6 @@ register(
 )
 
 register(
-    id='TVS-v0'
-    entry_point='envs.tvs_env:TVS_enviroment'
+    id='TVS-v0',
+    entry_point='envs.tvs_env:TVS_enviroment',
 )
