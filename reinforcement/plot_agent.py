@@ -32,12 +32,9 @@ def model_creation(seed, fixings):
     market_discounts = exp(-r_t*T_discounts)       #market discounts factor
 
     T_repo1 = np.array([1/12,4./12,T_max])       #data observation of the market repo rates for equity 1
-    repo_rate1 = np.array([0.72,0.42,0.52])/10  #market repo rates for equity 1
+    repo_rate1 = np.array([0.72,0.42,0.52])/10  #market repo rates for equity 1    
     T_repo2 = np.array([1/12.,4/12.,T_max])
     repo_rate2 = np.array([0.22,0.22,0.22])/10
-    T_repo3 = np.array([2/12.,5/12.,T_max])
-    repo_rate3 = np.array([0.32,0.32,0.12])/10
-
 
     sigma1 = np.array([20,20.,20.])/100
     T_sigma1 = np.array([2/12,5./12,T_max])
@@ -73,7 +70,7 @@ def model_creation(seed, fixings):
 
 
 def plot(args, plot_value, env_map, reference_state, variable_indexes,
-         variable_points, title_plot, legend=None, x_max=np.infty, y_max=np.infty, strategy_long=True, all_time_dep = True):
+         variable_points, title_plot, legend=None, x_max=np.infty, y_max=np.infty, strategy_long=True, all_time_dep = True, seed=10):
     """Function to plot a section of the action space."""
     # selected code from baselines.run.main()
     arg_parser = common_arg_parser()
@@ -87,19 +84,20 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
     x_high = min(env.observation_space.high[variable_indexes[0]], x_max)
     x_axis = np.linspace(x_low, x_high, variable_points)
     y_shape = (variable_points,) * len(variable_indexes)
-    if not plot_value:
-        if strategy_long:
-            dim, = env.action_space.shape
-            dim+=1
-            y_shape+= dim,
-        else:
-            dim, = env.action_space.shape
-            y_shape+= dim,
+    if strategy_long:
+        dim, = env.action_space.shape
+        dim+=1
+        y_shape+= dim,
+    else:
+        dim, = env.action_space.shape
+        print("DIMENSIONE", dim)
+        y_shape+= dim,
     y_axis = np.empty(y_shape)
     label = extra_args['load_path'] if legend is None else legend
     # init
     if all_time_dep:
-        S = model_creation(10, x_axis)
+        print("DIMENSIONE",dim)
+        S = model_creation(seed, x_axis)
         obs = np.insert(S, dim, x_axis, axis=1)
     else:
         obs = reference_state[np.newaxis, :]
@@ -114,10 +112,16 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
     print(y_axis)
     if not plot_value:
         for i in range(dim):
-            plt.plot(x_axis, y_axis.T[i], label="Equity"+str(i+1))
+            plt.step(x_axis, y_axis.T[i], label="Equity"+str(i+1))
+        plt.ylabel(r"Strategy $\alpha(t)$")
+        plt.title("Action space")
     else:
-        plt.plot(x_axis, y_axis)
-    plt.title(title_plot)
+        plt.plot(x_axis, y_axis[:,0])
+        plt.title("Value function")
+        plt.ylabel("$V(t)$")
+    plt.xlabel("Time [yr]")
+    if not all_time_dep:    
+        plt.title(title_plot)
 
 
 def build_args(env, alg, train_timesteps, num_layers, num_hidden, lr, activation=None,
