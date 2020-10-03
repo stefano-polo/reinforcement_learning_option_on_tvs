@@ -21,8 +21,8 @@ class TVS_simple(gym.Env):
         self.asset_history = np.array([])
         self.T = maturity
         n_days = 12
-        self.timegrid = np.linspace(self.reference,self.T,n_days)
-        self.time_index=0
+        self.time_grid = np.linspace(0,self.T,n_days)
+        self.time_index = 0
         self.asset_history = np.array([])
         self.alpha_t = np.array([])
         self.strike_opt = strike_opt
@@ -120,37 +120,38 @@ class TVS_simple(gym.Env):
         elif self.constraint == "long_short_limit":
             action = sign_renormalization(action,self.how_long,self.how_short)
 
-        if self.current_time == 0:
+        if self.time_index == 0:
+            self.S_t = log(self.model.simulate(fixings=self.time_grid, corr = self.correlation, random_gen = self.np_random)[0]/self.spot_prices)
             self.alpha_t = action
         else:
             self.alpha_t = np.vstack([self.alpha_t, action])
-        self.time_index+=1
-        self.current_time = self.timegrid[self.time_index]
-        self.current_asset = self.model.simulate(self.current_asset, self.timegrid[self.time_index-1], self.current_time, self.np_random, corr = self.correlation)
+        self.time_index = self.time_index+1
+        self.current_time = self.time_grid[self.time_index]
+        self.current_asset = self.S_t[self.time_index]
         if self.current_time < self.T:
             done = False
             reward = 0.
         else:
             done = True
-            alpha = Strategy(strategy = self.alpha_t, dates = self.timegrid[1:])
+            alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid[1:])
             TVSF = TVSForwardCurve(reference = self.reference, vola_target = self.target_vol, spot_price = self.spot_I, strategy = alpha, mu = self.mu, nu = self.nu, discounting_curve = self.D)
             TVS = TargetVolatilityStrategy(forward_curve=TVSF)
             I_t = TVS.simulate(fixings=np.array([self.T]), random_gen=self.np_random)[0,0]
             reward = np.maximum(I_t-self.strike_opt,0)*self.D(self.T)
         
         self.asset_history = np.append(self.asset_history,self.current_asset)
-        state = np.append(log(self.current_asset/self.spot_prices), self.current_time)
+        state = np.append(self.current_asset, self.current_time)
         return state, reward, done, {}
 
 
     def reset(self):
-        self.current_asset = self.spot_prices
-        self.time_index=0
-        self.current_time = self.timegrid[self.time_index]
+        self.current_asset = np.zeros(len(self.F))
+        self.current_time = 0.
         self.alpha_t = np.array([])
+        self.time_index = 0
         self.asset_history = np.array([])
         self.asset_history = np.append(self.asset_history,self.current_asset)
-        state = np.append(np.zeros(len(self.F)), self.current_time)
+        state = np.append(self.current_asset, self.current_time)
         return state
 
 

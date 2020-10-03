@@ -120,29 +120,36 @@ class Black(PricingModel):
         self.variance = variance
         self.forward_curve = forward_curve
 
-    def simulate(self, S1 = None, t1=None, t2=None, random_gen = None, corr = None, Nsim=1,**kwargs):
+    def simulate(self, fixings=None, random_gen = None, corr = None, Nsim=1,**kwargs):
+        fixings = np.array(fixings)
+        if fixings.shape==():
+            fixings = np.array([fixings])
+        Ndim = len(corr)
         Nsim = int(Nsim)
         if corr is None:
-            X1 = log(S1/self.forward_curve(t1))
-            Z = random_gen.randn(Nsim)
-            X2= X1-0.5*quad_piecewise(self.variance,self.variance.T,t1,t2)+sqrt(quad_piecewise(self.variance,self.variance.T,t1,t2))*Z
-            return exp(X2)*self.forward_curve(t2)
+            logmartingale = np.zeros((int(Nsim),len(fixings)))
+            for i in range (len(fixings)):
+                Z = random_gen.randn(Nsim)
+                if i ==0:
+                    logmartingale.T[i]=-0.5*quad_piecewise(self.variance,self.variance.T,0,fixings[i])+sqrt(quad_piecewise(self.variance,self.variance.T,0,fixings[i]))*Z
+                elif i!=0:
+                    logmartingale.T[i]=logmartingale.T[i-1]-0.5*quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i])+sqrt(quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i]))*Z
+            return exp(logmartingale)*self.forward_curve(fixings)
 
         else:
-            Ndim = len(corr)
-            if Nsim>1:
-                X2 = np.zeros((int(Nsim),Ndim))
-                Z = random_gen.randn(Nsim,Ndim)
-            else:
-                X2 = np.zeros(Ndim)
-                Z = random_gen.randn(Ndim)
+            logmartingale = np.zeros((int(Nsim),len(fixings),Ndim))
             R = cholesky(corr)
-            ep = np.dot(R,Z.T)   #matrix of correlated random variables
+            for i in range (len(fixings)):
+                Z = random_gen.randn(Nsim,Ndim)
+                ep = np.dot(R,Z.T)   #matrix of correlated random variables
+                for j in range(Ndim):
+                    if i ==0:
+                        logmartingale[:,i,j]=-0.5*quad_piecewise(self.variance[j],self.variance[j].T,0,fixings[i])+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,0,fixings[i]))*ep[j]
+                    elif i!=0:
+                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i])+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i]))*ep[j]
+            M = exp(logmartingale)
             for i in range(Ndim):
-                X2.T[i]=log(S1.T[i]/self.forward_curve[i](t1))-0.5*quad_piecewise(self.variance[i],self.variance[i].T,t1,t2)+sqrt(quad_piecewise(self.variance[i],self.variance[i].T,t1,t2))*ep[i]
-            M = exp(X2)
-            for i in range(Ndim):
-                M.T[i] = M.T[i]*self.forward_curve[i](t2)
+                M[:,:,i] = M[:,:,i]*self.forward_curve[i](fixings)
             return M
 
 
