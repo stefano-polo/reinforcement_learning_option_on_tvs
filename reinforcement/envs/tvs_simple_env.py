@@ -21,7 +21,8 @@ class TVS_simple(gym.Env):
         self.asset_history = np.array([])
         self.T = maturity
         n_days = 12
-        self.time_grid = np.linspace(0,self.T,n_days)
+        self.time_grid = np.linspace(self.T/n_days,self.T,n_days)
+        self.time_grid = np.insert(self.time_grid,0,0)
         self.time_index = 0
         self.asset_history = np.array([])
         self.alpha_t = np.array([])
