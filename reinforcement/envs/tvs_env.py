@@ -18,24 +18,25 @@ class TVS_enviroment(gym.Env):
         self.correlation_matrix = reader.get_correlation()
         self.N_equity = len(self.correlation_matrix)
         self.D = reader.get_discounts()
+        self.discount = self.D(maturity)
         self.F = reader.get_forward_curves()
         self.V = reader.get_volatilities()
         self.model = Black(forward_curve = self.F, variance = self.V)
         #Creating the objects for the TVS
         self.mu = Drift(forward_curves = self.F)
         self.nu = CholeskyTDependent(variance_curves = self.V, correlation = self.correlation_matrix)
-        self.vola_t = sqrt(np.sum(self.nu(0)**2,axis=0))
-        for time in self.time_grid[1:]:
-            self.vola_t =  np.vstack([self.vola_t, sqrt(np.sum(self.nu(time)**2,axis=0))])
         #Preparing Time grid for the RL agent
         self.I_0 = spot_I
         self.strike_option = strike_opt
         self.target_vol = target_volatility
-        self.current_time = 0
         self.T = maturity
+        self.current_time = 0.
+        n_days = 12
+        self.Nsim = 1e4
         self.time_index = 0
-        self.time_grid = np.linspace(0,self.T,12)   #the agent observe the enviroment each month
-        self.asset_history = np.array([])
+        self.simulation_index = 0
+        self.time_grid = np.linspace(self.T/n_days,self.T,n_days)   #the agent observe the enviroment each month
+        
         self.constraint = constraint
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
             raise Exception("You should provide the sum limit for short and long position")
@@ -46,38 +47,38 @@ class TVS_enviroment(gym.Env):
         if self.constraint != "only_long":
             low_action = np.ones(self.N_equity)*(-abs(action_bound))   #the agent can choose the asset allocation strategy only for N-1 equities (the N one is set by 1-sum(weights_of_other_equities))
             high_action = np.ones(self.N_equity)*(abs(action_bound))
-        else:
+        else: 
             low_action = np.zeros(self.N_equity-1)
             high_action = np.ones(self.N_equity-1)*(np.pi*0.5+0.001)
-
+        
         self.action_space = spaces.Box(low = np.float32(low_action),high = np.float32(high_action))
         high = np.ones(N_equity)*2.5
-        low_bound = np.append(-high,0)                      #the observation space is the prices space plus the time space
-        high_bound = np.append(high,self.T+1/365)
+        low_bound = np.append(-high,0.)
+        high_bound = np.append(high,self.T+1./365.)
         self.observation_space = spaces.Box(low=np.float32(low_bound),high=np.float32(high_bound))
         self.seed()
         self.reset()
 
 
-    def step(self, action):
-        assert self.action_space.contains(action)
+    def step(self, action):  
+        assert self.action_space.contains(action)  
         #Modify action of the agent to satisfy constraint over the allocation strategy
         if self.constraint == "only_long":
             action = n_sphere_to_cartesian(1,action)**2
         elif self.constraint == "long_short_limit":
             action = sign_renormalization(action,self.sum_long,self.sum_short)
-
+        
         if self.time_index == 0:
             #evolve the Black and Scholes model
-            self.S_t = log(self.model.simulate(fixings=self.time_grid, corr = self.correlation_matrix, random_gen = self.np_random)[0]/self.spot_prices)/self.vola_t
+            self.S_t = self.model.simulate(fixings=self.time_grid, corr = self.correlation_matrix, random_gen = self.np_random)[0]
             #storing the rl agent's action
             self.alpha_t = action
         else:
             self.alpha_t = np.vstack([self.alpha_t, action])
         #evolving enviroment from t to t+1
-        self.time_index = self.time_index+1
         self.current_time = self.time_grid[self.time_index]
         self.current_asset = self.S_t[self.time_index]
+        self.time_index += 1
         if self.current_time < self.T:
             #before the maturity the agent's reward is zero
             done = False
@@ -85,26 +86,29 @@ class TVS_enviroment(gym.Env):
         else:
             #at maturity the agent collects its reward that is the discounted payoff of the TVS call option
             done = True
-            alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid[1:])
-            TVSF = TVSForwardCurve(reference = 0, vola_target = self.target_vol, spot_price = self.I_0, strategy = alpha, mu = self.mu, nu = self.nu, discounting_curve = self.D)
+            alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid)
+            TVSF = TVSForwardCurve(reference = 0., vola_target = self.target_vol, spot_price = self.I_0, strategy = alpha, mu = self.mu, nu = self.nu, discounting_curve = self.D)
             TVS = TargetVolatilityStrategy(forward_curve=TVSF)
             I_t = TVS.simulate(fixings=np.array([self.T]), random_gen=self.np_random)[0,0]
-            reward = np.maximum(I_t-self.strike_option,0)*self.D(self.T)
-
-        self.asset_history = np.append(self.asset_history,self.current_asset)
+            reward = np.maximum(I_t-self.strike_option,0.)*self.discount
+            self.simulation_index += 1
+            
+        #self.asset_history = np.append(self.asset_history,self.current_asset)
         state = np.append(self.current_asset, self.current_time)
         return state, reward, done, {}
-
-
-
+        
+        
+        
 
     def reset(self):
+        if self.simulation_index==0 or self.simulation_index == self.Nsim:
+            self.simulations = self.model.simulate(corr=self.correlation, random_gen=self.np_random, Nsim=self.Nsim)
+            self.simulation_index = 0
         self.current_time = 0.
+        self.alpha_t = np.array([])
         self.time_index = 0
-        self.alpha_t  = np.array([])
-        #self.asset_history = self.spot_prices
-        self.current_asset = self.spot_prices
-        state = np.append(self.current_asset, self.current_time)
+        state = np.append(np.zeros(len(self.F)), self.current_time)
+        self.S_t = log(self.simulations[self.simulation_index]/self.spot_prices)/sqrt(self.model.variance.T)
         return state
 
 
