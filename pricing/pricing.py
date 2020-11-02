@@ -41,9 +41,10 @@ class EquityForwardCurve(Curve):
         q = lambda x: piecewise_function(x,self.T,self.q)
         date = np.array(date)
         if date.shape!=():
-            return  np.asarray([(self.spot/self.discounting_curve(extreme))*exp(-quad_piecewise(q,self.T,0,extreme)) for extreme in date])
+            for t in date:
+            return  np.asarray([(self.spot/self.discounting_curve(extreme))*exp(-quad_piecewise(q,self.T,0.,extreme)) for extreme in date])
         else:
-            return (self.spot/self.discounting_curve(date))*exp(-quad_piecewise(q,self.T,0,date))
+            return (self.spot/self.discounting_curve(date))*exp(-quad_piecewise(q,self.T,0.,date))
 
 
 class DiscountingCurve(Curve):
@@ -133,7 +134,7 @@ class Black(PricingModel):
                 Z = np.random.randn(Nsim)
                 Z = np.concatenate((Z,-Z))
                 if i ==0:
-                    logmartingale.T[i]=-0.5*quad_piecewise(self.variance,self.variance.T,0,fixings[i])+sqrt(quad_piecewise(self.variance,self.variance.T,0,fixings[i]))*Z
+                    logmartingale.T[i]=-0.5*quad_piecewise(self.variance,self.variance.T,0.,fixings[i])+sqrt(quad_piecewise(self.variance,self.variance.T,0.,fixings[i]))*Z
                 elif i!=0:
                     logmartingale.T[i]=logmartingale.T[i-1]-0.5*quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i])+sqrt(quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i]))*Z
             return exp(logmartingale)*self.forward_curve(fixings)
@@ -149,7 +150,7 @@ class Black(PricingModel):
                 ep = np.dot(R,Z.T)   #matrix of correlated random variables
                 for j in range(Ndim):
                     if i ==0:
-                        logmartingale[:,i,j]=-0.5*quad_piecewise(self.variance[j],self.variance[j].T,0,fixings[i])+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,0,fixings[i]))*ep[j]
+                        logmartingale[:,i,j]=-0.5*quad_piecewise(self.variance[j],self.variance[j].T,0.,fixings[i])+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,0.,fixings[i]))*ep[j]
                     elif i!=0:
                         logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i])+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i]))*ep[j]
             M = exp(logmartingale)
@@ -195,6 +196,9 @@ def quad_piecewise(f, time_grid, t_in, t_fin):
     """integral of a piecewise constant function"""
     y = np.array([])
     dt = np.array([])
+    t_in = float(t_in)
+    t_fin = float(t_fin)
+    time_grid = np.float64(time_grid)
     if t_in == t_fin:
         return 0
     if t_fin in time_grid:
@@ -205,8 +209,8 @@ def quad_piecewise(f, time_grid, t_in, t_fin):
         time_grid = time_grid[np.where(time_grid>t_in)[0]]
         time_grid = np.insert(time_grid,0,t_in)
     if t_fin not in time_grid:
-        time_grid = time_grid[np.where(time_grid<t_fin)[0]]
-        time_grid = np.insert(time_grid,len(time_grid),t_fin)
+        time_grid = np.array(time_grid[np.where(time_grid<t_fin)[0]])
+        time_grid = np.array(np.insert(time_grid,len(time_grid),t_fin))
     for i in range(len(time_grid)-1):
         y = np.append(y,f(time_grid[i]))
     dt = np.diff(time_grid)

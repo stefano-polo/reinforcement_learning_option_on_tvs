@@ -24,6 +24,9 @@ class TVS_enviroment(gym.Env):
         #Creating the objects for the TVS
         self.mu = Drift(forward_curves = self.F)
         self.nu = CholeskyTDependent(variance_curves = self.V, correlation = self.correlation_matrix)
+        self.vola_t = sqrt(np.sum(self.nu(0)**2,axis=0))
+        for time in self.time_grid[1:]:
+            self.vola_t =  np.vstack([self.vola_t, sqrt(np.sum(self.nu(time)**2,axis=0))])
         #Preparing Time grid for the RL agent
         self.I_0 = spot_I
         self.strike_option = strike_opt
@@ -32,7 +35,7 @@ class TVS_enviroment(gym.Env):
         self.T = maturity
         self.time_index = 0
         self.time_grid = np.linspace(0,self.T,12)   #the agent observe the enviroment each month
-       # self.asset_history = self.spot_prices
+        self.asset_history = np.array([])
         self.constraint = constraint
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
             raise Exception("You should provide the sum limit for short and long position")
@@ -43,30 +46,30 @@ class TVS_enviroment(gym.Env):
         if self.constraint != "only_long":
             low_action = np.ones(self.N_equity)*(-abs(action_bound))   #the agent can choose the asset allocation strategy only for N-1 equities (the N one is set by 1-sum(weights_of_other_equities))
             high_action = np.ones(self.N_equity)*(abs(action_bound))
-        else: 
+        else:
             low_action = np.zeros(self.N_equity-1)
-            high_action = np.ones(self.N_equity-2)*np.pi
-            high_action = np.append(high_action, np.pi*2)
-        
+            high_action = np.ones(self.N_equity-1)*(np.pi*0.5+0.001)
+
         self.action_space = spaces.Box(low = np.float32(low_action),high = np.float32(high_action))
-        low_bound = np.zeros(1+self.N_equity)                      #the observation space is the prices space plus the time space
-        high_bound = np.append(self.spot_prices*10000,self.T+1/365)
+        high = np.ones(N_equity)*2.5
+        low_bound = np.append(-high,0)                      #the observation space is the prices space plus the time space
+        high_bound = np.append(high,self.T+1/365)
         self.observation_space = spaces.Box(low=np.float32(low_bound),high=np.float32(high_bound))
         self.seed()
         self.reset()
 
 
-    def step(self, action):  
-        assert self.action_space.contains(action)  
+    def step(self, action):
+        assert self.action_space.contains(action)
         #Modify action of the agent to satisfy constraint over the allocation strategy
         if self.constraint == "only_long":
             action = n_sphere_to_cartesian(1,action)**2
         elif self.constraint == "long_short_limit":
             action = sign_renormalization(action,self.sum_long,self.sum_short)
-        
+
         if self.time_index == 0:
             #evolve the Black and Scholes model
-            self.S_t = self.model.simulate(fixings=self.time_grid, corr = self.correlation_matrix, random_gen = self.np_random)[0]
+            self.S_t = log(self.model.simulate(fixings=self.time_grid, corr = self.correlation_matrix, random_gen = self.np_random)[0]/self.spot_prices)/self.vola_t
             #storing the rl agent's action
             self.alpha_t = action
         else:
@@ -87,13 +90,13 @@ class TVS_enviroment(gym.Env):
             TVS = TargetVolatilityStrategy(forward_curve=TVSF)
             I_t = TVS.simulate(fixings=np.array([self.T]), random_gen=self.np_random)[0,0]
             reward = np.maximum(I_t-self.strike_option,0)*self.D(self.T)
-            
-        #self.asset_history = np.append(self.asset_history,self.current_asset)
+
+        self.asset_history = np.append(self.asset_history,self.current_asset)
         state = np.append(self.current_asset, self.current_time)
         return state, reward, done, {}
-        
-        
-        
+
+
+
 
     def reset(self):
         self.current_time = 0.

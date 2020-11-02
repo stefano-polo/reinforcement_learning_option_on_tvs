@@ -25,6 +25,7 @@ class EquityForwardCurve(Curve):
         self.discounting_curve = discounting_curve
         if act =="360":
             self.T = ACT_360(repo_dates,self.reference)
+            self.T = self.T*360/365
         elif act == "365":
             self.T = ACT_365(repo_dates,self.reference)
         else:
@@ -199,6 +200,9 @@ def piecewise_function(date, interval, value):
 def quad_piecewise(f, time_grid, t_in, t_fin, vectorial=0):
     """integral of a piecewise constant function"""
     dt = np.array([])
+    t_in = float(t_in)
+    t_fin = float(t_fin)
+    time_grid=np.float64(time_grid)
     if t_in == t_fin:
         return 0
     if t_fin in time_grid:
@@ -216,6 +220,7 @@ def quad_piecewise(f, time_grid, t_in, t_fin, vectorial=0):
         for i in range(1,len(time_grid)):
             y = np.append(y,f(time_grid[i]))
     else:
-        y = f(time_grid[1:])
+        y = f(time_grid[:-1])
+      
     dt = np.diff(time_grid)
     return np.sum(y*dt)

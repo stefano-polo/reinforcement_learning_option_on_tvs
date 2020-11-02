@@ -84,8 +84,6 @@ class Strategy(Curve):
                 else:
                     self.alpha_t[i] = a_plus
 
-        print("Markowitz strategy time grid :",self.T)
-        print("Markowitz strategy : ",self.alpha_t)
 
     def optimization_constrained(self, mu = None, nu = None, long_limit = 25/100, short_limit = 25/100, N_trial = 20, seed = 13, typo = 1):
         Ndim = len(mu(0))
@@ -110,8 +108,6 @@ class Strategy(Curve):
                     result = optimization_long_short_position(mu(self.T[i-1]), nu(self.T[i-1]), long_limit, short_limit,N_trial,seed)
 
             self.alpha_t[i] = result
-        print("Optimal strategy time grid :",self.T)
-        print("Optimal strategy through minimization: ",self.alpha_t)
 
 
     def Intuitive_strategy1(self, forward_curves=None, maturity_date=None):
@@ -161,7 +157,6 @@ class TVSForwardCurve(Curve):
         self.D = discounting_curve
 
     def curve(self,date):
-        date = np.array(date)
         phi = lambda x: piecewise_function(x,self.T,self.phi)
         l = lambda x: self.vol*((self.alpha(x)@self.mu(x))/np.linalg.norm(self.alpha(x)@self.nu(x)))
         if date.shape!=():
@@ -190,11 +185,16 @@ class TargetVolatilityStrategy(PricingModel):
         for i in range(len(fixings)):
             Z = random_gen.randn(Nsim,Ndim)
             if i ==0:
-                omega_t = (self.vol)/np.linalg.norm(self.alpha(0.)@self.nu(0.))
-                logI[:,i] = -0.5*(np.linalg.norm(omega_t*(self.alpha(0.)@self.nu(0.)))**2)*fixings[i]+sqrt(fixings[i])*((omega_t*self.alpha(0.)@self.nu(0.))@Z.T)
+                scalar_prod=self.alpha(0.)@self.nu(0.)
+                omega_t = (self.vol)/np.linalg.norm(scalar_prod)
+                coeff = omega_t*(scalar_prod)
+                logI[:,i] = -0.5*(np.linalg.norm(coeff)**2)*fixings[i]+sqrt(fixings[i])*((coeff)@Z.T)
             else:
-                omega_t = (self.vol)/np.linalg.norm(self.alpha(fixings[i-1])@self.nu(fixings[i-1]))
-                logI[:,i] = logI[:,i-1] -0.5*(np.linalg.norm(omega_t*(self.alpha(fixings[i-1])@self.nu(fixings[i-1])))**2)*(fixings[i]-fixings[i-1])+sqrt(fixings[i]-fixings[i-1])*((omega_t*self.alpha(fixings[i-1])@self.nu(fixings[i-1]))@Z.T)
+                dt = fixings[i]-fixings[i-1]
+                scalar_prod = self.alpha(fixings[i-1])@self.nu(fixings[i-1])
+                omega_t = (self.vol)/np.linalg.norm(scalar_prod)
+                coeff = omega_t*scalar_prod
+                logI[:,i] = logI[:,i-1] -0.5*(np.linalg.norm(coeff)**2)*(dt)+sqrt(dt)*((coeff)@Z.T)
 
         I =  np.zeros((2*Nsim,len(fixings)))
         if ret_forward == 0:

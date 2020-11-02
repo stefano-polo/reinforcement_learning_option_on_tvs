@@ -116,41 +116,63 @@ class PricingModel:
 class Black(PricingModel):
     """Black model"""
 
-    def __init__(self, variance=None, forward_curve=None,**kwargs):
-        self.variance = variance
-        self.forward_curve = forward_curve
+    def __init__(self, fixings=None, variance_curve=None, forward_curve=None,**kwargs):
+        if 0. in fixings:
+            fixings = fixings[1:]
+        if type(forward_curve) == list:
+            N_equity = len(forward_curve)
+            N_times = len(fixings)
+            self.forward = np.zeros((N_equity,N_times))
+            for i in range(N_equity):
+                self.forward[i,:] = forward_curve[i](fixings)
+            self.variance = np.zeros((N_equity,N_times))
+            for i in range(N_equity):
+                for j in range(N_times):
+                    if j==0:
+                        self.variance[i,j] = quad_piecewise(variance_curve[i],variance_curve[i].T,0.,fixings[j])
+                    else:
+                        self.variance[i,j] = quad_piecewise(variance_curve[i],variance_curve[i].T,fixings[j-1],fixings[j])
+        else:
+            N_times = len(fixings)
+            self.forward = forward_curve(fixings)
+            self.variance = np.zeros(N_times)
+            for j in range(N_times):
+                if j==0:
+                    self.variance[j] = quad_piecewise(variance_curve,variance_curve.T,0.,fixings[j])
+                else:
+                    self.variance[j] = quad_piecewise(variance_curve,variance_curve.T,fixings[j-1],fixings[j])
+            
 
-    def simulate(self, fixings=None, random_gen = None, corr = None, Nsim=1,**kwargs):
-        fixings = np.array(fixings)
-        if fixings.shape==():
-            fixings = np.array([fixings])
-        Ndim = len(corr)
+    def simulate(self, random_gen = None, corr = None, Nsim=1,**kwargs):
         Nsim = int(Nsim)
+        N_times = len(self.variance.T)
         if corr is None:
-            logmartingale = np.zeros((int(Nsim),len(fixings)))
-            for i in range (len(fixings)):
+            logmartingale = np.zeros((Nsim,N_times))
+            for i in range (N_times):
                 Z = random_gen.randn(Nsim)
                 if i ==0:
-                    logmartingale.T[i]=-0.5*quad_piecewise(self.variance,self.variance.T,0,fixings[i])+sqrt(quad_piecewise(self.variance,self.variance.T,0,fixings[i]))*Z
+                    logmartingale.T[i]=-0.5*self.variance[i]+sqrt(self.variance[i])*Z
                 elif i!=0:
-                    logmartingale.T[i]=logmartingale.T[i-1]-0.5*quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i])+sqrt(quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i]))*Z
-            return exp(logmartingale)*self.forward_curve(fixings)
+                    logmartingale.T[i]=logmartingale.T[i-1]-0.5*self.variance[i]+sqrt(self.variance[i])*Z
+            return exp(logmartingale)*self.forward
 
         else:
-            logmartingale = np.zeros((int(Nsim),len(fixings),Ndim))
+            Ndim = len(corr)
+            logmartingale = np.zeros((Nsim,N_times,Ndim))
             R = cholesky(corr)
-            for i in range (len(fixings)):
+            for i in range (N_times):
                 Z = random_gen.randn(Nsim,Ndim)
                 ep = np.dot(R,Z.T)   #matrix of correlated random variables
                 for j in range(Ndim):
                     if i ==0:
-                        logmartingale[:,i,j]=-0.5*quad_piecewise(self.variance[j],self.variance[j].T,0,fixings[i])+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,0,fixings[i]))*ep[j]
+                        logmartingale[:,i,j]=-0.5*self.variance[j,i]+sqrt(self.variance[j,i])*ep[j]
                     elif i!=0:
-                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i])+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i]))*ep[j]
+                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*self.variance[j,i]+sqrt(self.variance[j,i])*ep[j]
             M = exp(logmartingale)
             for i in range(Ndim):
-                M[:,:,i] = M[:,:,i]*self.forward_curve[i](fixings)
+                M[:,:,i] = M[:,:,i]*self.forward[i]
             return M
+        
 
 
 """Payoff Functions"""
