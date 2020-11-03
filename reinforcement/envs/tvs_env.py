@@ -32,11 +32,12 @@ class TVS_enviroment(gym.Env):
         self.T = maturity
         self.current_time = 0.
         n_days = 12
-        self.Nsim = 1e4
+        self.Nsim = 5e4
         self.time_index = 0
         self.simulation_index = 0
         self.time_grid = np.linspace(self.T/n_days,self.T,n_days)   #the agent observe the enviroment each month
-        
+        self.time_grid_strategy = np.append(0.,self.time_grid[:-1])
+        self.vola_t = sqrt(np.sum(self.nu(self.time_grid).T**2,axis=1))
         self.constraint = constraint
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
             raise Exception("You should provide the sum limit for short and long position")
@@ -86,7 +87,7 @@ class TVS_enviroment(gym.Env):
         else:
             #at maturity the agent collects its reward that is the discounted payoff of the TVS call option
             done = True
-            alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid)
+            alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid_strategy)
             TVSF = TVSForwardCurve(reference = 0., vola_target = self.target_vol, spot_price = self.I_0, strategy = alpha, mu = self.mu, nu = self.nu, discounting_curve = self.D)
             TVS = TargetVolatilityStrategy(forward_curve=TVSF)
             I_t = TVS.simulate(fixings=np.array([self.T]), random_gen=self.np_random)[0,0]
@@ -108,7 +109,7 @@ class TVS_enviroment(gym.Env):
         self.alpha_t = np.array([])
         self.time_index = 0
         state = np.append(np.zeros(len(self.F)), self.current_time)
-        self.S_t = log(self.simulations[self.simulation_index]/self.spot_prices)/sqrt(self.model.variance.T)
+        self.S_t = log(self.simulations[self.simulation_index]/self.spot_prices)/self.vola_t
         return state
 
 

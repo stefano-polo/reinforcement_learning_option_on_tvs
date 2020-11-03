@@ -3,6 +3,7 @@ from numpy import exp, sqrt, log
 from pricing import piecewise_function, Curve, PricingModel, quad_piecewise
 from numpy.linalg import cholesky
 from scipy.optimize import minimize
+from scipy.interpolate import interp1d
 
 
 """Notation of pallavicini and daluiso draft"""
@@ -13,28 +14,16 @@ class Drift(Curve):
     def __init__(self, forward_curves = None):
         self.T = time_grid_union(curve_array_list = forward_curves)
         Ndim = len(forward_curves)
-        mu_zero = np.zeros((len(self.T),Ndim))
-        """Calculating the zero repo rates"""
-        for i in range(len(self.T)):
-            for j in range(Ndim):
-                if i ==0:
-                    mu_zero[i,j] = forward_curves[j].q[0]
-                else:
-                    mu_zero[i,j] = (1/(-self.T[i]))*log((forward_curves[j](self.T[i])*forward_curves[j].discounting_curve(self.T[i]))/forward_curves[j].spot)
-
-        """Calculating the forward repo rates"""
-        self.mu = np.zeros((len(self.T),Ndim))
-        for i in range(len(self.T)):
-            for j in range(Ndim):
-                if i==0:
-                    self.mu[i][j] = mu_zero[i,j]
-                else:
-                    self.mu[i][j] = ((self.T[i])*(mu_zero[i][j])-(self.T[i-1])*(mu_zero[i-1][j]))/(self.T[i]-self.T[i-1])
+        self.mu = forward_curves[0].q(self.T)
+        self.mu = np.stack((self.mu,forward_curves[1].q(self.T)),axis=1)
+        """Calculating the instant repo rates"""
+        for i in range(2,Ndim):
+            self.mu = np.insert(self.mu,len(self.mu.T),forward_curves[i].q(self.T),axis=1)
+        self.m = interp1d(self.T, self.mu, axis=0, kind='previous',fill_value="extrapolate", assume_sorted=False) 
         print("Drift time grid:",self.T)
-        print("Drift values:", self.mu)
-
+        print("Drift values:", self.mu)   
     def curve(self,date):
-        return piecewise_function(date,self.T,self.mu)
+        return self.m(date)
 
 
 class CholeskyTDependent(Curve):
@@ -45,22 +34,16 @@ class CholeskyTDependent(Curve):
         self.nu = np.zeros((Ndim,Ndim,len(self.T)))
         for i in range(len(self.T)):
             vol = np.zeros(Ndim)
-            if i == 0:
-                for j in range(Ndim):
-                    vol[j] = sqrt(variance_curves[j](0.))
-                vol = np.identity(Ndim)*vol
-                self.nu[:,:,i] = cholesky(vol@(correlation@vol))
-            else:
-                for j in range(Ndim):
-                    vol[j] = sqrt(variance_curves[j](self.T[i-1]))
-                vol = np.identity(Ndim)*vol
-                self.nu[:,:,i] = cholesky(vol@(correlation@vol))
+            for j in range(Ndim):
+                vol[j] = sqrt(variance_curves[j](self.T[i]))
+            vol = np.identity(Ndim)*vol
+            self.nu[:,:,i] = cholesky(vol@(correlation@vol))
+        self.n = interp1d(self.T, self.nu, axis=2, kind='previous',fill_value="extrapolate", assume_sorted=False) 
         print("Cholesky covariance-variance time grid:",self.T)
         print("Cholesky covariance-variance matrix values:", self.nu)
-
-
+   
     def curve(self,date):
-        return piecewise_function(date,self.T,self.nu.T)
+        return self.n(date)
 
 class Strategy(Curve):
     """Create the time dependent optimal strategy for BS model"""
@@ -73,21 +56,14 @@ class Strategy(Curve):
         self.T = np.union1d(mu.T,nu.T)
         self.alpha_t = np.zeros((len(self.T),Ndim))   #time dependent allocation strategy
         for i in range(len(self.T)):
-            if i==0:
-                a_plus = Markowitz_solution(mu(0.),nu(0.),1)
-                a_minus = Markowitz_solution(mu(0.),nu(0.),-1)
-                if loss_function(a_plus,mu(0.),nu(0.))> loss_function(a_minus,mu(0.),nu(0.)):
-                    self.alpha_t[i] = a_minus
-                else:
-                    self.alpha_t[i] = a_plus
+            a_plus = Markowitz_solution(mu(self.T[i]),nu(self.T[i]),1)
+            a_minus = Markowitz_solution(mu(self.T[i]),nu(self.T[i]),-1)
+            if loss_function(a_plus,mu(self.T[i]),nu(self.T[i]))> loss_function(a_minus,mu(self.T[i]),nu(self.T[i])):
+                self.alpha_t[i] = a_minus
             else:
-                a_plus = Markowitz_solution(mu(self.T[i-1]),nu(self.T[i-1]),1)
-                a_minus = Markowitz_solution(mu(self.T[i-1]),nu(self.T[i-1]),-1)
-                if loss_function(a_plus,mu(self.T[i-1]),nu(self.T[i-1]))> loss_function(a_minus,mu(self.T[i-1]),nu(self.T[i-1])):
-                    self.alpha_t[i] = a_minus
-                else:
-                    self.alpha_t[i] = a_plus
-
+                self.alpha_t[i] = a_plus
+        
+        self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous',fill_value="extrapolate", assume_sorted=False)
         print("Markowitz strategy time grid :",self.T)
         print("Markowitz strategy : ",self.alpha_t)
 
@@ -98,22 +74,14 @@ class Strategy(Curve):
             self.T = self.T[np.where(self.T<=np.max(nu.T))[0]]
         self.alpha_t = np.zeros((len(self.T),Ndim))   #time dependent allocation strategy
         for i in range(len(self.T)):
-            if i ==0:
-                if typo == 1:
-                    result = optimization_only_long(mu(0.), nu(0.),N_trial,seed)
-                elif typo == 2:
-                    result = optimization_limit_position(mu(0.), nu(0.), long_limit,N_trial,seed)
-                else:
-                    result = optimization_long_short_position(mu(0.), nu(0.), long_limit, short_limit,N_trial,seed)
+            if typo == 1:
+                    result = optimization_only_long(mu(self.T[i]), nu(self.T[i]),N_trial,seed)
+            elif typo == 2:
+                result = optimization_limit_position(mu(self.T[i]), nu(self.T[i]), long_limit,N_trial,seed)
             else:
-                if typo == 1:
-                    result = optimization_only_long(mu(self.T[i-1]), nu(self.T[i-1]),N_trial,seed)
-                elif typo == 2:
-                    result = optimization_limit_position(mu(self.T[i-1]), nu(self.T[i-1]), long_limit,N_trial,seed)
-                else:
-                    result = optimization_long_short_position(mu(self.T[i-1]), nu(self.T[i-1]), long_limit, short_limit,N_trial,seed)
-
+                result = optimization_long_short_position(mu(self.T[i]), nu(self.T[i]), long_limit, short_limit,N_trial,seed)
             self.alpha_t[i] = result
+        self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous',fill_value="extrapolate", assume_sorted=False)
         print("Optimal strategy time grid :",self.T)
         print("Optimal strategy through minimization: ",self.alpha_t)
 
@@ -147,7 +115,7 @@ class Strategy(Curve):
         print("Intuitive strategy (invest all on the asset with minimum mu/||nu|| parameter)",self.alpha_t)
 
     def curve(self, date):
-        return piecewise_function(date,self.T,self.alpha_t)
+        return self.a_t(date)
 
 
 
@@ -160,18 +128,16 @@ class TVSForwardCurve(Curve):
         self.I_0 = spot_price
         self.mu = mu
         self.nu = nu
-        self.phi = fees
-        self.T = fees_dates
         self.D = discounting_curve
-
+        self.T = fees_dates
+       
     def curve(self,date):
         date = np.array(date)
-        phi = lambda x: piecewise_function(x,self.T,self.phi)
-        l = lambda x: self.vol*((self.alpha(x)@self.mu(x))/np.linalg.norm(self.alpha(x)@self.nu(x)))
+        l = lambda x: self.vol*np.sum(self.alpha(x)*self.mu(x),axis=1)/np.linalg.norm(np.sum((self.alpha(x).T*self.nu(x).transpose(1,0,2)),axis=1).T,axis=1)
         if date.shape!=():
-            return np.asarray([(self.I_0/self.D(extreme)) * exp(-quad_piecewise(l,self.alpha.T,self.reference,extreme))*exp(-quad_piecewise(phi,self.T,self.reference,extreme)) for extreme in date])
+            return np.asarray([(self.I_0/self.D(extreme)) * exp(-quad_piecewise(l,self.alpha.T,self.reference,extreme,vectorial=0)) for extreme in date])
         else:
-            return (self.I_0/self.D(date)) * exp(-quad_piecewise(l,self.alpha.T,self.reference,date))*exp(-quad_piecewise(phi,self.T,self.reference,date))
+            return (self.I_0/self.D(date)) * exp(-quad_piecewise(l,self.alpha.T,self.reference,date,vectorial=0))
 
 
 
@@ -190,19 +156,23 @@ class TargetVolatilityStrategy(PricingModel):
     def simulate(self, fixings=None, Nsim=1, seed=14, ret_forward = 0, **kwargs):
         Nsim = int(Nsim)
         np.random.seed(seed)
+        N_times = len(fixings)
         Ndim = int(len(self.nu(0)))
-        logI = np.zeros((2*Nsim,len(fixings)))
-        for i in range(len(fixings)):
+        logI = np.zeros((2*Nsim,N_times))
+        for i in range(N_times):
             Z = np.random.randn(Nsim,Ndim)
             Z = np.concatenate((Z,-Z))
             if i ==0:
-                omega_t = (self.vol)/np.linalg.norm(self.alpha(0.)@self.nu(0.))
-                logI[:,i] = -0.5*(np.linalg.norm(omega_t*(self.alpha(0.)@self.nu(0.)))**2)*fixings[i]+sqrt(fixings[i])*((omega_t*self.alpha(0.)@self.nu(0.))@Z.T)
+                prod = self.alpha(0.)@self.nu(0.)
+                omega_t = self.vol/np.linalg.norm(prod)
+                logI[:,i] = -0.5*(self.vol**2)*fixings[i]+sqrt(fixings[i])*((omega_t*prod)@Z.T)
             else:
-                omega_t = (self.vol)/np.linalg.norm(self.alpha(fixings[i-1])@self.nu(fixings[i-1]))
-                logI[:,i] = logI[:,i-1] -0.5*(np.linalg.norm(omega_t*(self.alpha(fixings[i-1])@self.nu(fixings[i-1])))**2)*(fixings[i]-fixings[i-1])+sqrt(fixings[i]-fixings[i-1])*((omega_t*self.alpha(fixings[i-1])@self.nu(fixings[i-1]))@Z.T)
+                prod = self.alpha(fixings[i-1])@self.nu(fixings[i-1])
+                omega_t = self.vol/np.linalg.norm(prod)
+                dt = fixings[i]-fixings[i-1]
+                logI[:,i] = logI[:,i-1] -0.5*(self.vol**2)*(dt)+sqrt(dt)*((omega_t*prod)@Z.T)
 
-        I =  np.zeros((2*Nsim,len(fixings)))
+        I =  np.zeros((2*Nsim,N_times))
         if ret_forward == 0:
             I = exp(logI)*self.forward(fixings)
             return I

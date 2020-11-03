@@ -25,26 +25,28 @@ class EquityForwardCurve(Curve):
         self.discounting_curve = discounting_curve
         if act =="360":
             self.T = ACT_360(repo_dates,self.reference)
+            self.T = self.T*360/365
         elif act == "365":
             self.T = ACT_365(repo_dates,self.reference)
         else:
             self.T = abs(repo_dates - self.reference)
-        self.q = np.array([repo_rates[0]])
+        self.q_values = np.array([repo_rates[0]])
         for i in range(1,len(self.T)):
             alpha = ((self.T[i])*(repo_rates[i])-(self.T[i-1])*
                      (repo_rates[i-1]))/(self.T[i]-self.T[i-1])
-            self.q = np.append(self.q,alpha)
+            self.q_values = np.append(self.q_values,alpha)
+        if self.T[0] !=0:
+            self.T = np.insert(self.T[:-1],0,0)
+        self.q = interp1d(self.T, self.q_values, kind='previous',fill_value="extrapolate", assume_sorted=False) 
         print("Forward repo time grid",self.T)
-        print("Forward repo rate: ", self.q)
+        print("Forward repo rate: ", self.q_values)
 
     def curve(self, date):
-        q = lambda x: piecewise_function(x,self.T,self.q)
         date = np.array(date)
         if date.shape!=():
-            for t in date:
-            return  np.asarray([(self.spot/self.discounting_curve(extreme))*exp(-quad_piecewise(q,self.T,0.,extreme)) for extreme in date])
+            return  np.asarray([(self.spot/self.discounting_curve(extreme))*exp(-quad_piecewise(self.q,self.T,0,extreme)) for extreme in date])
         else:
-            return (self.spot/self.discounting_curve(date))*exp(-quad_piecewise(q,self.T,0.,date))
+            return (self.spot/self.discounting_curve(date))*exp(-quad_piecewise(self.q,self.T,0,date))
 
 
 class DiscountingCurve(Curve):
@@ -96,11 +98,14 @@ class ForwardVariance(Curve):  #I calculate the variance and not the volatility 
             alpha = ((self.T[i])*(self.spot_vol[i]**2)-(self.T[i-1])*
                      (self.spot_vol[i-1]**2))/(self.T[i]-self.T[i-1])
             self.forward_vol = np.append(self.forward_vol, sqrt(alpha))
+        if self.T[0] !=0:
+            self.T = np.insert(self.T[:-1],0,0)
+        self.vol_t = interp1d(self.T, self.forward_vol, kind='previous',fill_value="extrapolate", assume_sorted=False) 
         print("Forward volatility time grid: ",self.T)
         print("Forward volatility: ",self.forward_vol)
 
     def curve(self,date):
-        return piecewise_function(date,self.T,self.forward_vol**2)
+        return self.vol_t(date)**2
 
 
 class PricingModel:
@@ -127,32 +132,37 @@ class Black(PricingModel):
         if fixings.shape==():
             fixings = np.array([fixings])
         Nsim = int(Nsim)
+        N_times = len(fixings)
         if corr is None:
             print("Single Asset Simulation")
-            logmartingale = np.zeros((int(2*Nsim),len(fixings)))
-            for i in range (len(fixings)):
+            logmartingale = np.zeros((2*Nsim,N_times))
+            for i in range (N_times):
                 Z = np.random.randn(Nsim)
                 Z = np.concatenate((Z,-Z))
                 if i ==0:
-                    logmartingale.T[i]=-0.5*quad_piecewise(self.variance,self.variance.T,0.,fixings[i])+sqrt(quad_piecewise(self.variance,self.variance.T,0.,fixings[i]))*Z
+                    integral = quad_piecewise(self.variance,self.variance.T,0.,fixings[i])
+                    logmartingale.T[i]=-0.5*integral+sqrt(integral)*Z
                 elif i!=0:
-                    logmartingale.T[i]=logmartingale.T[i-1]-0.5*quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i])+sqrt(quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i]))*Z
+                    integral = quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i])
+                    logmartingale.T[i]=logmartingale.T[i-1]-0.5*integral+sqrt(integral)*Z
             return exp(logmartingale)*self.forward_curve(fixings)
 
         else:
             print("Multi Asset Simulation")
             Ndim = len(corr)
-            logmartingale = np.zeros((int(2*Nsim),len(fixings),Ndim))
+            logmartingale = np.zeros((2*Nsim,N_times,Ndim))
             R = cholesky(corr)
-            for i in range (len(fixings)):
+            for i in range (N_times):
                 Z = np.random.randn(Nsim,Ndim)
                 Z = np.concatenate((Z,-Z)) #matrix of uncorrelated random variables
-                ep = np.dot(R,Z.T)   #matrix of correlated random variables
+                ep = R@Z.T   #matrix of correlated random variables
                 for j in range(Ndim):
                     if i ==0:
-                        logmartingale[:,i,j]=-0.5*quad_piecewise(self.variance[j],self.variance[j].T,0.,fixings[i])+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,0.,fixings[i]))*ep[j]
+                        integral = quad_piecewise(self.variance[j],self.variance[j].T,0.,fixings[i])
+                        logmartingale[:,i,j]=-0.5*integral+sqrt(integral)*ep[j]
                     elif i!=0:
-                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i])+sqrt(quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i]))*ep[j]
+                        integral = quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i])
+                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*integral+sqrt(integral)*ep[j]
             M = exp(logmartingale)
             for i in range(Ndim):
                 M[:,:,i] = M[:,:,i]*self.forward_curve[i](fixings)
@@ -192,13 +202,12 @@ def piecewise_function(date, interval, value):
     y = y+value[len(value)-1]*(date>=interval[len(value)-1])  #from the last date to infinity I assume as value that one of the last intervall
     return y
 
-def quad_piecewise(f, time_grid, t_in, t_fin):
+def quad_piecewise(f, time_grid, t_in, t_fin, vectorial=0):
     """integral of a piecewise constant function"""
-    y = np.array([])
     dt = np.array([])
     t_in = float(t_in)
     t_fin = float(t_fin)
-    time_grid = np.float64(time_grid)
+    time_grid=np.float64(time_grid)
     if t_in == t_fin:
         return 0
     if t_fin in time_grid:
@@ -209,9 +218,14 @@ def quad_piecewise(f, time_grid, t_in, t_fin):
         time_grid = time_grid[np.where(time_grid>t_in)[0]]
         time_grid = np.insert(time_grid,0,t_in)
     if t_fin not in time_grid:
-        time_grid = np.array(time_grid[np.where(time_grid<t_fin)[0]])
-        time_grid = np.array(np.insert(time_grid,len(time_grid),t_fin))
-    for i in range(len(time_grid)-1):
-        y = np.append(y,f(time_grid[i]))
+        time_grid = time_grid[np.where(time_grid<t_fin)[0]]
+        time_grid = np.insert(time_grid,len(time_grid),t_fin)
+    if vectorial:
+        y = np.array([])
+        for i in range(1,len(time_grid)):
+            y = np.append(y,f(time_grid[i]))
+    else:
+        y = f(time_grid[:-1])
+      
     dt = np.diff(time_grid)
     return np.sum(y*dt)
