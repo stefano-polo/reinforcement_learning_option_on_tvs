@@ -31,6 +31,9 @@ class TVS_simple(gym.Env):
         self.D, self.F, self.V, self.correlation, self.spot_prices = load_fake_market(N_equity, r, self.T)
         self.mu = Drift(self.F)
         self.nu = CholeskyTDependent(self.V,self.correlation)
+        self.vola_t = sqrt(np.sum(self.nu(self.time_grid[0])**2,axis=0))
+        for time in self.time_grid[1:]:
+            self.vola_t =  np.vstack([self.vola_t, sqrt(np.sum(self.nu(time)**2,axis=0))])
         self.discount_T = self.D(self.T)
         self.model = Black(fixings=self.time_grid, variance_curve=self.V, forward_curve=self.F)
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
@@ -90,7 +93,8 @@ class TVS_simple(gym.Env):
         self.alpha_t = np.array([])
         self.time_index = 0
         state = np.append(np.zeros(len(self.F)), self.current_time)
-        self.S_t = log(self.simulations[self.simulation_index]/self.spot_prices)/sqrt(self.model.variance.T)
+        self.S_t = log(self.simulations[self.simulation_index]/self.spot_prices)/self.vola_t
+        print(self.S_t)
         return state
 
 
