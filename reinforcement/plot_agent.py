@@ -18,19 +18,17 @@ def model_creation(seed, fixings, n, normalized):
     maturity=1
     load_fake_market(N_equity, r, maturity)
     D, F, V, correlation, spot_prices = load_fake_market(N_equity, r, maturity)
-    model = Black(variance=V,forward_curve = F)
     nu = CholeskyTDependent(V,correlation)
-    vola_t = sqrt(np.sum(nu(0)**2,axis=0))
-    for time in fixings[1:]:
-        vola_t =  np.vstack([vola_t, sqrt(np.sum(nu(time)**2,axis=0))]) 
-
-    b = Black(forward_curve=F, variance=V)
-    np.random.seed(seed)
+    vola_t =  sqrt(np.sum(nu(fixings[1:]).T**2,axis=1))
+    b = Black(forward_curve=F, variance_curve=V, fixings=fixings)
+    np.random.seed(seed)  np.vstack([spot_prices,S2_[:-1]])
     gen = np.random
     if normalized ==1:
-        return log(b.simulate(fixings=fixings, random_gen=gen, corr=correlation)[0]/(spot_prices))/vola_t
+        sim = b.simulate(random_gen=gen, corr=correlation)[0]
+        simulation =  (log(sim/np.vstack([spot_prices,sim[:-1]])-0.5*b.variance.T)/sqrt(b.variance.T)#log(b.simulate(random_gen=gen, corr=correlation)[0]/(spot_prices))/vola_t
+        return np.vstack((np.zeros(N_equity),simulation))
     else:
-        return b.simulate(fixings=fixings, random_gen=gen, corr=correlation)[0]
+        return b.simulate(random_gen=gen, corr=correlation)[0]
 
     
     
@@ -59,12 +57,14 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
     # plot coordinates
     x_low = max(env.observation_space.low[variable_indexes[0]], -x_max)
     x_high = min(env.observation_space.high[variable_indexes[0]], x_max)
-    x_axis = np.linspace(x_low, x_high, variable_points)
-    y_shape = (variable_points,) * len(variable_indexes)
+    x_axis = np.linspace(x_high/variable_points, x_high, variable_points)
+    x_axis = np.insert(x_axis,0,0)
+    y_shape = (variable_points+1,) * len(variable_indexes)
     if strategy_long:
         dim, = env.action_space.shape
         dim+=1
         y_shape+= dim,
+        print('DIMENSIONE y:',y_shape)
     else:
         dim, = env.action_space.shape
         y_shape+= dim,
@@ -73,6 +73,7 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
     # init
     if all_time_dep:
         S = model_creation(seed, x_axis, N_equity, normalized)
+        print(S.shape)
         obs = np.insert(S, dim, x_axis, axis=1)
     else:
         obs = reference_state[np.newaxis, :]

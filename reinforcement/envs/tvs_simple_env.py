@@ -13,7 +13,7 @@ from envs.pricing.n_sphere import n_sphere_to_cartesian
 class TVS_simple(gym.Env):
     """Target volatility strategy Option environment with a simple market
     """
-    def __init__(self, N_equity= 2, target_volatility=5/100, I_0 = 1., r=1/100., strike_opt=1., maturity=1., constraint = "only_long", action_bound=50, sum_long = None, sum_short=None):
+    def __init__(self, N_equity= 3, target_volatility=5/100, I_0 = 1., r=1/100., strike_opt=1., maturity=1., constraint = "only_long", action_bound=50, sum_long = None, sum_short=None):
         self.Nsim = 5e4
         self.constraint = constraint
         self.target_vol = target_volatility
@@ -47,7 +47,7 @@ class TVS_simple(gym.Env):
             low_action = np.zeros(self.N_equity-1)
             high_action = np.ones(self.N_equity-1)*(np.pi*0.5+0.001)
         self.action_space = spaces.Box(low = np.float32(low_action), high = np.float32(high_action))
-        high = np.ones(N_equity)*(2.5)
+        high = np.ones(N_equity)*(3.1)
         low_bound = np.append(-high,0)
         high_bound = np.append(high,self.T+1/365)
         self.observation_space = spaces.Box(low=np.float32(low_bound),high=np.float32(high_bound))
@@ -88,12 +88,14 @@ class TVS_simple(gym.Env):
     def reset(self):
         if self.simulation_index==0 or self.simulation_index == self.Nsim:
             self.simulations = self.model.simulate(corr=self.correlation, random_gen=self.np_random, Nsim=self.Nsim)
+            self.simulations = (log(self.simulations/np.insert(self.simulations[:,:-1,:],0,self.spot_prices,axis=1))-0.5*self.model.variance.T)/sqrt(self.model.variance.T)
             self.simulation_index = 0
         self.current_time = 0.
         self.alpha_t = np.array([])
         self.time_index = 0
         state = np.append(np.zeros(len(self.F)), self.current_time)
-        self.S_t = log(self.simulations[self.simulation_index]/self.spot_prices)/self.vola_t
+        self.S_t = self.simulations[self.simulation_index] 
+        #log(self.simulations[self.simulation_index]/self.spot_prices)/self.vola_t
         return state
 
 
