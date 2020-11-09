@@ -25,8 +25,8 @@ def model_creation(seed, fixings, n, normalized):
     gen = np.random
     if normalized ==1:
         sim = b.simulate(random_gen=gen, corr=correlation)[0]
-        simulation =  (log(sim/np.vstack([spot_prices,sim[:-1]])-0.5*b.variance.T)/sqrt(b.variance.T)#log(b.simulate(random_gen=gen, corr=correlation)[0]/(spot_prices))/vola_t
-        return np.vstack((np.zeros(N_equity),simulation))
+        simulation =  (log(sim/np.vstack([spot_prices,sim[:-1]]))-0.5*b.variance.T)/sqrt(b.variance.T)#log(b.simulate(random_gen=gen, corr=correlation)[0]/(spot_prices))/vola_t
+        return np.vstack([np.zeros(N_equity),simulation])
     else:
         return b.simulate(random_gen=gen, corr=correlation)[0]
 

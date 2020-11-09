@@ -37,7 +37,7 @@ class EquityForwardCurve(Curve):
             self.q_values = np.append(self.q_values,alpha)
         if self.T[0] !=0:
             self.T = np.insert(self.T[:-1],0,0)
-        self.q = interp1d(self.T, self.q_values, kind='previous',fill_value="extrapolate", assume_sorted=False) 
+        self.q = interp1d(self.T, self.q_values, kind='previous',fill_value="extrapolate", assume_sorted=False)
         print("Forward repo time grid",self.T)
         print("Forward repo rate: ", self.q_values)
 
@@ -100,7 +100,7 @@ class ForwardVariance(Curve):  #I calculate the variance and not the volatility 
             self.forward_vol = np.append(self.forward_vol, sqrt(alpha))
         if self.T[0] !=0:
             self.T = np.insert(self.T[:-1],0,0)
-        self.vol_t = interp1d(self.T, self.forward_vol, kind='previous',fill_value="extrapolate", assume_sorted=False) 
+        self.vol_t = interp1d(self.T, self.forward_vol, kind='previous',fill_value="extrapolate", assume_sorted=False)
         print("Forward volatility time grid: ",self.T)
         print("Forward volatility: ",self.forward_vol)
 
@@ -147,11 +147,11 @@ class Black(PricingModel):
                     self.variance[j] = quad_piecewise(variance_curve,variance_curve.T,0.,fixings[j])
                 else:
                     self.variance[j] = quad_piecewise(variance_curve,variance_curve.T,fixings[j-1],fixings[j])
-        
-    def simulate(self, random_gen = None, corr = None, Nsim=1, seed=14,**kwargs):
+
+    def simulate(self, random_gen = None, corr_chole = None, Nsim=1, seed=14,**kwargs):
         Nsim = int(Nsim)
         N_times = len(self.variance.T)
-        if corr is None:
+        if corr_chole is None:
             logmartingale = np.zeros((Nsim,N_times))
             for i in range (N_times):
                 Z = random_gen.randn(Nsim)
@@ -162,12 +162,11 @@ class Black(PricingModel):
             return exp(logmartingale)*self.forward
 
         else:
-            Ndim = len(corr)
+            Ndim = len(corr_chole)
             logmartingale = np.zeros((Nsim,N_times,Ndim))
-            R = cholesky(corr)
             for i in range (N_times):
                 Z = np.random.randn(Nsim,Ndim)
-                ep = R@Z.T   #matrix of correlated random variables
+                ep = corr_chole@Z.T   #matrix of correlated random variables
                 for j in range(Ndim):
                     if i ==0:
                         logmartingale[:,i,j]=-0.5*self.variance[j,i]+sqrt(self.variance[j,i])*ep[j]
@@ -235,6 +234,6 @@ def quad_piecewise(f, time_grid, t_in, t_fin, vectorial=0):
             y = np.append(y,f(time_grid[i]))
     else:
         y = f(time_grid[:-1])
-      
+
     dt = np.diff(time_grid)
     return np.sum(y*dt)

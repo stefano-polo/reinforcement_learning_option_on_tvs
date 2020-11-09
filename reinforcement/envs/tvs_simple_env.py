@@ -3,6 +3,7 @@ from gym import spaces
 from gym.utils import seeding
 from numpy import log, sqrt, exp
 import numpy as np
+from numpy.linalg import cholesky
 from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, Black, ForwardVariance
 from envs.pricing.closedforms import European_option_closed_form
 from envs.pricing.targetvol import Drift, CholeskyTDependent, Strategy, TVSForwardCurve, TargetVolatilityStrategy
@@ -30,6 +31,7 @@ class TVS_simple(gym.Env):
         self.alpha_t = np.array([])
         self.strike_opt = strike_opt
         self.D, self.F, self.V, self.correlation, self.spot_prices = load_fake_market(N_equity, r, self.T)
+        self.correlation_chole = cholesky(self.correlation)
         self.mu = Drift(self.F)
         self.nu = CholeskyTDependent(self.V,self.correlation)
         self.vola_t = sqrt(np.sum(self.nu(self.time_grid).T**2,axis=1))
@@ -80,21 +82,21 @@ class TVS_simple(gym.Env):
             I_t = TVS.simulate(fixings=np.array([self.T]), random_gen=self.np_random)[0,0]
             reward = np.maximum(I_t-self.strike_opt,0)*self.discount_T
             self.simulation_index += 1
-            
+
         state = np.append(self.current_asset, self.current_time)
         return state, reward, done, {}
 
 
     def reset(self):
         if self.simulation_index==0 or self.simulation_index == self.Nsim:
-            self.simulations = self.model.simulate(corr=self.correlation, random_gen=self.np_random, Nsim=self.Nsim)
+            self.simulations = self.model.simulate(corr_chole=self.correlation_chole, random_gen=self.np_random, Nsim=self.Nsim)
             self.simulations = (log(self.simulations/np.insert(self.simulations[:,:-1,:],0,self.spot_prices,axis=1))-0.5*self.model.variance.T)/sqrt(self.model.variance.T)
             self.simulation_index = 0
         self.current_time = 0.
         self.alpha_t = np.array([])
         self.time_index = 0
         state = np.append(np.zeros(len(self.F)), self.current_time)
-        self.S_t = self.simulations[self.simulation_index] 
+        self.S_t = self.simulations[self.simulation_index]
         #log(self.simulations[self.simulation_index]/self.spot_prices)/self.vola_t
         return state
 
