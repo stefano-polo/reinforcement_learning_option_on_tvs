@@ -56,7 +56,7 @@ class CholeskyTDependent(Curve):
 
 
     def curve(self,date):
-        return piecewise_function(date,self.T,self.nu.T)
+        return piecewise_function(date,self.T,self.nu.T).T
 
 class Strategy(Curve):
     """Create the time dependent optimal strategy for BS model"""

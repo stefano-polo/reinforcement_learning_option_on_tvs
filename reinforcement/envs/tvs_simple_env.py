@@ -28,17 +28,17 @@ class TVS_simple(gym.Env):
         self.alpha_t = np.array([])
         self.strike_opt = strike_opt
         self.simulation_index = 0
-        self.Nsim = 2e4
+        self.Nsim = 10
         self.D, self.F, self.V, self.correlation, self.spot_prices = load_fake_market(N_equity, r, self.T)
         self.discount=self.D(self.T)
         self.correlation_chole = np.linalg.cholesky(self.correlation)
         self.model = Black(fixings=self.time_grid,variance=self.V,forward_curve = self.F)
         self.mu = Drift(self.F)
         self.nu = CholeskyTDependent(self.V,self.correlation)
-        self.vola_t = sqrt(np.sum(self.nu(0)**2,axis=0))
+        self.vola_t = sqrt(np.sum(self.nu(0)**2,axis=1))
         for time in self.time_grid[1:]:
-            self.vola_t =  np.vstack([self.vola_t, sqrt(np.sum(self.nu(time)**2,axis=0))]) 
-        
+            self.vola_t =  np.vstack([self.vola_t, sqrt(np.sum(self.nu(time)**2,axis=1))]) 
+        print(self.vola_t)
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
             raise Exception("You should provide the sum limit for short and long position")
         if sum_long is not None and sum_short is not None:
@@ -55,8 +55,10 @@ class TVS_simple(gym.Env):
         low_bound = np.append(-high,0.)
         high_bound = np.append(high,self.T+1/365)
         self.observation_space = spaces.Box(low=np.float32(low_bound),high=np.float32(high_bound))
-        self.seed()
-        self.reset()
+        #self.seed()
+        #self.np_random.seed(24816)
+        #self.reset()
+        
 
 #current time start at zero
     def step(self, action):  # metodo che mi dice come evolve il sistema una volta arrivata una certa azione
@@ -66,6 +68,8 @@ class TVS_simple(gym.Env):
         elif self.constraint == "long_short_limit":
             action = sign_renormalization(action,self.how_long,self.how_short)
 
+        self.np_random.seed(24816)   
+        
         if self.time_index == 0:
             self.alpha_t = action
         else:
@@ -79,38 +83,46 @@ class TVS_simple(gym.Env):
         else:
             done = True
             alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid[1:])
+            print('Strategia ',self.alpha_t)
             TVSF = TVSForwardCurve(reference = 0, vola_target = self.target_vol, spot_price = self.spot_I, strategy = alpha, mu = self.mu, nu = self.nu, discounting_curve = self.D)
             TVS = TargetVolatilityStrategy(forward_curve=TVSF)
+            print('Forward', TVSF(self.T))
             I_t = TVS.simulate(fixings=np.array([self.T]), random_gen=self.np_random)[0,0]
             reward = np.maximum(I_t-self.strike_opt,0)*self.discount
             self.simulation_index = self.simulation_index +1 
 
         #self.asset_history = np.append(self.asset_history,self.current_asset)
         state = np.append(self.current_asset, self.current_time)
-        print('STATE',state)
+      #  print('STATE',state)
         return state, reward, done, {}
 
 
     def reset(self):
         if self.simulation_index == 0 or self.simulation_index==self.Nsim:
+            self.np_random.seed(24816)
             self.simulations = log(self.model.simulate(corr_chole = self.correlation_chole, random_gen = self.np_random, Nsim=self.Nsim)/self.spot_prices)/self.vola_t
             self.simulation_index=0
             
+        self.np_random.seed(24816)   
         #self.current_asset = self.spot_prices
         self.current_time = 0.
         self.S_t = self.simulations[self.simulation_index]
         self.alpha_t = np.array([])
         self.time_index = 0
         self.asset_history = np.array([])
+        #print(self.simulations)
         #self.asset_history = np.append(self.asset_history,self.current_asset)
-        print('TOTAL',self.S_t)
+       # print('TOTAL',self.S_t)
         state = np.append(self.S_t[self.time_index], self.current_time)
-        print('STATE',state)
+        #print('STATE',state)
         return state
 
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
+        print('SEME ',seed)
+        seed=24816
+        self.np_random.seed(seed)
         return [seed]
 
     def render(self, mode='human'):
