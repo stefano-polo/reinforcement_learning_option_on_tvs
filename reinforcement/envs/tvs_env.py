@@ -40,6 +40,7 @@ class TVS_enviroment(gym.Env):
         self.mu = Drift(forward_curves = self.F)
         self.nu = CholeskyTDependent(variance_curves = self.V, correlation = self.correlation)
         self.model = Black(fixings=self.time_grid, variance_curve=self.V, forward_curve=self.F)
+        self.vola_t = sqrt(np.sum(self.nu(self.time_grid)**2,axis=1)).T
         self.constraint = constraint
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
             raise Exception("You should provide the sum limit for short and long position")
@@ -55,7 +56,7 @@ class TVS_enviroment(gym.Env):
             high_action = np.ones(self.N_equity-1)*(np.pi*0.5+0.001)
 
         self.action_space = spaces.Box(low = np.float32(low_action),high = np.float32(high_action))
-        high = np.ones(self.N_equity)*3.
+        high = np.ones(self.N_equity)*2.5
         low_bound = np.append(-high,0.)
         high_bound = np.append(high,self.T+1./365.)
         self.observation_space = spaces.Box(low=np.float32(low_bound),high=np.float32(high_bound))
@@ -105,8 +106,9 @@ class TVS_enviroment(gym.Env):
         if self.simulation_index==0 or self.simulation_index == self.Nsim:
             #evolve the Black and Scholes model
             self.simulations = self.model.simulate(corr_chole=self.corr_chole, random_gen=self.np_random, Nsim=self.Nsim)
-            self.simulations[:,1:,:] = (log(self.simulations[:,1:,:]/self.simulations[:,:-1,:])-0.5*self.model.variance.T[1:])/sqrt(self.model.variance.T[1:])
-            self.simulations[:,0,:] = 0.
+            #self.simulations[:,1:,:] = (log(self.simulations[:,1:,:]/self.simulations[:,:-1,:])-0.5*self.model.variance.T[1:])/sqrt(self.model.variance.T[1:])
+            #self.simulations[:,0,:] = 0.
+            self.simulations = log(self.simulations/self.spot_prices)/self.vola_t
             self.simulation_index = 0
         self.current_time = 0.
         self.time_index = 0
