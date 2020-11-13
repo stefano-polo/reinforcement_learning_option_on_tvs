@@ -50,7 +50,8 @@ class Strategy(Curve):
     def __init__(self, strategy = None, dates = None):
         self.alpha_t = strategy
         self.T = dates
-        self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous',fill_value="extrapolate", assume_sorted=False)
+        if strategy is not None:
+            self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous',fill_value="extrapolate", assume_sorted=False)
         
     def Mark_strategy(self,mu = None, nu = None):
         Ndim = len(mu(0.))
@@ -69,7 +70,7 @@ class Strategy(Curve):
         print("Markowitz strategy : ",self.alpha_t)
 
     def optimization_constrained(self, mu = None, nu = None, long_limit = 25/100, short_limit = 25/100, N_trial = 20, seed = 13, typo = 1):
-        Ndim = len(mu(np.array([0.])))
+        Ndim = len(mu(0.))
         self.T = np.union1d(mu.T,nu.T)
         if np.max(mu.T)>np.max(nu.T):    #check control to avoid denominator divergence
             self.T = self.T[np.where(self.T<=np.max(nu.T))[0]]

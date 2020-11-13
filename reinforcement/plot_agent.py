@@ -12,23 +12,54 @@ import envs.fe_envs
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 
-def model_creation(seed, fixings, n, normalized):
-    N_equity = n
-    r = 1/100
-    maturity=1
-    load_fake_market(N_equity, r, maturity)
-    D, F, V, correlation, spot_prices = load_fake_market(N_equity, r, maturity)
+def model_creation(seed, fixings, n, normalized, market = 0):
+    if not market:
+        N_equity = n
+        print('Loading fake market with number of equity: ',n)
+        r = 1/100
+        maturity=1
+        load_fake_market(N_equity, r, maturity)
+        D, F, V, correlation, spot_prices = load_fake_market(N_equity, r, maturity)
+        names = []
+        for i in range(N_equity):
+            names.append("Equity "+str(i+1))
+    elif market:
+        N_equity = n
+        print('Loading real market with number of equity: ',n)
+        reader = MarketDataReader("TVS_example.xml")
+        correlation = reader.get_correlation()
+        names = reader.get_stock_names()
+        D = reader.get_discounts()
+        F = reader.get_forward_curves()
+        spot_prices = reader.get_spot_prices()
+        V = reader.get_volatilities()
+        if n==2:
+            print('Cutting real data')
+            F = [F[3],F[4]]
+            V = [V[3],V[4]]
+            spot_prices = np.array([spot_prices[3],spot_prices[4]])
+            correlation = np.array(([1.,0.],[0.,1.]))
+            names = [names[3],names[4]]
+        
+    b = Black(fixings=fixings,forward_curve=F, variance_curve=V)
     nu = CholeskyTDependent(V,correlation)
-    vola_t =  sqrt(np.sum(nu(fixings[1:]).T**2,axis=1))
-    b = Black(forward_curve=F, variance_curve=V, fixings=fixings)
-    np.random.seed(seed)  np.vstack([spot_prices,S2_[:-1]])
+    chole = np.linalg.cholesky(correlation)
     gen = np.random
+    gen.seed(seed)
+    simulation = b.simulate(random_gen=gen, corr_chole=chole)[0]
     if normalized ==1:
-        sim = b.simulate(random_gen=gen, corr=correlation)[0]
-        simulation =  (log(sim/np.vstack([spot_prices,sim[:-1]]))-0.5*b.variance.T)/sqrt(b.variance.T)#log(b.simulate(random_gen=gen, corr=correlation)[0]/(spot_prices))/vola_t
-        return np.vstack([np.zeros(N_equity),simulation])
+        vola_t = sqrt(np.sum(nu(fixings)**2,axis=1)).T
+        simulation = log(simulation/spot_prices)/vola_t
+        print('Normalization with $\sigma(t)$')
+        return simulation, names
+    elif normalized == 2:
+        simulation[1:] = (log(simulation[1:]/simulation[:-1])-0.5*b.variance.T[1:])/sqrt(b.variance.T[1:])
+        simulation[0]=0.
+        print('Normalization with variance')
+        return simulation, names
     else:
-        return b.simulate(random_gen=gen, corr=correlation)[0]
+        print('No normalization of the input data')
+        return simulation,names
 
     
     
@@ -45,7 +76,7 @@ def get_y(scalar_observation, model, env, plot_value, strategy):
 
 
 def plot(args, plot_value, env_map, reference_state, variable_indexes,
-         variable_points, title_plot, legend=None, x_max=np.infty, y_max=np.infty, strategy_long=True, all_time_dep = True, seed=10, N_equity=2, normalized=0):
+         variable_points, title_plot, legend=None, x_max=np.infty, y_max=np.infty, strategy_long=True, all_time_dep = True, seed=10, N_equity=2, normalized=0, market=0):
     """Function to plot a section of the action space."""
     # selected code from baselines.run.main()
     arg_parser = common_arg_parser()
@@ -54,17 +85,18 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
     # create environment and agent
     model, env = train(args, extra_args)
     remove_train_noise(model)
-    # plot coordinates
+    
     x_low = max(env.observation_space.low[variable_indexes[0]], -x_max)
     x_high = min(env.observation_space.high[variable_indexes[0]], x_max)
+    
     x_axis = np.linspace(x_high/variable_points, x_high, variable_points)
-    x_axis = np.insert(x_axis,0,0)
+    x_axis = np.insert(x_axis,0,x_low)
+    print("Evaluation grid ",x_axis)
     y_shape = (variable_points+1,) * len(variable_indexes)
     if strategy_long:
         dim, = env.action_space.shape
         dim+=1
         y_shape+= dim,
-        print('DIMENSIONE y:',y_shape)
     else:
         dim, = env.action_space.shape
         y_shape+= dim,
@@ -72,8 +104,7 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
     label = extra_args['load_path'] if legend is None else legend
     # init
     if all_time_dep:
-        S = model_creation(seed, x_axis, N_equity, normalized)
-        print(S.shape)
+        S, names = model_creation(seed, x_axis, N_equity, normalized)
         obs = np.insert(S, dim, x_axis, axis=1)
     else:
         obs = reference_state[np.newaxis, :]
@@ -88,7 +119,7 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
     
     if not plot_value:
         for i in range(dim):
-            plt.step(x_axis, y_axis.T[i], label="Equity"+str(i+1),where='post')
+            plt.step(x_axis, y_axis.T[i], label=names[i],where='post')
         plt.ylabel(r"Strategy $\alpha(t)$")
         plt.title("Action space at [log($\mathbf{S_t/S_0}$),t]")
         plt.legend()
