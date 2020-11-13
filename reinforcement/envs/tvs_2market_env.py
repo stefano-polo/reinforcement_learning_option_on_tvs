@@ -10,9 +10,9 @@ from envs.pricing.targetvol import Drift, CholeskyTDependent, Strategy, TVSForwa
 from envs.pricing.read_market import MarketDataReader
 from envs.pricing.n_sphere import n_sphere_to_cartesian, sign_renormalization
 
-class TVS_enviroment(gym.Env):
-    """Target volatility strategy Option environment"""
-    def __init__(self, filename= "TVS_example.xml", spot_I = 100, target_volatility=0.1,strike_opt=100., maturity=1., constraint = "only_long", action_bound = 25/100, sum_long=None, sum_short=None):
+class TVS_enviroment2(gym.Env):
+    """Target volatility strategy Option environment for equity I NKY NTR EUR and FTSE100 NTR E"""
+    def __init__(self, filename= "TVS_example.xml", spot_I = 100, target_volatility=5./100,strike_opt=100., maturity=1., constraint = "only_long", action_bound = 25/100, sum_long=None, sum_short=None):
         #Preparing Time grid for the RL agent
         self.I_0 = spot_I
         self.strike_option = strike_opt
@@ -23,19 +23,21 @@ class TVS_enviroment(gym.Env):
         n_observations = 365
         self.time_index = 0
         self.simulation_index = 0
-        months = np.array([31,28,31,30,31,30,31,31,30,31,30,31])
-        self.time_grid = np.cumsum(months)/n_observations
+        self.time_grid = np.linspace(self.T/n_observations,self.T,n_observations)
         self.time_grid = np.insert(self.time_grid,0,0)
         #Loading Market data and preparing the BS model"""
         reader = MarketDataReader(filename)
         self.spot_prices = reader.get_spot_prices()
-        self.correlation = reader.get_correlation()
+        self.spot_prices = np.array([self.spot_prices[3],self.spot_prices[4]])
+        self.correlation = np.array(([1.,0.],[0.,1.]))
         self.corr_chole = cholesky(self.correlation)
-        self.N_equity = len(self.correlation)
+        self.N_equity = 2
         self.D = reader.get_discounts()
         self.discount = self.D(maturity)
         self.F = reader.get_forward_curves()
         self.V = reader.get_volatilities()
+        self.F = [self.F[3],self.F[4]]
+        self.V = [self.V[3],self.V[4]]
         #Creating the objects for the TVS
         self.mu = Drift(forward_curves = self.F)
         self.nu = CholeskyTDependent(variance_curves = self.V, correlation = self.correlation)
@@ -96,6 +98,7 @@ class TVS_enviroment(gym.Env):
 
         #self.asset_history = np.append(self.asset_history,self.current_asset)
         state = np.append(self.current_asset, self.current_time)
+        print(state)
         return state, reward, done, {}
 
 
