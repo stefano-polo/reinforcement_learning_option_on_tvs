@@ -3,7 +3,7 @@ from gym import spaces
 from gym.utils import seeding
 from numpy import log, sqrt, exp
 import numpy as np
-from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, Black, ForwardVariance
+from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, Black, ForwardVariance, quad_piecewise
 from envs.pricing.closedforms import European_option_closed_form
 from envs.pricing.targetvol import Drift, CholeskyTDependent, Strategy, TVSForwardCurve, TargetVolatilityStrategy
 from envs.pricing.read_market import MarketDataReader
@@ -36,7 +36,10 @@ class TVS_simple(gym.Env):
         self.model = Black(fixings=self.time_grid,variance_curve=self.V,forward_curve = self.F)
         self.mu = Drift(self.F)
         self.nu = CholeskyTDependent(self.V,self.correlation)
-        self.vola_t = sqrt(np.sum(self.nu(self.time_grid)**2,axis=1)).T
+        self.integral_vola = np.zeros((len(self.time_grid[1:]),self.N_equity))
+        for i in range(self.N_equity):
+            for j in range(1,len(self.time_grid)):
+                self.integral_vola[j-1,i]=quad_piecewise(self.V[i], self.V[i].T, 0., self.time_grid[j])
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
             raise Exception("You should provide the sum limit for short and long position")
         if sum_long is not None and sum_short is not None:
@@ -46,8 +49,8 @@ class TVS_simple(gym.Env):
             low_action = np.ones(self.N_equity)*(-abs(action_bound))
             high_action = np.ones(self.N_equity)*abs(action_bound)
         else:
-            low_action = np.zeros(self.N_equity-1)
-            high_action = np.ones(self.N_equity-1)*(0.5*np.pi+0.005)
+            low_action = np.ones(self.N_equity)*1e-7#np.zeros(self.N_equity-1)
+            high_action = np.ones(self.N_equity)#np.ones(self.N_equity-1)*(0.5*np.pi+0.005)
         self.action_space = spaces.Box(low = np.float32(low_action), high = np.float32(high_action))
         high = np.ones(N_equity)*2.5
         low_bound = np.append(-high,0.)
@@ -59,7 +62,7 @@ class TVS_simple(gym.Env):
     def step(self, action):  # metodo che mi dice come evolve il sistema una volta arrivata una certa azione
         assert self.action_space.contains(action)   #gli arriva una certa azione
         if self.constraint == "only_long":
-            action = n_sphere_to_cartesian(1,action)**2
+            action = action/np.sum(action)#n_sphere_to_cartesian(1,action)**2
         elif self.constraint == "long_short_limit":
             action = sign_renormalization(action,self.how_long,self.how_short)
 
@@ -89,11 +92,11 @@ class TVS_simple(gym.Env):
 
     def reset(self):
         if self.simulation_index == 0 or self.simulation_index==self.Nsim:
-            self.simulations = self.model.simulate(corr_chole = self.correlation_chole, random_gen = self.np_random, Nsim=self.Nsim)
-            #self.simulations[:,1:,:] = (log(self.simulations[:,1:,:]/self.simulations[:,:-1,:])-0.5*self.model.variance.T[1:])/sqrt(self.model.variance.T[1:])
-            #self.simulations[:,0,:] = 0.
-            self.simulations = log(self.simulations/self.spot_prices)/self.vola_t
+            self.simulations = self.model.simulate(corr_chole = self.correlation_chole, random_gen = self.np_random, normalization = 1, Nsim=self.Nsim)
+            self.simulations[:,1:,:] = (self.simulations[:,1:,:]+0.5*self.integral_vola)/sqrt(self.integral_vola)
+            self.simulations[:,0,:]=0
             self.simulation_index=0
+            print(self.simulations)
         self.current_time = 0.
         self.S_t = self.simulations[self.simulation_index]
         self.alpha_t = np.array([])

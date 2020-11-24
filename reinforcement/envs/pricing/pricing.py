@@ -38,8 +38,8 @@ class EquityForwardCurve(Curve):
         if self.T[0] !=0:
             self.T = np.insert(self.T[:-1],0,0)
         self.q = interp1d(self.T, self.q_values, kind='previous',fill_value="extrapolate", assume_sorted=False)
-        print("Forward repo time grid",self.T)
-        print("Forward repo rate: ", self.q_values)
+       # print("Forward repo time grid",self.T)
+       # print("Forward repo rate: ", self.q_values)
 
     def curve(self, date):
         date = np.array(date)
@@ -66,8 +66,8 @@ class DiscountingCurve(Curve):
         else:
             r_zero = (-1./(self.T))*log(discounts)
         self.r = interp1d(self.T,r_zero) #zero rate from 0 to T1
-        print("zero interest rate time grid",self.T)
-        print("zero interest rate: ",r_zero)
+       # print("zero interest rate time grid",self.T)
+       # print("zero interest rate: ",r_zero)
 
     def curve(self, date):
         return exp(-self.r(date)*date)
@@ -101,8 +101,8 @@ class ForwardVariance(Curve):  #I calculate the variance and not the volatility 
         if self.T[0] !=0:
             self.T = np.insert(self.T[:-1],0,0)
         self.vol_t = interp1d(self.T, self.forward_vol, kind='previous',fill_value="extrapolate", assume_sorted=False)
-        print("Forward volatility time grid: ",self.T)
-        print("Forward volatility: ",self.forward_vol)
+      #  print("Forward volatility time grid: ",self.T)
+      #  print("Forward volatility: ",self.forward_vol)
 
     def curve(self,date):
         return self.vol_t(date)**2
@@ -146,7 +146,7 @@ class Black(PricingModel):
                 else:
                     self.variance[j] = quad_piecewise(variance_curve,variance_curve.T,fixings[j-1],fixings[j])
 
-    def simulate(self, random_gen = None, corr_chole = None, Nsim=1, seed=14,**kwargs):
+    def simulate(self, random_gen = None, corr_chole = None, Nsim=1, seed=14, normalization=1,**kwargs):
         Nsim = int(Nsim)
         N_times = len(self.variance.T)
         if corr_chole is None:
@@ -170,9 +170,12 @@ class Black(PricingModel):
                         logmartingale[:,i,j]=-0.5*self.variance[j,i]+sqrt(self.variance[j,i])*ep[j]
                     elif i!=0:
                         logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*self.variance[j,i]+sqrt(self.variance[j,i])*ep[j]
-            M = exp(logmartingale)
-            for i in range(Ndim):
-                M[:,:,i] = M[:,:,i]*self.forward[i]
+            if normalization:
+                return logmartingale
+            else:    
+                M = exp(logmartingale)
+                for i in range(Ndim):
+                    M[:,:,i] = M[:,:,i]*self.forward[i]
             return M
 
 """Payoff Functions"""
@@ -215,7 +218,7 @@ def quad_piecewise(f, time_grid, t_in, t_fin, vectorial=0):
     t_fin = float(t_fin)
     time_grid=np.float64(time_grid)
     if t_in == t_fin:
-        return 0
+        return 0.
     if t_fin in time_grid:
         time_grid = time_grid[np.where(time_grid<=t_fin)[0]]
     if t_in in time_grid:
