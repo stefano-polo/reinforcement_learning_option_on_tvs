@@ -5,6 +5,7 @@ from numpy import exp, log, sqrt
 from matplotlib import pyplot as plt
 from envs.pricing.pricing import EquityForwardCurve, Black, ForwardVariance, DiscountingCurve
 from envs.pricing.fake_market import load_fake_market
+from envs.pricing.read_market import MarketDataReader
 from envs.pricing.n_sphere import n_sphere_to_cartesian
 from envs.pricing.targetvol import CholeskyTDependent
 from gym import spaces
@@ -101,7 +102,7 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
     label = extra_args['load_path'] if legend is None else legend
     # init
     if all_time_dep:
-        S, names = model_creation(seed, x_axis, N_equity, normalized)
+        S, names = model_creation(seed, x_axis, N_equity, normalized,market)
         obs = np.insert(S, dim, x_axis, axis=1)
     else:
         obs = reference_state[np.newaxis, :]
