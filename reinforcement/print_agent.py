@@ -11,7 +11,7 @@ Seed = 81
 n_equity = 2
 time_dep = True
 input_normalize = 1
-
+market_data=False
 # configurations: which environment and agents
 PLOT_VALUE = False  # otherwise plots actions
 VARIABLE_INDEXES = (2,)  # which dimension to vary
@@ -38,5 +38,6 @@ for (arg, env_args, lbl) in AGENTS:
     g = tf.Graph()
     sess = tf.InteractiveSession(graph=g)
     with g.as_default():
-        plot(arg, PLOT_VALUE, env_args, REFERENCE_STATE, VARIABLE_INDEXES, VARIABLE_POINTS, title, lbl, X_MAX,strategy_long=strategylong, all_time_dep = time_dep, seed=Seed, N_equity = n_equity, normalized=input_normalize)
-   
+        plot(arg, PLOT_VALUE, env_args, REFERENCE_STATE, VARIABLE_INDEXES, VARIABLE_POINTS, title, lbl, X_MAX,strategy_long=strategylong, all_time_dep = time_dep, seed=Seed, N_equity = n_equity, normalized=input_normalize, market=market_data)
+
+plt.show()

@@ -7,10 +7,10 @@ WHICH_LOGS = [
 ]
 X_AXIS_TIMESTEPS = True  # otherwise: episodes
 WINDOW = int(5e5)  # measured in episodes  10000
-join_curves = False   
+join_learning = False   
 plt.figure(figsize=(15,8))
 
-if join_curves:
+if join_learning:
     steps_joined, rewards_joined = join_curves(LOG_FOLDER, WHICH_LOGS, X_AXIS_TIMESTEPS)
     plot_rolling(steps_joined, rewards_joined, WINDOW, r"$\beta$=0.7 4x6")
 else:
