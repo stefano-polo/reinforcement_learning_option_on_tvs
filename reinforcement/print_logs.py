@@ -1,6 +1,6 @@
 from plot_logs import plot_rolling, pu, join_curves
 import matplotlib.pyplot as plt
-
+import numpy as np
 LOG_FOLDER = './logs/TVS_simple-v0/'   #in which folder I find the file to plot
 WHICH_LOGS = [
     ('ppo2_1e8_4x6_3e-4long_month_observation_beta0.7_2.5variance_seed1353720613', 'seed=1353720613'),

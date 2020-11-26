@@ -6,9 +6,8 @@ import numpy as np
 from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, Black, ForwardVariance, quad_piecewise
 from envs.pricing.closedforms import European_option_closed_form
 from envs.pricing.targetvol import Drift, CholeskyTDependent, Strategy, TVSForwardCurve, TargetVolatilityStrategy
-from envs.pricing.read_market import MarketDataReader
 from envs.pricing.fake_market import load_fake_market
-from envs.pricing.n_sphere import n_sphere_to_cartesian
+from envs.pricing.n_sphere import sign_renormalization
 
 class TVS_simple(gym.Env):
     """Target volatility strategy Option environment with a simple market
@@ -16,7 +15,7 @@ class TVS_simple(gym.Env):
     def __init__(self, N_equity= 2, target_volatility=5/100, I_0 = 1., r=1/100., strike_opt=1., maturity=1., constraint = "only_long", action_bound=50, sum_long = None, sum_short=None):
         self.constraint = constraint
         self.target_vol = target_volatility
-        self.spot_I = I_0
+        self.I_0 = I_0
         self.N_equity = N_equity                                #number of equities
         self.asset_history = np.array([])
         self.T = maturity
@@ -36,6 +35,7 @@ class TVS_simple(gym.Env):
         self.model = Black(fixings=self.time_grid,variance_curve=self.V,forward_curve = self.F)
         self.mu = Drift(self.F)
         self.nu = CholeskyTDependent(self.V,self.correlation)
+        self.TVSF = TVSForwardCurve(reference=0.,vola_target = self.target_vol, spot_price = self.I_0, mu = self.mu, nu = self.nu, discounting_curve = self.D)
         self.integral_variance = np.cumsum(self.model.variance[:,1:],axis=1).T
         self.integral_variance_sqrt = sqrt(self.integral_variance)
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
@@ -78,8 +78,8 @@ class TVS_simple(gym.Env):
         else:
             done = True
             alpha = Strategy(strategy = self.alpha_t, dates = self.time_grid[:-1])
-            TVSF = TVSForwardCurve(reference = 0, vola_target = self.target_vol, spot_price = self.spot_I, strategy = alpha, mu = self.mu, nu = self.nu, discounting_curve = self.D)
-            TVS = TargetVolatilityStrategy(forward_curve=TVSF)
+            self.TVSF.set_strategy(alpha)
+            TVS = TargetVolatilityStrategy(forward_curve=self.TVSF)
             I_t = TVS.simulate(fixings=np.array([self.T]), random_gen=self.np_random)[0,0]
             reward = np.maximum(I_t-self.strike_opt,0.)*self.discount
             self.simulation_index = self.simulation_index +1

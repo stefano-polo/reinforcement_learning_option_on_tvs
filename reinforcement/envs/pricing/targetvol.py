@@ -123,15 +123,16 @@ class Strategy(Curve):
 
 class TVSForwardCurve(Curve):
 
-    def __init__(self, reference = 0, vola_target = None, spot_price = None, strategy = None, mu = None,nu = None, discounting_curve = None, fees = None, fees_dates = None):
+    def __init__(self, reference = 0, vola_target = None, spot_price = None, mu = None,nu = None, discounting_curve = None, fees = None, fees_dates = None):
         self.reference = reference
         self.vol = vola_target     #target volatility
-        self.alpha = strategy
         self.I_0 = spot_price
         self.mu = mu
         self.nu = nu
         self.D = discounting_curve
-        self.T = fees_dates
+        
+    def set_strategy(self,strategy=None):
+        self.alpha=strategy
         
     def curve(self,date):
         date = np.array(date)
@@ -150,9 +151,6 @@ class TargetVolatilityStrategy(PricingModel):
         self.forward = forward_curve
         self.alpha = self.forward.alpha
         self.nu = self.forward.nu
-        self.mu = self.forward.mu
-        self.I_0 = self.forward.I_0
-        self.D = self.forward.D
         self.vol = self.forward.vol      #target volatility
 
     def simulate(self, fixings=None, Nsim=1, random_gen=None, ret_forward = 0, **kwargs):
