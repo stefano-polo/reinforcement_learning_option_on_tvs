@@ -41,24 +41,27 @@ def model_creation(seed, fixings, n, normalized, market = 0):
             correlation = np.array(([1.,0.],[0.,1.]))
             names = [names[3],names[4]]
         
-    b = Black(fixings=fixings,forward_curve=F, variance_curve=V)
+    model = Black(fixings=fixings,forward_curve=F, variance_curve=V)
     nu = CholeskyTDependent(V,correlation)
     chole = np.linalg.cholesky(correlation)
     gen = np.random
     gen.seed(seed)
-    simulation = b.simulate(random_gen=gen, corr_chole=chole)[0]
     if normalized ==1:
+        simulation = model.simulate(random_gen=gen, corr_chole=chole, normalization=0)[0]
         vola_t = sqrt(np.sum(nu(fixings)**2,axis=1)).T
         simulation = log(simulation/spot_prices)/vola_t
-        print('Normalization with $\sigma(t)$')
+        print(r'Normalization with $\sigma(t)$')
         return simulation, names
     elif normalized == 2:
-        simulation[1:] = (log(simulation[1:]/simulation[:-1])-0.5*b.variance.T[1:])/sqrt(b.variance.T[1:])
+        simulation = model.simulate(random_gen=gen, corr_chole=chole, normalization=1)[0]
+        integral_variance = np.cumsum(model.variance[:,1:],axis=1).T
+        simulation[1:,:] =  (simulation[1:,:]+0.5*integral_variance)/sqrt(integral_variance)
         simulation[0]=0.
-        print('Normalization with variance')
+        print('Normalization with variance and forward')
         return simulation, names
     else:
         print('No normalization of the input data')
+        simulation = model.simulate(random_gen=gen, corr_chole=chole, normalization=0)[0]
         return simulation,names
 
     
@@ -70,7 +73,7 @@ def get_y(scalar_observation, model, env, plot_value, strategy):
         if not isinstance(env.action_space, spaces.Discrete):
             action = np.clip(action, env.action_space.low, env.action_space.high)
         if strategy:
-            action = n_sphere_to_cartesian(1,action)**2
+            action = action/np.sum(action)
         return values[0] if plot_value else action
 
 
@@ -91,15 +94,9 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
     
     x_axis = np.linspace(x_high/variable_points, x_high, variable_points)
     x_axis = np.insert(x_axis,0,x_low)
-    print("Evaluation grid ",x_axis)
     y_shape = (variable_points+1,) * len(variable_indexes)
-    if strategy_long:
-        dim, = env.action_space.shape
-        dim+=1
-        y_shape+= dim,
-    else:
-        dim, = env.action_space.shape
-        y_shape+= dim,
+    dim, = env.action_space.shape
+    y_shape+= dim,
     y_axis = np.empty(y_shape)
     label = extra_args['load_path'] if legend is None else legend
     # init
@@ -120,7 +117,7 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
     if not plot_value:
         for i in range(dim):
             plt.step(x_axis, y_axis.T[i], label=names[i],where='post')
-        plt.ylabel(r"Strategy $\alpha(t)$")
+        plt.ylabel(r"$\alpha(t)$")
         plt.title("Action space at [log($\mathbf{S_t/S_0}$),t]")
         plt.legend()
 
@@ -184,14 +181,8 @@ def plot3d(args, plot_value, env_map, reference_state, variable_indexes,
     y_high = min(env.observation_space.high[variable_indexes[1]], y_max)
     y_axis = np.linspace(y_low, y_high, variable_points)
     z_shape = (variable_points,) * len(variable_indexes)  # + env.action_space.shape
-    if not plot_value:
-        if strategy_long:
-            dim, = env.action_space.shape
-            dim+=1
-            z_shape+= dim,
-        else:
-            dim, = env.action_space.shape
-            z_shape+= dim,
+    dim, = env.action_space.shape
+    z_shape+= dim,
     z_axis = np.empty(z_shape)
     label = extra_args['load_path'] if legend is None else legend
 
