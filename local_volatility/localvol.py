@@ -9,15 +9,17 @@ class LocalVolatilityCurve(Curve):
     def __init__(self, market_volatility=None, strikes=None, maturities=None):
         self.volatilities = market_volatility
         self.K = strikes
-        self.T = maturities
-        #self.vola_interpolated = interp1d(self.K,self.volatilities,axis=0,fill_value="extrapolate")
-        self.vola_interpolated = RegularGridInterpolator((self.K,self.T),self.volatilities, bounds_error=False, fill_value=None)
+        self.T = np.append(0.,maturities[:-1])     #it is fundamental this transformation for the piecewise interpolation
+        self.vola_interpolated = interp1d(self.K,self.volatilities,axis=0,fill_value="extrapolate")   #linear interpolation along strike
     
-    def curve(self,date_price):
-        #return interp1d(self.T,self.vola_interpolated_K(date_price[0]matrix_interpolated,kind='previous')(time)
-        return self.vola_interpolated(np.array(date_price))
+    def curve(self,price):
+        return self.vola_interpolated(np.array(price))
     
-    
+    def value_at_time(self,time,price):
+        if time in self.T:
+            return self(price).T[np.searchsorted(self.T, time, side='left')]
+        else:
+            return self(price).T[np.searchsorted(self.T, time, side='left')-1]
     
 def A_i_matrix(alpha_i, beta_i, gamma_i):
     b = np.diag(beta_i)
@@ -29,27 +31,25 @@ def A_i_matrix(alpha_i, beta_i, gamma_i):
     return A
 
 
-def alpha_i_vector(eta_i_plus, dh):
+def alpha_i_vector(eta_i_plus_square, dh):
     """Calculates the alpha_i coefficients of the tri-diagonal matrix"""
-    return (eta_i_plus**2) * 0.5 * (-(0.5/dh)-1/(dh**2))
+    return (eta_i_plus_square) * 0.5 * (-(0.5/dh)-1/(dh**2))
 
-def beta_i_vector(eta_i_plus, dh):
+def beta_i_vector(eta_i_plus_square, dh):
     """Calculates the beta_i coefficients of the tri-diagonal matrix"""
-    return (eta_i_plus**2) * (1/(dh**2))
+    return (eta_i_plus_square) * (1/(dh**2))
 
 
-def gamma_i_vector(eta_i_plus, dh):
+def gamma_i_vector(eta_i_plus_square, dh):
     """Calculates the gamma_i coefficients of the tri-diagonal matrix"""
-    return (eta_i_plus**2) * 0.5 * ((0.5/dh)-1/(dh**2))
+    return (eta_i_plus_square) * 0.5 * ((0.5/dh)-1/(dh**2))
 
 def backward_euler_method(c_in,t_in,t_fin,L_t,L_h,d_h,h_grid,forward, eta_curve):
     Delta_t = abs(t_in-t_fin)/L_t
     Delta_h = d_h
     for i in range(L_t):
         t2 = (i+1)*Delta_t + t_in
-        t = np.ones(L_h+1)*t2
-        node_evaluation = np.stack((exp(h_grid)*forward(t),t),axis=1)
-        curve = eta_curve(node_evaluation)
+        curve = eta_curve.value_at_time(t2,exp(h_grid)*forward(t2))**2
         alpha_i = alpha_i_vector(curve, Delta_h)
         beta_i = beta_i_vector(curve, Delta_h)
         gamma_i = gamma_i_vector(curve, Delta_h)
@@ -62,9 +62,7 @@ def forward_euler_method(c_in,t_in,t_fin,L_t,L_h,d_h,h_grid,forward,eta_curve):
     Delta_h = d_h
     for i in range(L_t):
         t2 = (i)*Delta_t+t_in
-        t = np.ones(L_h+1)*t2
-        node_evaluation = np.stack((exp(h_grid)*forward(t),t),axis=1)
-        curve = eta_curve(node_evaluation)
+        curve = eta_curve.value_at_time(t2,exp(h_grid)*forward(t2))**2
         alpha_i = alpha_i_vector(curve, Delta_h)
         beta_i = beta_i_vector(curve, Delta_h)
         gamma_i = gamma_i_vector(curve, Delta_h)
@@ -77,22 +75,22 @@ def crank_nicolson_method(c_in,t_in,t_fin,L_t,L_h,d_h,h_grid,forward,eta_curve):
     Delta_t = abs(t_in-t_fin)/L_t
     Delta_h = d_h
     for i in range(L_t):
-        t2 = np.ones(L_h+1)*((i+1)*Delta_t+t_in)
-        t1 = np.ones(L_h+1)*((i)*Delta_t+t_in)
-        node_evaluation_1 = np.stack((exp(h_grid)*forward(t1),t1),axis=1)
-        node_evaluation_2 = np.stack((exp(h_grid)*forward(t2),t2),axis=1)
-        alpha_i = alpha_i_vector(eta_curve(node_evaluation_1), Delta_h)
-        beta_i = beta_i_vector(eta_curve(node_evaluation_1), Delta_h)
-        gamma_i = gamma_i_vector(eta_curve(node_evaluation_1), Delta_h)
+        t2 = (i+1)*Delta_t+t_in
+        t1 = i*Delta_t+t_in
+        curve1 = eta_curve.value_at_time(t1,exp(h_grid)*forward(t1))**2
+        curve2 = eta_curve.value_at_time(t2,exp(h_grid)*forward(t2))**2
+        alpha_i = alpha_i_vector(curve1, Delta_h)
+        beta_i = beta_i_vector(curve1, Delta_h)
+        gamma_i = gamma_i_vector(curve1, Delta_h)
         A_i_1 = A_i_matrix(alpha_i,beta_i,gamma_i)
-        alpha_i = alpha_i_vector(eta_curve(node_evaluation_2), Delta_h)
-        beta_i = beta_i_vector(eta_curve(node_evaluation_2), Delta_h)
-        gamma_i = gamma_i_vector(eta_curve(node_evaluation_2), Delta_h)
+        alpha_i = alpha_i_vector(curve2, Delta_h)
+        beta_i = beta_i_vector(curve2, Delta_h)
+        gamma_i = gamma_i_vector(curve2, Delta_h)
         A_i_2 = A_i_matrix(alpha_i,beta_i,gamma_i)
         c_in = np.linalg.inv((np.identity(L_h+1) + 0.5*Delta_t*A_i_2))@(np.identity(L_h+1) - 0.5*Delta_t*A_i_1)@c_in
     return c_in
 
-def call_options_pricer(maturities, L_t, h_min, h_max, L_h,forward, eta_curve):
+def call_options_pricer(maturities, L_t, L_h,forward, eta_curve, h_min=-4., h_max=4.):
     algorithm = crank_nicolson_method
     d_h = (h_max-h_min)/L_h
     h_grid = np.linspace(h_min+d_h,h_max,L_h,endpoint=True)
@@ -118,42 +116,26 @@ def from_price_to_vola(matrix_call, maturities, h):
     k = exp(h)
     for i in range(len(h)):
         for j in range(len(maturities)):
-            vola_matrix[i,j] = lbr.implied_volatility_from_a_transformed_rational_guess(matrix_call[i,j],1,k[i],maturities[j],1)
+            vola_matrix[i,j] = lbr.implied_volatility_from_a_transformed_rational_guess(matrix_call[i,j],1.,k[i],maturities[j],1)
     return vola_matrix
 
 def loss_function(iv_model, market_vola):
     return np.sum((iv_model-market_vola)**2)
 
 def back_coordinates(IV,maturities,F,market_strikes,h_grid):
-    interpo = RegularGridInterpolator((h_grid,maturities),IV, bounds_error=False, fill_value=None)
+    interpo_strike = interp1d(h_grid,IV,axis=0,fill_value="extrapolate")
     IV_new_coord = np.zeros((len(market_strikes),len(maturities)))
     forward = F(maturities)
     for i in range(len(market_strikes)):
-        k = market_strikes[i]/forward
-        for j in range(len(maturities)):
-            IV_new_coord[i,j] = interpo(np.array([log(k[j]),maturities[j]]))
+        h = np.log(market_strikes[i]/forward)
+        IV_new_coord[i,:] = np.diagonal(interpo_strike(h))
     return IV_new_coord
 
 def new_LV_points(LV_in,vola_f_LV,vola_f_market):
     new_points = LV_in * (vola_f_market/vola_f_LV)
     return new_points
 
-def set_limits(market_strikes, market_maturities,forward):
-    N = len(market_maturities)
-    M= len(market_strikes)
-    for i in range (M):
-        if i ==0:
-            k = market_strikes[i]/forward(market_maturities)
-        else:
-            k = np.vstack([k, market_strikes[i]/forward(market_maturities)])
-    log_s = log(k)
-    h_min, h_max = np.min(log_s),np.max(log_s)
-    if abs(h_min) > abs(h_max):
-        return -abs(h_min)-abs(h_min)*20/100, abs(h_min)+abs(h_min)*20/100
-    else:
-        return -abs(h_max)-abs(h_max)*20/100, abs(h_max)+abs(h_max)*20/100
-    
-    
+   
 def forward_volatility(spot_vola_matrix, maturities):
     f_vol = spot_vola_matrix.T[0]
     for i in range(1,len(maturities)):
