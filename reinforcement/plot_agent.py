@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from envs.pricing.pricing import EquityForwardCurve, Black, ForwardVariance, DiscountingCurve
 from envs.pricing.fake_market import load_fake_market
 from envs.pricing.read_market import MarketDataReader
-from envs.pricing.n_sphere import n_sphere_to_cartesian
+from envs.pricing.n_sphere import sign_renormalization
 from envs.pricing.targetvol import CholeskyTDependent
 from gym import spaces
 import envs.fe_envs
@@ -56,7 +56,7 @@ def model_creation(seed, fixings, n, normalized, market = 0):
     elif normalized == 2:
         simulation = model.simulate(random_gen=gen, corr_chole=chole, normalization=1)[0]
         integral_variance = np.cumsum(model.variance[:,1:],axis=1).T
-        simulation[1:,:] =  (simulation[1:,:]+0.5*integral_variance)/sqrt(integral_variance)
+        simulation[1:,:] = (simulation[1:,:]+0.5*integral_variance)/sqrt(integral_variance)
         simulation[0]=0.
         print('Normalization with variance and forward')
         return simulation, names
@@ -68,19 +68,22 @@ def model_creation(seed, fixings, n, normalized, market = 0):
     
     
 
-def get_y(scalar_observation, model, env, plot_value, strategy):
+def get_y(scalar_observation, model, env, plot_value, strategy_constraint, how_long, how_short):
         actions, values, _, _ = model.step(scalar_observation, stochastic=False)
         action = np.nan_to_num(actions[0])
         if not isinstance(env.action_space, spaces.Discrete):
             action = np.clip(action, env.action_space.low, env.action_space.high)
-        if strategy:
+        if strategy_constraint=="only_long":
             action = action/np.sum(action)
+        if strategy_constraint=="long_short_limit":
+            action = sign_renormalization(action,how_long,how_short)
+            
         return values[0] if plot_value else action
 
 
 
 def plot(args, plot_value, env_map, reference_state, variable_indexes,
-         variable_points, title_plot, legend=None, x_max=np.infty, y_max=np.infty, strategy_long=True, all_time_dep = True, seed=10, N_equity=2, normalized=0, market=0):
+         variable_points, title_plot, legend=None, x_max=np.infty, y_max=np.infty, strategy_constraint="only_long",how_long=50./100., how_short=50./100., all_time_dep = True, seed=10, N_equity=2, normalized=0, market=0):
     """Function to plot a section of the action space."""
     # selected code from baselines.run.main()
     arg_parser = common_arg_parser()
@@ -102,7 +105,7 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
     label = extra_args['load_path'] if legend is None else legend
     # init
     if all_time_dep:
-        S, names = model_creation(seed, x_axis, N_equity, normalized,market)
+        S, names = model_creation(seed, x_axis, N_equity, normalized, market)
         obs = np.insert(S, dim, x_axis, axis=1)
     else:
         obs = reference_state[np.newaxis, :]
@@ -113,20 +116,20 @@ def plot(args, plot_value, env_map, reference_state, variable_indexes,
             o = obs
         else:
             o = obs[i]
-        y_axis[i] = get_y(o,model,env,plot_value,strategy_long)
+        y_axis[i] = get_y(o,model,env,plot_value,strategy_constraint,how_long, how_short)
     
     if not plot_value:
         for i in range(dim):
             plt.step(x_axis, y_axis.T[i], label=names[i],where='post')
-        plt.ylabel(r"$\alpha(t)$")
-        plt.title("Action space at [log($\mathbf{S_t/S_0}$),t]")
+        plt.ylabel(r"$\alpha(t)$",fontsize=13)
+        plt.title("RL agent actions",fontsize=13)
         plt.legend()
 
     else:
         plt.plot(x_axis, y_axis[:,0])
-        plt.title("Value function")
-        plt.ylabel("$V(t)$")
-    plt.xlabel("Time [yr]")
+        plt.title("Value function",fontsize=13)
+        plt.ylabel("$V(t)$",fontsize=13)
+    plt.xlabel("t [yr]",fontsize=13)
     if not all_time_dep:    
         plt.title(title_plot)
 
@@ -193,7 +196,7 @@ def plot3d(args, plot_value, env_map, reference_state, variable_indexes,
         if not isinstance(env.action_space, spaces.Discrete):
             action = np.clip(action, env.action_space.low, env.action_space.high)
         if strategy_long:
-            action = n_sphere_to_cartesian(1,action)**2
+            action = action/np.sum(action)
         return values[0] if plot_value else action
 
     # init

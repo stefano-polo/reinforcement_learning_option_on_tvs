@@ -53,8 +53,8 @@ class TVS_enviroment2(gym.Env):
             self.sum_short = sum_short
         #Observation space and action space of the RL agent
         if self.constraint != "only_long":
-            low_action = np.ones(self.N_equity)*(-abs(action_bound))   #the agent can choose the asset allocation strategy only for N-1 equities (the N one is set by 1-sum(weights_of_other_equities))
-            high_action = np.ones(self.N_equity)*(abs(action_bound))
+            low_action = np.ones(self.N_equity)*(-abs(action_bound)) - 1e-6
+            high_action = np.ones(self.N_equity)*(abs(action_bound)) + 1e-6
         else:
             low_action = np.ones(self.N_equity)*1e-7
             high_action = np.ones(self.N_equity)

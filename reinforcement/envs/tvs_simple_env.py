@@ -12,7 +12,7 @@ from envs.pricing.n_sphere import sign_renormalization
 class TVS_simple(gym.Env):
     """Target volatility strategy Option environment with a simple market
     """
-    def __init__(self, N_equity= 2, target_volatility=5/100, I_0 = 1., r=1/100., strike_opt=1., maturity=1., constraint = "only_long", action_bound=50, sum_long = None, sum_short=None):
+    def __init__(self, N_equity= 3, target_volatility=5/100, I_0 = 1., r=1/100., strike_opt=1., maturity=1., constraint = "only_long", action_bound=20./100., sum_long = None, sum_short=None):
         self.constraint = constraint
         self.target_vol = target_volatility
         self.I_0 = I_0
@@ -44,8 +44,8 @@ class TVS_simple(gym.Env):
             self.sum_long = sum_long
             self.sum_short = sum_short
         if self.constraint != "only_long":
-            low_action = np.ones(self.N_equity)*(-abs(action_bound))
-            high_action = np.ones(self.N_equity)*abs(action_bound)
+            low_action = np.ones(self.N_equity)*(-abs(action_bound))-1e-6
+            high_action = np.ones(self.N_equity)*abs(action_bound)+1e-6
         else:
             low_action = np.ones(self.N_equity)*1e-7
             high_action = np.ones(self.N_equity)
@@ -63,7 +63,6 @@ class TVS_simple(gym.Env):
             action = action/np.sum(action)
         elif self.constraint == "long_short_limit":
             action = sign_renormalization(action,self.how_long,self.how_short)
-
         if self.time_index == 0:
             self.alpha_t = action
         else:

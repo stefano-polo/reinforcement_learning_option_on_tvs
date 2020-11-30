@@ -17,13 +17,11 @@ def sign_renormalization(vec, sum_plus, sum_minus):
     """renormalize positive and negative elements of an array separately if necessary such 
     that sum of positive is equal to sum_plus and the abs sum of negative is equal to sum_neg"""
     pos = vec>=0
-    neg = (1-vec)>0
+    neg = np.invert(pos)
     p_s = np.sum(vec[pos])
     n_s = abs(np.sum(vec[neg]))
     if p_s > sum_plus:
         vec[pos] = (vec[pos]/p_s)*sum_plus
     if n_s > sum_minus:
         vec[neg] = (vec[neg]/n_s)*sum_minus
-    p_s = np.sum(vec[pos])
-    n_s = abs(np.sum(vec[neg]))
     return vec

@@ -173,10 +173,8 @@ class Black(PricingModel):
             if normalization:
                 return logmartingale
             else:    
-                M = exp(logmartingale)
-                for i in range(Ndim):
-                    M[:,:,i] = M[:,:,i]*self.forward[i]
-            return M
+                M = exp(logmartingale)*self.forward.T
+                return M
 
 """Payoff Functions"""
 def Vanilla_PayOff(St=None,strike=None, typo = 1): #Monte Carlo call payoff
