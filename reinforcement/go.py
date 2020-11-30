@@ -27,7 +27,7 @@ import envs.fe_envs
 
 
 def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
-               train_timesteps, test_episodes, print_episodes, print_period, activation=None,
+               train_timesteps, test_episodes, print_episodes, print_period, activation=None,save_interval=None,
                value_network=None, lam=None, noise=None, beta=None, ent=None, restart_training=None, initial_guess=None,
                batch=None, custom_options=None, custom_suffix=None):
     """Utility function for the most common argument configurations."""
@@ -62,6 +62,9 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
     if batch is not None:
        custom_suffix = '_batch' + batch
        options.append('--nsteps=' + batch)
+    
+    if save_interval is not None:
+        options.append('--save_interval=' + save_interval)
 
     description = '{}_{}_{}x{}_{}{}'.format(alg, train_timesteps, num_layers, num_hidden, lr, suffix)
     log_path='./logs/{}/{}'.format(env, description)
@@ -69,7 +72,7 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
 
     if do_train:
        agent_mode='save'
-       seed='24816'
+       seed='83493061'
        options.append('--log_path=' + log_path)
        options.append('--lr=' + lr)
     else:
@@ -124,17 +127,18 @@ if __name__ == '__main__':
        restart_training = False,
        env='TVS_simple-v0',#'TVS_simple-v0',
        alg='ppo2',
-       num_layers='2',
-       num_hidden='2',
-       num_env='3',
+       num_layers='3',
+       num_hidden='6',
+       num_env='100',
        lr='3e-4',
-       train_timesteps='1e7',
+       train_timesteps='2.5e8',
        test_episodes='1e5',
        print_episodes='1',
        print_period='64',
+       save_interval='1e8',
        #activation='sigmoid',
        value_network='copy',
-       custom_suffix='long_month_observation'   #test on one_month 6,10,1e6
+       custom_suffix='free25_month_observation_seed176970406'   #test on one_month 6,10,1e6
     )
 
     main(cur_args)
