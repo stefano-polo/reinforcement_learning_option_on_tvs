@@ -12,7 +12,7 @@ WHICH_LOGS = [
     ('ppo2_2e8_1x6_3e-4long_month_observation_beta0.7_2.5variance_seed1733884390_restarted','1x4 beta'),
 ]
 
-plt.figure(figsize=((8,5))
+plt.figure(figsize=(8,5))
 steps_joined, rewards_joined = join_curves(LOG_FOLDER, WHICH_LOGS, X_AXIS_TIMESTEPS)
 plot_rolling(steps_joined, rewards_joined, WINDOW, r"1x6")
 
