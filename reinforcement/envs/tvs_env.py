@@ -10,7 +10,7 @@ from envs.pricing.targetvol import Drift, CholeskyTDependent, Strategy, TVSForwa
 from envs.pricing.read_market import MarketDataReader
 from envs.pricing.n_sphere import sign_renormalization
 
-class TVS_enviroment(gym.Env):
+class TVS_environment(gym.Env):
     """Target volatility strategy Option environment"""
     def __init__(self, filename= "TVS_example.xml", spot_I = 100, target_volatility=0.1,strike_opt=100., maturity=1., constraint = "only_long", action_bound = 25/100, sum_long=None, sum_short=None):
         #Preparing Time grid for the RL agent

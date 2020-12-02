@@ -10,7 +10,7 @@ from envs.pricing.targetvol import Drift, CholeskyTDependent, Strategy, TVSForwa
 from envs.pricing.read_market import MarketDataReader
 from envs.pricing.n_sphere import sign_renormalization
 
-class TVS_enviroment3(gym.Env):
+class TVS_environment3(gym.Env):
     """Target volatility strategy Option environment for equity I NKY NTR EUR and FTSE100 NTR E"""
     def __init__(self, filename= "TVS_example.xml", spot_I = 1., target_volatility=5./100,strike_opt=1., maturity=1., constraint = "only_long", action_bound = 25/100, sum_long=None, sum_short=None):
         #Preparing Time grid for the RL agent
@@ -24,12 +24,12 @@ class TVS_enviroment3(gym.Env):
         n_observations = 12
         self.time_index = 0
         self.simulation_index = 0
-        self.time_grid = np.linspace(self.T/n_observations,self.T,n_observations)
-        self.time_grid = np.insert(self.time_grid,0,0)
+        #self.time_grid = np.linspace(self.T/n_observations,self.T,n_observations)
+        #self.time_grid = np.insert(self.time_grid,0,0)
         #Loading Market data and preparing the BS model"""
         reader = MarketDataReader(filename)
-        self.spot_prices = reader.get_spot_prices()
-        self.spot_prices = np.array([self.spot_prices[3],self.spot_prices[4]])
+        #self.spot_prices = reader.get_spot_prices()
+        #self.spot_prices = np.array([self.spot_prices[3],self.spot_prices[4]])
         self.correlation = np.array(([1.,0.86,0.],[0.86,1.,0.],[0.,0.,1.]))
         self.correlation_chole = cholesky(self.correlation)
         self.N_equity = 3
@@ -45,6 +45,9 @@ class TVS_enviroment3(gym.Env):
         #Creating the objects for the TVS
         self.mu = Drift(forward_curves = self.F)
         self.nu = CholeskyTDependent(variance_curves = self.V, correlation_chole = self.correlation_chole)
+        self.time_grid = self.nu.T[self.nu.T<=self.T]
+        self.time_grid = np.append(self.time_grid,self.T)
+        print('Observations along the time grid', self.time_grid)
         self.TVSF = TVSForwardCurve(reference=0.,vola_target = self.target_vol, spot_price = self.I_0, mu = self.mu, nu = self.nu, discounting_curve = self.D)
         self.model = Black(fixings=self.time_grid, variance_curve=self.V, forward_curve=self.F)
         self.integral_variance = np.cumsum(self.model.variance[:,1:],axis=1).T

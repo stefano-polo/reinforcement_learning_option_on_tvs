@@ -35,16 +35,23 @@ def model_creation(seed, fixings, n, normalized, market = 0):
         spot_prices = reader.get_spot_prices()
         V = reader.get_volatilities()
         if n==2:
-            print('Cutting real data')
+            print('Cutting real data for '+str(n)+' equities')
             F = [F[3],F[4]]
             V = [V[3],V[4]]
             spot_prices = np.array([spot_prices[3],spot_prices[4]])
             correlation = np.array(([1.,0.],[0.,1.]))
             names = [names[3],names[4]]
+        if n==3:
+            print('Cutting real data for '+str(n)+' equities')
+            F = [F[0],F[3],F[4]]
+            V = [V[0],V[3],V[4]]
+            spot_prices = np.array([spot_prices[0],spot_prices[3],spot_prices[4]])
+            correlation =np.array(([1.,0.86,0.],[0.86,1.,0.],[0.,0.,1.]))
+            names = [names[0],names[3],names[4]]
         
     model = Black(fixings=fixings,forward_curve=F, variance_curve=V)
-    nu = CholeskyTDependent(V,correlation)
     chole = np.linalg.cholesky(correlation)
+    nu = CholeskyTDependent(V,chole)
     gen = np.random
     gen.seed(seed)
     if normalized ==1:
