@@ -10,9 +10,9 @@ from envs.pricing.targetvol import Drift, CholeskyTDependent, Strategy, TVSForwa
 from envs.pricing.read_market import MarketDataReader
 from envs.pricing.n_sphere import sign_renormalization
 
-class TVS_enviroment2(gym.Env):
+class TVS_enviroment3(gym.Env):
     """Target volatility strategy Option environment for equity I NKY NTR EUR and FTSE100 NTR E"""
-    def __init__(self, filename= "TVS_example.xml", spot_I = 100, target_volatility=5./100,strike_opt=100., maturity=1., constraint = "only_long", action_bound = 25/100, sum_long=None, sum_short=None):
+    def __init__(self, filename= "TVS_example.xml", spot_I = 1., target_volatility=5./100,strike_opt=1., maturity=1., constraint = "only_long", action_bound = 25/100, sum_long=None, sum_short=None):
         #Preparing Time grid for the RL agent
         self.constraint = constraint
         self.I_0 = spot_I
@@ -30,15 +30,18 @@ class TVS_enviroment2(gym.Env):
         reader = MarketDataReader(filename)
         self.spot_prices = reader.get_spot_prices()
         self.spot_prices = np.array([self.spot_prices[3],self.spot_prices[4]])
-        self.correlation = np.array(([1.,0.],[0.,1.]))
+        self.correlation = np.array(([1.,0.86,0.],[0.86,1.,0.],[0.,0.,1.]))
         self.correlation_chole = cholesky(self.correlation)
-        self.N_equity = 2
+        self.N_equity = 3
         self.D = reader.get_discounts()
         self.discount = self.D(maturity)
         self.F = reader.get_forward_curves()
         self.V = reader.get_volatilities()
-        self.F = [self.F[3],self.F[4]]
-        self.V = [self.V[3],self.V[4]]
+        self.F = [self.F[0],self.F[3],self.F[4]]
+        self.V = [self.V[0],self.V[3],self.V[4]]
+        names = reader.get_stock_names()
+        names = [names[0],names[3],names[4]]
+        print("Reinforcement Learning simulation for the market with equities: ",names)
         #Creating the objects for the TVS
         self.mu = Drift(forward_curves = self.F)
         self.nu = CholeskyTDependent(variance_curves = self.V, correlation_chole = self.correlation_chole)
@@ -56,7 +59,7 @@ class TVS_enviroment2(gym.Env):
             low_action = np.ones(self.N_equity)*(-abs(action_bound)) - 1e-6
             high_action = np.ones(self.N_equity)*(abs(action_bound)) + 1e-6
         else:
-            low_action = np.ones(self.N_equity)*1e-7
+            low_action = np.ones(self.N_equity)*1e-10
             high_action = np.ones(self.N_equity)
 
         self.action_space = spaces.Box(low = np.float32(low_action),high = np.float32(high_action))

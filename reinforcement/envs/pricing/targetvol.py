@@ -28,16 +28,18 @@ class Drift(Curve):
 
 class CholeskyTDependent(Curve):
     """Time dependent cholesky variance-covariance matrix union"""
-    def __init__(self, variance_curves = None, correlation = None):
+    def __init__(self, variance_curves = None, correlation_chole = None):
         self.T = time_grid_union(curve_array_list = variance_curves)
+        N_times = len(self.T)
         Ndim = len(variance_curves)
-        self.nu = np.zeros((Ndim,Ndim,len(self.T)))
-        for i in range(len(self.T)):
+        self.nu = np.zeros((Ndim,Ndim,N_times))
+        I = np.identity(Ndim)
+        for i in range(N_times):
             vol = np.zeros(Ndim)
             for j in range(Ndim):
                 vol[j] = sqrt(variance_curves[j](self.T[i]))
-            vol = np.identity(Ndim)*vol
-            self.nu[:,:,i] = cholesky(vol@(correlation@vol))
+            vol = I*vol
+            self.nu[:,:,i] = vol@correlation_chole
         self.n = interp1d(self.T, self.nu, axis=2, kind='previous',fill_value="extrapolate", assume_sorted=False) 
         print("Cholesky covariance-variance time grid:",self.T)
         print("Cholesky covariance-variance matrix values:", self.nu)
@@ -45,6 +47,7 @@ class CholeskyTDependent(Curve):
     def curve(self,date):
         return self.n(date)
 
+        
 class Strategy(Curve):
     """Create the time dependent optimal strategy for BS model"""
     def __init__(self, strategy = None, dates = None):

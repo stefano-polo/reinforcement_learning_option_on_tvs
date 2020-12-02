@@ -34,7 +34,7 @@ class TVS_simple(gym.Env):
         self.correlation_chole = np.linalg.cholesky(self.correlation)
         self.model = Black(fixings=self.time_grid,variance_curve=self.V,forward_curve = self.F)
         self.mu = Drift(self.F)
-        self.nu = CholeskyTDependent(self.V,self.correlation)
+        self.nu = CholeskyTDependent(self.V,self.correlation_chole)
         self.TVSF = TVSForwardCurve(reference=0.,vola_target = self.target_vol, spot_price = self.I_0, mu = self.mu, nu = self.nu, discounting_curve = self.D)
         self.integral_variance = np.cumsum(self.model.variance[:,1:],axis=1).T
         self.integral_variance_sqrt = sqrt(self.integral_variance)

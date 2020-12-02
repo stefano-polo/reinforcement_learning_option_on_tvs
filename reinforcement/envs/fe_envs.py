@@ -28,3 +28,8 @@ register(
     id='TVS_2assets-v0',
     entry_point='envs.tvs_2market_env:TVS_enviroment2',
 )
+
+register(
+    id='TVS_3assets-v0',
+    entry_point='envs.TVS_enviroment3',
+)
