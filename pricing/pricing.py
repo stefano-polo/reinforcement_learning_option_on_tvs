@@ -107,6 +107,35 @@ class ForwardVariance(Curve):  #I calculate the variance and not the volatility 
     def curve(self,date):
         return self.vol_t(date)**2
 
+class LocalVolatilityCurve(Curve):
+    
+    def __init__(self, market_volatility=None, strikes=None, maturities=None):
+        self.volatilities = market_volatility
+        self.K = strikes
+        self.T = np.append(0.,maturities[:-1])     #it is fundamental this transformation for the piecewise interpolation
+        self.vola_interpolated = interp1d(self.K,self.volatilities,axis=0,fill_value="extrapolate")   #linear interpolation along strike
+    
+    def parameterization_with_h(self,forward_curve=None,n_points=400):
+        self.h = np.linspace(-4,4,n_points)
+        new_parameterization = np.zeros((n_points+1,len(self.T)))
+        self.h = np.append(self.h,0.)
+        self.h = np.sort(self.h)
+        for i in range(len(self.T)):
+            for j in range(n_points+1):
+                new_parameterization[j,i] = self.value_at_time(self.T[i],np.exp(self.h[j])*forward_curve(self.T[i]))
+        self.volatilities = new_parameterization
+        self.vola_interpolated = interp1d(self.h,self.volatilities,axis=0,fill_value="extrapolate")  
+        print("Changed parameterization of the curve: log(K/F(T)) instead of K")      
+
+    def curve(self,price):
+        return self.vola_interpolated(np.array(price))
+    
+    def value_at_time(self,time,price):
+        if time in self.T:
+            return self(price).T[np.searchsorted(self.T, time, side='left')]
+        else:
+            return self(price).T[np.searchsorted(self.T, time, side='left')-1]
+
 
 class PricingModel:
 
@@ -167,6 +196,56 @@ class Black(PricingModel):
             for i in range(Ndim):
                 M[:,:,i] = M[:,:,i]*self.forward_curve[i](fixings)
             return M
+
+
+class LV_model(PricingModel):
+    """Local Volatility Model"""
+    def __init__(self, fixings=None, local_vol_curve=None, forward_curve=None,**kwargs):
+        self.vol = local_vol_curve
+        if type(forward_curve) == list:
+            N_equity = len(forward_curve)
+            N_times = len(fixings)
+            self.forward = np.zeros((N_equity,N_times))
+            for i in range(N_equity):
+                self.forward[i,:] = forward_curve[i](fixings)
+        else:
+            self.forward = forward_curve(fixings)
+
+    def simulate(self, random_gen = None, dt=None, fixings = None, corr_chole = None, Nsim=1, normalization=1,**kwargs):
+        Nsim = int(Nsim)
+        N_times = len(fixings)
+        if corr_chole is None:
+            logmartingale = np.zeros((Nsim,N_times))
+            for i in range (N_times):
+                Z = random_gen.randn(Nsim)
+                if i ==0:
+                    vol = self.vol.value_at_time(0.,0.)
+                    logmartingale[:,i]=-0.5*dt*(vol**2)+vol*sqrt(dt)*Z
+                elif i!=0:
+                    vol = self.vol.value_at_time(fixings[i-1],logmartingale[:,i-1])
+                    logmartingale[:,i]=logmartingale[:,i-1]-0.5*dt*(vol**2)+vol*sqrt(dt)*Z
+            if normalization:
+                return logmartingale
+            else:
+                return exp(logmartingale)*self.forward
+        else:
+            Ndim = len(corr_chole)
+            logmartingale = np.zeros((Nsim,N_times,Ndim))
+            for i in range (N_times):
+                Z = np.random.randn(Nsim,Ndim)
+                ep = corr_chole@Z.T   #matrix of correlated random variables
+                for j in range(Ndim):
+                    if i ==0:
+                        vol = self.vol[j].value_at_time(0.,0.)
+                        logmartingale[:,i,j]=-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
+                    elif i!=0:
+                        vol = self.vol[j].value_at_time(fixings[i-1],logmartingale[:,i-1,j])
+                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
+            if normalization:
+                return logmartingale
+            else:    
+                M = exp(logmartingale)*self.forward.T
+                return M
 
 
 """Payoff Functions"""
