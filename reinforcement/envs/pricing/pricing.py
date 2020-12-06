@@ -185,9 +185,9 @@ class Black(PricingModel):
             for i in range (N_times):
                 Z = random_gen.randn(Nsim)
                 if i ==0:
-                    logmartingale.T[i]=-0.5*self.variance[i]+sqrt(self.variance[i])*Z
+                    logmartingale[:,i]=-0.5*self.variance[i]+sqrt(self.variance[i])*Z
                 elif i!=0:
-                    logmartingale.T[i]=logmartingale.T[i-1]-0.5*self.variance[i]+sqrt(self.variance[i])*Z
+                    logmartingale[:,i]=logmartingale[:,i-1]-0.5*self.variance[i]+sqrt(self.variance[i])*Z
             return exp(logmartingale)*self.forward
 
         else:
@@ -212,47 +212,55 @@ class LV_model(PricingModel):
     """Local Volatility Model"""
     def __init__(self, fixings=None, local_vol_curve=None, forward_curve=None,**kwargs):
         self.vol = local_vol_curve
-        if type(forward_curve) == list:
-            N_equity = len(forward_curve)
-            N_times = len(fixings)
-            self.forward = np.zeros((N_equity,N_times))
-            for i in range(N_equity):
-                self.forward[i,:] = forward_curve[i](fixings)
+        self.dt = np.diff(fixings)[0]
+        if 0. in fixings:
+            self.fixings = fixings[1:]
         else:
-            self.forward = forward_curve(fixings)
+            self.fixings = fixings
+        self.N_times = len(self.fixings)
+        if type(forward_curve) == list:
+            self.Ndim = len(forward_curve)
+            self.forward = np.zeros((self.Ndim,self.N_times))
+            for i in range(self.Ndim):
+                self.forward[i,:] = forward_curve[i](self.fixings)
+        else:
+            self.forward = forward_curve(self.fixings)
 
-    def simulate(self, random_gen = None, dt=None, fixings = None, corr_chole = None, Nsim=1, normalization=1,**kwargs):
+    def simulate(self, random_gen = None, corr_chole = None, Nsim=1, normalization=1,**kwargs):
         Nsim = int(Nsim)
-        N_times = len(fixings)
         if corr_chole is None:
-            logmartingale = np.zeros((Nsim,N_times))
-            for i in range (N_times):
+            logmartingale = np.zeros((Nsim,self.N_times))
+            for i in range (self.N_times):
                 Z = random_gen.randn(Nsim)
                 if i ==0:
                     vol = self.vol.value_at_time(0.,0.)
-                    logmartingale[:,i]=-0.5*dt*(vol**2)+vol*sqrt(dt)*Z
+                    logmartingale[:,i]=-0.5*self.dt*(vol**2)+vol*sqrt(self.dt)*Z
                 elif i!=0:
-                    vol = self.vol.value_at_time(fixings[i-1],logmartingale[:,i-1])
-                    logmartingale[:,i]=logmartingale[:,i-1]-0.5*dt*(vol**2)+vol*sqrt(dt)*Z
+                    vol = self.vol.value_at_time(self.fixings[i-1],logmartingale[:,i-1])
+                    logmartingale[:,i]=logmartingale[:,i-1]-0.5*self.dt*(vol**2)+vol*sqrt(self.dt)*Z
             if normalization:
                 return logmartingale
             else:
                 return exp(logmartingale)*self.forward
         else:
-            Ndim = len(corr_chole)
-            logmartingale = np.zeros((Nsim,N_times,Ndim))
-            for i in range (N_times):
-                Z = np.random.randn(Nsim,Ndim)
+            logmartingale = np.zeros((Nsim,self.N_times,self.Ndim))
+            wiener = np.array([])
+            vola = np.array([])
+            for i in range (self.N_times):
+                Z = np.random.randn(Nsim,self.Ndim)
+                wiener = np.append(wiener,Z)
                 ep = corr_chole@Z.T   #matrix of correlated random variables
-                for j in range(Ndim):
+                for j in range(self.Ndim):
                     if i ==0:
-                        vol = self.vol[j].value_at_time(0.,0.)
-                        logmartingale[:,i,j]=-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
+                        vol = self.vol[j].value_at_time(0.,np.zeros(Nsim))
+                        vola = np.append(vola,vol)
+                        logmartingale[:,i,j]=-0.5*self.dt*(vol**2)+vol*sqrt(self.dt)*ep[j]
                     elif i!=0:
-                        vol = self.vol[j].value_at_time(fixings[i-1],logmartingale[:,i-1,j])
-                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
+                        vol = self.vol[j].value_at_time(self.fixings[i-1],logmartingale[:,i-1,j])
+                        vola = np.append(vola,vol)
+                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*self.dt*(vol**2)+vol*sqrt(self.dt)*ep[j]
             if normalization:
-                return logmartingale
+                return logmartingale, (wiener.reshape(self.N_times,Nsim,self.Ndim)).transpose(1,0,2), (vola.reshape(self.N_times,self.Ndim,Nsim)).transpose(2,0,1)
             else:    
                 M = exp(logmartingale)*self.forward.T
                 return M

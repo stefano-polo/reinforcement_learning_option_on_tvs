@@ -33,3 +33,7 @@ register(
     id='TVS_3assets-v0',
     entry_point='envs.tvs_3market_env:TVS_enviroment3',
 )
+register(
+    id='TVS_lv-v0',
+    entry_point='envs.tvs_lv_env:TVS_LV',
+)
