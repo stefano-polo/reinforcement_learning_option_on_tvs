@@ -86,6 +86,8 @@ class ForwardVariance(Curve):  #I calculate the variance and not the volatility 
         if isinstance(strike_interp, EquityForwardCurve):
             """Interpolation with the ATM forward"""
             self.spot_vol = np.array([])
+            self.matrix = spot_volatility
+            self.K = strikes
             matrix_interpolated = interp1d(strikes,spot_volatility,axis=1)(strike_interp(self.T))
             for i in range (len(maturities)):
                 self.spot_vol = np.append(self.spot_vol,matrix_interpolated[i,i])
@@ -107,36 +109,36 @@ class ForwardVariance(Curve):  #I calculate the variance and not the volatility 
     def curve(self,date):
         return self.vol_t(date)**2
 
-class LocalVolatilityCurve(Curve):
+class LocalVolatilityCurve():
     
-    def __init__(self, market_volatility=None, strikes=None, maturities=None):
-        self.volatilities = market_volatility
-        self.K = strikes
-        self.T = np.append(0.,maturities[:-1])     #it is fundamental this transformation for the piecewise interpolation
-        self.vola_interpolated = interp1d(self.K,self.volatilities,axis=0,fill_value="extrapolate")   #linear interpolation along strike
-    
-    def parameterization_with_h(self,forward_curve=None,n_points=400):
-        self.h = np.linspace(-4,4,n_points)
-        new_parameterization = np.zeros((n_points+1,len(self.T)))
-        self.h = np.append(self.h,0.)
-        self.h = np.sort(self.h)
-        for i in range(len(self.T)):
-            for j in range(n_points+1):
-                new_parameterization[j,i] = self.value_at_time(self.T[i],np.exp(self.h[j])*forward_curve(self.T[i]))
-        self.volatilities = new_parameterization
-        self.vola_interpolated = interp1d(self.h,self.volatilities,axis=0,fill_value="extrapolate")  
-        print("Changed parameterization of the curve: log(K/F(T)) instead of K")      
-
-    def curve(self,price):
-        return self.vola_interpolated(np.array(price))
-    
-    def value_at_time(self,time,price):
-        if time in self.T:
-            return self(price).T[np.searchsorted(self.T, time, side='left')]
+    def __init__(self, volatility_parameters=None, moneyness_matrix=None, maturities=None, asset_name=None):
+        self.name = asset_name
+        self.lv = volatility_parameters
+        self.log_moneyness = np.log(moneyness_matrix)
+        n_dates = len(maturities)     #it is fundamental this transformation for the piecewise interpolation
+        time_idx = tuple(range(n_dates))
+        if n_dates>1:
+            self.time_interpolator = interp1d(maturities, time_idx, kind='next', fill_value='extrapolate')
         else:
-            return self(price).T[np.searchsorted(self.T, time, side='left')-1]
-
-
+            self.time_interpolator = lambda t: 0
+    
+    def time_indices_simulation(self, time_indexes):
+        self.interpolator_strikes = []
+        for i in range(time_indexes[-1]+1):
+            this_money = self.log_moneyness[:,i]
+            this_lv    = self.lv[:,i]
+            self.interpolator_strikes.append(interp1d(this_money, this_lv, fill_value=(this_lv[0], this_lv[-1]), bounds_error=False))
+        
+    def intelligent_call(self,index,k):
+        return self.interpolator_strikes[index](k)
+        
+    def __call__(self,t,k):
+        idx = int(self.time_interpolator(t))
+        this_money = self.log_moneyness[:,idx]
+        this_lv    = self.lv[:,idx]
+        intepolator = interp1d(this_money, this_lv, fill_value=(this_lv[0], this_lv[-1]), bounds_error=False)
+        return intepolator(k)
+    
 class PricingModel:
 
     def __init__(self, **kwargs):
@@ -200,30 +202,49 @@ class Black(PricingModel):
 
 class LV_model(PricingModel):
     """Local Volatility Model"""
-    def __init__(self, fixings=None, local_vol_curve=None, forward_curve=None,**kwargs):
+    def __init__(self, fixings=None, local_vol_curve=None, forward_curve=None, N_grid = 100,**kwargs):
         self.vol = local_vol_curve
+        self.time_grid, self.dt = Eulero_grid(fixings,N_grid)
+        self.N_grid = N_grid
         if type(forward_curve) == list:
             N_equity = len(forward_curve)
             N_times = len(fixings)
             self.forward = np.zeros((N_equity,N_times))
             for i in range(N_equity):
                 self.forward[i,:] = forward_curve[i](fixings)
+                self.vol[i].time_indices_simulation(self.time_grid)
         else:
             self.forward = forward_curve(fixings)
+            self.time_indexes = self.vol.time_interpolator(self.time_grid).astype(int)
+            self.vol.time_indices_simulation(self.time_indexes)
+            
 
-    def simulate(self, random_gen = None, dt=None, fixings = None, corr_chole = None, Nsim=1, normalization=1,**kwargs):
+    def simulate(self, random_gen = None, corr_chole = None, Nsim=1, normalization=1,**kwargs):
         Nsim = int(Nsim)
-        N_times = len(fixings)
+        N_times = len(self.time_grid)
+        N_fixings = int(len(self.time_grid)/self.N_grid)
+        counter = 1
+        time_index = 0
+        dt = self.dt[time_index]
         if corr_chole is None:
-            logmartingale = np.zeros((Nsim,N_times))
+            logmartingale = np.zeros((int(2*Nsim),N_fixings))
+            logX = 0.
             for i in range (N_times):
                 Z = random_gen.randn(Nsim)
+                Z = np.concatenate((Z,-Z))
                 if i ==0:
-                    vol = self.vol.value_at_time(0.,0.)
-                    logmartingale[:,i]=-0.5*dt*(vol**2)+vol*sqrt(dt)*Z
+                    vol = self.vol.intelligent_call(0,logX)
+                    logX= logX-0.5*dt*(vol**2)+vol*sqrt(dt)*Z
                 elif i!=0:
-                    vol = self.vol.value_at_time(fixings[i-1],logmartingale[:,i-1])
-                    logmartingale[:,i]=logmartingale[:,i-1]-0.5*dt*(vol**2)+vol*sqrt(dt)*Z
+                    vol = self.vol.intelligent_call(self.time_indexes[i-1],logX)
+                    logX = logX-0.5*dt*(vol**2)+vol*sqrt(dt)*Z
+                counter = i+1
+                if  counter%self.N_grid == 0:
+                    print("Simulation finished for "+str(time_index+1)+" of "+str(N_fixings))
+                    logmartingale[:,time_index] = logX
+                    time_index +=1
+                    if counter < N_times:
+                        dt = self.dt[time_index]
             if normalization:
                 return logmartingale
             else:
@@ -308,3 +329,14 @@ def quad_piecewise(f, time_grid, t_in, t_fin, vectorial=0):
       
     dt = np.diff(time_grid)
     return np.sum(y*dt)
+
+def Eulero_grid(fixings=None,N_intervals=None):
+    time_grid = np.array([])
+    for i in range(len(fixings)):
+        if i == 0:
+            dt = np.array([fixings[i]/N_intervals])
+            time_grid = np.append(time_grid, np.linspace(dt[i],fixings[i],N_intervals))
+        else:
+            dt = np.append(dt,(fixings[i]-fixings[i-1])/N_intervals)
+            time_grid = np.append(time_grid,np.linspace(fixings[i-1]+dt[i],fixings[i],N_intervals))
+    return time_grid, dt
