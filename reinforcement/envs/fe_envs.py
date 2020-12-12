@@ -21,19 +21,16 @@ register(
 
 register(
     id='TVS-v0',
-    entry_point='envs.tvs_env:TVS_environment',
+    entry_point='envs.tvs_env:TVS_enviroment',
 )
 
 register(
     id='TVS_2assets-v0',
-    entry_point='envs.tvs_2market_env:TVS_environment2',
+    entry_point='envs.tvs_2market_env:TVS_enviroment2',
 )
 
 register(
-    id='TVS_3assets-v0',
-    entry_point='envs.tvs_3market_env:TVS_enviroment3',
-)
-register(
-    id='TVS_lv-v0',
+    id='TVS_LV-v0',
     entry_point='envs.tvs_lv_env:TVS_LV',
+
 )

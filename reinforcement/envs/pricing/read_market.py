@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
-from pricing import EquityForwardCurve, DiscountingCurve, ForwardVariance,LocalVolatilityCurve
+from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, ForwardVariance,LocalVolatilityCurve
 from numpy import array, delete, zeros, reshape, append, max
-
+import numpy as np
 
 class MarketDataReader:
 
@@ -105,7 +105,7 @@ class MarketDataReader:
         return V
 
 
-def Market_Loval_volatility(filename=None):
+def Market_Local_volatility(filename=None):
     tree = ET.parse('calibration_output.xml')
     root = tree.getroot()
     N_equity = len(root[1][2][1][0])
@@ -132,3 +132,4 @@ def Market_Loval_volatility(filename=None):
             vola_matrix = np.append(vola_matrix,float(root[1][2][2][j][vola][0][i].text))
         vola_matrix = vola_matrix.reshape(number_expiries,n_strikes)
         LV_curves.append(LocalVolatilityCurve(vola_matrix,moneyness_matrix,expiries,name))
+    return LV_curves
