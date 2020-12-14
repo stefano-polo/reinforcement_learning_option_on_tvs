@@ -30,14 +30,16 @@ class EquityForwardCurve(Curve):
             self.T = ACT_365(repo_dates,self.reference)
         else:
             self.T = abs(repo_dates - self.reference)
+         if self.T[0] == 0.:
+            self.T = np.delete(self.T,0)
+            repo_rates = np.delete(repo_rates,0)
         self.q_values = np.array([repo_rates[0]])
         for i in range(1,len(self.T)):
             alpha = ((self.T[i])*(repo_rates[i])-(self.T[i-1])*
                      (repo_rates[i-1]))/(self.T[i]-self.T[i-1])
             self.q_values = np.append(self.q_values,alpha)
-        if self.T[0] !=0:
-            self.T = np.insert(self.T[:-1],0,0)
-        self.q = interp1d(self.T, self.q_values, kind='previous',fill_value="extrapolate", assume_sorted=False) 
+        self.T = np.append(0.,self.T[:-1])
+        self.q = interp1d(self.T, self.q_values, kind='previous',fill_value="extrapolate", assume_sorted=False)
      #   print("Forward repo time grid",self.T)
       #  print("Forward repo rate: ", self.q_values)
 
