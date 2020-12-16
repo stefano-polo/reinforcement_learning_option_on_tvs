@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 from pricing import EquityForwardCurve, DiscountingCurve, ForwardVariance,LocalVolatilityCurve
 from numpy import array, delete, zeros, reshape, append, max
-
+import numpy as np
 
 class MarketDataReader:
 
@@ -105,30 +105,31 @@ class MarketDataReader:
         return V
 
 
-def Market_Loval_volatility(filename=None):
+def Market_Local_volatility(filename=None):
     tree = ET.parse('calibration_output.xml')
     root = tree.getroot()
     N_equity = len(root[1][2][1][0])
     LV_curves = []
     for j in range(N_equity):
         name=root[1][2][1][0][j].text
-        expiry_yrf = 4
-        number_expiries = len(root[1][2][2][j][expiry_yrf][0])#.attrib
+        expiry_yrf = 5
+        n_expiries = len(root[1][2][2][j][expiry_yrf][0])#.attrib
         expiries = np.array([])
-        for i in range(number_expiries):
+        for i in range(n_expiries):
             expiries = np.append(expiries,float(root[1][2][2][j][expiry_yrf][0][i].text))
         
         moneyness = 6
         moneyness_matrix = np.array([])
         n_matrix =len(root[1][2][2][j][moneyness][0])
-        n_strikes = int(n_matrix/number_expiries)
+        n_strikes = int(n_matrix/n_expiries)
         for i in range(n_matrix):
             moneyness_matrix = np.append(moneyness_matrix,float(root[1][2][2][j][moneyness][0][i].text))
-        moneyness_matrix = moneyness_matrix.reshape(number_expiries,n_strikes)
+        moneyness_matrix = moneyness_matrix.reshape(n_strikes,n_expiries)
         
         vola = 7
         vola_matrix = np.array([])
         for i in range(n_matrix):
             vola_matrix = np.append(vola_matrix,float(root[1][2][2][j][vola][0][i].text))
-        vola_matrix = vola_matrix.reshape(number_expiries,n_strikes)
+        vola_matrix = vola_matrix.reshape(n_strikes,n_expiries)
         LV_curves.append(LocalVolatilityCurve(vola_matrix,moneyness_matrix,expiries,name))
+    return LV_curves

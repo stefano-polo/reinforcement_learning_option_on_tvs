@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import interp1d, PchipInterpolator
 from numpy import exp, sqrt, log
 from scipy.integrate import quad
-from numpy.linalg import cholesky
+import matplotlib.pyplot as plt
 
 """Classes for my simulation"""
 
@@ -40,8 +40,8 @@ class EquityForwardCurve(Curve):
             self.q_values = np.append(self.q_values,alpha)
         self.T = np.append(0.,self.T[:-1])
         self.q = interp1d(self.T, self.q_values, kind='previous',fill_value="extrapolate", assume_sorted=False) 
-        print("Forward repo time grid",self.T)
-        print("Forward repo rate: ", self.q_values)
+     #   print("Forward repo time grid",self.T)
+      #  print("Forward repo rate: ", self.q_values)
 
     def curve(self, date):
         date = np.array(date)
@@ -63,16 +63,16 @@ class DiscountingCurve(Curve):
             self.T = abs(dates - self.reference)
         if self.T[0] ==0:
             r_zero = np.array([0])   #at reference date the discount is 1
-            r_zero = np.append(r_zero,(-1./self.T[1:])*log(discounts[1:]))
+            r_zero = np.append(r_zero,(-1./((self.T[1:])))*log(discounts[1:]))
             r_zero[0] = r_zero[1]
-            r_instant = np.array([(-1./self.T[0])*log(discounts[0])])
-            r_instant = np.append(r_instant,(-1./(self.T[1:]-self.T[:-1]))*log(discounts[1:]/discounts[:-1]))
+            r_instant = np.array([(-1./self.T[1])*log(discounts[1])])
+            r_instant = np.append(r_instant,(-1./(self.T[2:]-self.T[1:-1]))*log(discounts[2:]/discounts[1:-1]))
         else:
             r_zero = (-1./(self.T))*log(discounts)
-        self.R = interp1d(self.T,r_instant) #zero rate from 0 to T1
-        self.r_t = interp1d(self.T,r_instant,kind='previous',fill_value="extrapolate")  #instant interest rate
-        print("zero interest rate time grid",self.T)
-        print("zero interest rate: ",r_zero)
+        self.R = interp1d(self.T,r_zero) #zero rate from 0 to T1
+        self.r_t = interp1d(self.T[:-1],r_instant,kind='previous',fill_value="extrapolate")  #instant interest rate
+      #  print("zero interest rate time grid",self.T)
+      #  print("zero interest rate: ",r_zero)
 
     def curve(self, date):
         return exp(-self.R(date)*date)
@@ -90,8 +90,8 @@ class ForwardVariance(Curve):  #I calculate the variance and not the volatility 
             self.T = abs(maturities-self.reference)
         if isinstance(strike_interp, EquityForwardCurve):
             """Interpolation with the ATM forward"""
-            self.spot_vol = np.array([])
             self.original = self.T
+            self.spot_vol = np.array([])
             self.matrix = spot_volatility
             self.K = strikes
             matrix_interpolated = interp1d(strikes,spot_volatility,axis=1)(strike_interp(self.T))
@@ -109,8 +109,8 @@ class ForwardVariance(Curve):  #I calculate the variance and not the volatility 
         if self.T[0] !=0:
             self.T = np.insert(self.T[:-1],0,0)
         self.vol_t = interp1d(self.T, self.forward_vol, kind='previous',fill_value="extrapolate", assume_sorted=False) 
-        print("Forward volatility time grid: ",self.T)
-        print("Forward volatility: ",self.forward_vol)
+     #   print("Forward volatility time grid: ",self.T)
+     #   print("Forward volatility: ",self.forward_vol)
 
     def curve(self,date):
         return self.vol_t(date)**2
@@ -121,6 +121,7 @@ class LocalVolatilityCurve():
         self.name = asset_name
         self.lv = volatility_parameters
         self.log_moneyness = np.log(moneyness_matrix)
+        self.T = maturities
         n_dates = len(maturities)     #it is fundamental this transformation for the piecewise interpolation
         time_idx = tuple(range(n_dates))
         if n_dates>1:
@@ -158,7 +159,7 @@ class LocalVolatilityCurve():
         eta[k<this_money[0]] = this_lv[0]
         eta[k>this_money[-1]] = this_lv[-1]
         return eta
-    
+
 class PricingModel:
 
     def __init__(self, **kwargs):
@@ -192,10 +193,10 @@ class Black(PricingModel):
                 Z = np.concatenate((Z,-Z))
                 if i ==0:
                     integral = quad_piecewise(self.variance,self.variance.T,0.,fixings[i])
-                    logmartingale.T[i]=-0.5*integral+sqrt(integral)*Z
+                    logmartingale[:,i]=-0.5*integral+sqrt(integral)*Z
                 elif i!=0:
                     integral = quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i])
-                    logmartingale.T[i]=logmartingale.T[i-1]-0.5*integral+sqrt(integral)*Z
+                    logmartingale[:,i]=logmartingale[:,i-1]-0.5*integral+sqrt(integral)*Z
             return exp(logmartingale)*self.forward_curve(fixings)
 
         else:
@@ -227,18 +228,25 @@ class LV_model(PricingModel):
         self.time_grid, self.dt = Eulero_grid(fixings,N_grid)
         self.N_grid = N_grid
         if type(forward_curve) == list:
-            N_equity = len(forward_curve)
+            """Multiasset LV model"""
+            self.Ndim = len(forward_curve)
             N_times = len(fixings)
-            self.forward = np.zeros((N_equity,N_times))
-            for i in range(N_equity):
+            self.forward = np.zeros((self.Ndim,N_times))
+            self.time_indexes_matrix = np.array([])
+            for i in range(self.Ndim):
                 self.forward[i,:] = forward_curve[i](fixings)
-                self.vol[i].time_indices_simulation(self.time_grid)
+                time_indexes = self.vol[i].time_interpolator(self.time_grid).astype(int)
+                self.vol[i].time_indices_simulation(time_indexes)
+                if i == 0:
+                    self.time_indexes_matrix = time_indexes
+                else:
+                    self.time_indexes_matrix = np.vstack([self.time_indexes_matrix,time_indexes])
         else:
+            """One asset LV model"""
             self.forward = forward_curve(fixings)
             self.time_indexes = self.vol.time_interpolator(self.time_grid).astype(int)
             self.vol.time_indices_simulation(self.time_indexes)
             
-
     def simulate(self, random_gen = None, corr_chole = None, Nsim=1, normalization=1,**kwargs):
         Nsim = int(Nsim)
         N_times = len(self.time_grid)
@@ -251,20 +259,14 @@ class LV_model(PricingModel):
             logX = 0.
             for i in range (N_times):
                 Z = random_gen.randn(Nsim)
-               # print('Time ',self.time_grid[i])
                 if i ==0:
                     vol = self.vol.intelligent_call(0,logX)
                     logX= logX-0.5*dt*(vol**2)+vol*sqrt(dt)*Z
                 elif i!=0:
                     vol = self.vol.intelligent_call(self.time_indexes[i-1],logX)
-                 #   print('Number of nan ',np.where(np.isnan(vol)))
-                 #   print(np.sum(np.isnan(vol)))
                     logX = logX-0.5*dt*(vol**2)+vol*sqrt(dt)*Z
-                 #   print('Volatility ',vol[84582])
-                 #   print('Martingale ',logX[84582])
                 counter = i+1
                 if  counter%self.N_grid == 0:
-                 #   print("Simulation finished for "+str(time_index+1)+" of "+str(N_fixings))
                     logmartingale[:,time_index] = logX
                     time_index +=1
                     if counter < N_times:
@@ -274,25 +276,30 @@ class LV_model(PricingModel):
             else:
                 return exp(logmartingale)*self.forward
         else:
-            Ndim = len(corr_chole)
-            logmartingale = np.zeros((Nsim,N_times,Ndim))
+            logmartingale = np.zeros((Nsim,N_fixings,self.Ndim))
+            logX = np.zeros((Nsim,self.Ndim))
             for i in range (N_times):
-                Z = np.random.randn(Nsim,Ndim)
+                Z = np.random.randn(Nsim,self.Ndim)
                 ep = corr_chole@Z.T   #matrix of correlated random variables
-                for j in range(Ndim):
+                for j in range(self.Ndim):
                     if i ==0:
-                        vol = self.vol[j].value_at_time(0.,0.)
-                        logmartingale[:,i,j]=-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
+                        vol = self.vol[j].intelligent_call(0,logX[:,0])
+                        logX[:,j]=-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
                     elif i!=0:
-                        vol = self.vol[j].value_at_time(fixings[i-1],logmartingale[:,i-1,j])
-                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
+                        vol = self.vol[j].intelligent_call(self.time_indexes_matrix[j,i-1],logX[:,j])
+                        logX[:,j]=logX[:,j]-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
+                counter = i+1
+                if counter%self.N_grid == 0:
+                    logmartingale[:,time_index,:] = logX
+                    time_index +=1
+                    if counter < N_times:
+                        dt = self.dt[time_index]
             if normalization:
                 return logmartingale
             else:    
                 M = exp(logmartingale)*self.forward.T
                 return M
-
-
+      
 """Payoff Functions"""
 def Vanilla_PayOff(St=None,strike=None, typo = 1): #Monte Carlo call payoff
     zero = np.zeros(St.shape)
@@ -302,7 +309,8 @@ def Vanilla_PayOff(St=None,strike=None, typo = 1): #Monte Carlo call payoff
     elif typo ==-1:
         """Put option payoff"""
         pay = strike - St
-    #pay1,pay2 = np.split(np.maximum(pay,zero),2) #for antithetic sampling
+   # pay1,pay2 = np.split(np.maximum(pay,zero),2) #for antithetic sampling
+    
     return np.maximum(pay,zero)#0.5*(pay1+pay2)
 
 def ACT_365(date1,date2):
