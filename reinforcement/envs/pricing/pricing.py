@@ -174,52 +174,59 @@ class PricingModel:
 class Black(PricingModel):
     """Black model"""
 
-    def __init__(self, variance=None, forward_curve=None,**kwargs):
-        self.variance = variance
-        self.forward_curve = forward_curve
+    def __init__(self, fixings=None, variance_curve=None, forward_curve=None,**kwargs):
+        if type(forward_curve) == list:
+            N_equity = len(forward_curve)
+            N_times = len(fixings)
+            self.forward = np.zeros((N_equity,N_times))
+            for i in range(N_equity):
+                self.forward[i,:] = forward_curve[i](fixings)
+            self.variance = np.zeros((N_equity,N_times))
+            for i in range(N_equity):
+                for j in range(N_times):
+                    if j==0:
+                        self.variance[i,j] = quad_piecewise(variance_curve[i],variance_curve[i].T,0.,fixings[j])
+                    else:
+                        self.variance[i,j] = quad_piecewise(variance_curve[i],variance_curve[i].T,fixings[j-1],fixings[j])
+        else:
+            N_times = len(fixings)
+            self.forward = forward_curve(fixings)
+            self.variance = np.zeros(N_times)
+            for j in range(N_times):
+                if j==0:
+                    self.variance[j] = quad_piecewise(variance_curve,variance_curve.T,0.,fixings[j])
+                else:
+                    self.variance[j] = quad_piecewise(variance_curve,variance_curve.T,fixings[j-1],fixings[j])
 
-    def simulate(self, fixings=None, corr = None, Nsim=1, seed=14,**kwargs):
-        np.random.seed(seed)
-        fixings = np.array(fixings)
-        if fixings.shape==():
-            fixings = np.array([fixings])
+    def simulate(self, random_gen = None, corr_chole = None, Nsim=1, seed=14, normalization=1,**kwargs):
         Nsim = int(Nsim)
-        N_times = len(fixings)
-        if corr is None:
-            print("Single Asset Simulation")
-            logmartingale = np.zeros((2*Nsim,N_times))
+        N_times = len(self.variance.T)
+        if corr_chole is None:
+            logmartingale = np.zeros((Nsim,N_times))
             for i in range (N_times):
-                Z = np.random.randn(Nsim)
-                Z = np.concatenate((Z,-Z))
+                Z = random_gen.randn(Nsim)
                 if i ==0:
-                    integral = quad_piecewise(self.variance,self.variance.T,0.,fixings[i])
-                    logmartingale[:,i]=-0.5*integral+sqrt(integral)*Z
+                    logmartingale.T[i]=-0.5*self.variance[i]+sqrt(self.variance[i])*Z
                 elif i!=0:
-                    integral = quad_piecewise(self.variance,self.variance.T,fixings[i-1],fixings[i])
-                    logmartingale[:,i]=logmartingale[:,i-1]-0.5*integral+sqrt(integral)*Z
-            return exp(logmartingale)*self.forward_curve(fixings)
+                    logmartingale.T[i]=logmartingale.T[i-1]-0.5*self.variance[i]+sqrt(self.variance[i])*Z
+            return exp(logmartingale)*self.forward
 
         else:
-            print("Multi Asset Simulation")
-            Ndim = len(corr)
-            logmartingale = np.zeros((2*Nsim,N_times,Ndim))
-            R = cholesky(corr)
+            Ndim = len(corr_chole)
+            logmartingale = np.zeros((Nsim,N_times,Ndim))
             for i in range (N_times):
                 Z = np.random.randn(Nsim,Ndim)
-                Z = np.concatenate((Z,-Z)) #matrix of uncorrelated random variables
-                ep = R@Z.T   #matrix of correlated random variables
+                ep = corr_chole@Z.T   #matrix of correlated random variables
                 for j in range(Ndim):
                     if i ==0:
-                        integral = quad_piecewise(self.variance[j],self.variance[j].T,0.,fixings[i])
-                        logmartingale[:,i,j]=-0.5*integral+sqrt(integral)*ep[j]
+                        logmartingale[:,i,j]=-0.5*self.variance[j,i]+sqrt(self.variance[j,i])*ep[j]
                     elif i!=0:
-                        integral = quad_piecewise(self.variance[j],self.variance[j].T,fixings[i-1],fixings[i])
-                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*integral+sqrt(integral)*ep[j]
-            M = exp(logmartingale)
-            for i in range(Ndim):
-                M[:,:,i] = M[:,:,i]*self.forward_curve[i](fixings)
-            return M
-
+                        logmartingale[:,i,j]=logmartingale[:,i-1,j]-0.5*self.variance[j,i]+sqrt(self.variance[j,i])*ep[j]
+            if normalization:
+                return logmartingale
+            else:    
+                M = exp(logmartingale)*self.forward.T
+                return M
 
 class LV_model(PricingModel):
     """Local Volatility Model"""

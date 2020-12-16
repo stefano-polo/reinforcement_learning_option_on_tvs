@@ -24,7 +24,7 @@ class TVS_environment2(gym.Env):
         self.time_index = 0
         self.simulation_index = 0
         months = np.array([31,28,31,30,31,30,31,31,30,31,30,31])
-        self.time_grid = np.cumsum(months)/n_observations
+        self.time_grid = np.cumsum(months)/365.
         self.time_grid = np.insert(self.time_grid,0,0)
         #Loading Market data and preparing the BS model"""
         reader = MarketDataReader(filename)
@@ -35,8 +35,8 @@ class TVS_environment2(gym.Env):
         self.discount = self.D(maturity)
         self.F = reader.get_forward_curves()
         self.V = reader.get_volatilities()
-        self.F = [self.F[0],self.F[3],self.F[4]]
-        self.V = [self.V[0],self.V[3],self.V[4]]
+        self.F = [self.F[0],self.F[3]]
+        self.V = [self.V[0],self.V[3]]
         names = reader.get_stock_names()
         names = [names[0],names[3],names[4]]
         print("Reinforcement Learning simulation for the market with equities: ",names)
@@ -47,7 +47,7 @@ class TVS_environment2(gym.Env):
         self.TVSF = TVSForwardCurve(reference=0.,vola_target = self.target_vol, spot_price = self.I_0, mu = self.mu, nu = self.nu, discounting_curve = self.D)
         self.model = Black(fixings=self.time_grid, variance_curve=self.V, forward_curve=self.F)
         self.integral_variance = np.cumsum(self.model.variance[:,1:],axis=1).T
-        self.integral_variance_sqrt = sqrt(self.integral_variance)
+        self.integral_variance_sqrt = np.sqrt(self.integral_variance)
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
             raise Exception("You should provide the sum limit for short and long position")
         if sum_long is not None and sum_short is not None:
