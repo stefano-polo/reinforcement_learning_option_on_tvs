@@ -29,7 +29,7 @@ class TVS_LV(gym.Env):
         self.observation_grid = np.insert(self.observation_grid,0,0.)
         self.time_index = 0
         self.current_time = 0.
-        self.N_euler_grid = 100
+        self.N_euler_grid = 60
         self.simulation_index = 0
         self.Nsim = 1e3
         """Loading market curves"""
@@ -106,7 +106,7 @@ class TVS_LV(gym.Env):
             nu = Vola@self.correlation_chole
             norm = np.linalg.norm(action@nu)
             omega = self.target_vol/norm
-            drift = r_t[idx] - omega * (action@self.mu_values[idx])
+            drift = self.r_t[idx] - omega * (action@self.mu_values[idx])
             mart = action@Vola@self.W_corr_t[idx]
             self.I_t = self.I_t * (1. + drift*dt + np.sqrt(dt)*mart)
         
