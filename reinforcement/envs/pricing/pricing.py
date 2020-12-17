@@ -228,10 +228,15 @@ class Black(PricingModel):
                 M = exp(logmartingale)*self.forward.T
                 return M
 
+
 class LV_model(PricingModel):
     """Local Volatility Model"""
     def __init__(self, fixings=None, local_vol_curve=None, forward_curve=None, N_grid = 100,**kwargs):
         self.vol = local_vol_curve
+        if fixings[0] == 0.:
+            print("Elimino lo zero")
+            fixings = fixings[1:]
+        print("Analizzo le maturità", fixings)
         self.time_grid, self.dt = Eulero_grid(fixings,N_grid)
         self.N_grid = N_grid
         if type(forward_curve) == list:
@@ -285,15 +290,22 @@ class LV_model(PricingModel):
         else:
             logmartingale = np.zeros((Nsim,N_fixings,self.Ndim))
             logX = np.zeros((Nsim,self.Ndim))
+            correlated_wiener = np.array([])
+            vola_t = np.array([])
             for i in range (N_times):
                 Z = np.random.randn(Nsim,self.Ndim)
                 ep = corr_chole@Z.T   #matrix of correlated random variables
+                correlated_wiener = np.append(correlated_wiener,ep)
                 for j in range(self.Ndim):
                     if i ==0:
-                        vol = self.vol[j].intelligent_call(0,logX[:,0])
+                        vol = self.vol[j].intelligent_call(0,0.)
+                        #print("Asset "+str(j+1)+"vola ",vol)
+                        vola_t = np.append(vola_t,vol*np.ones(Nsim))
                         logX[:,j]=-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
                     elif i!=0:
                         vol = self.vol[j].intelligent_call(self.time_indexes_matrix[j,i-1],logX[:,j])
+                        vola_t = np.append(vola_t,vol)
+                        #print("Asset "+str(j+1)+"vola ",vol)
                         logX[:,j]=logX[:,j]-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
                 counter = i+1
                 if counter%self.N_grid == 0:
@@ -302,7 +314,7 @@ class LV_model(PricingModel):
                     if counter < N_times:
                         dt = self.dt[time_index]
             if normalization:
-                return logmartingale
+                return logmartingale, (correlated_wiener.reshape(N_times,self.Ndim,Nsim)).transpose(2,0,1), (vola_t.reshape(N_times,self.Ndim,Nsim)).transpose(2,0,1)
             else:    
                 M = exp(logmartingale)*self.forward.T
                 return M
