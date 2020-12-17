@@ -37,6 +37,8 @@ class TVS_LV(gym.Env):
         D = reader.get_discounts()
         F = reader.get_forward_curves()
         F = [F[0],F[1],F[2],F[3],F[4],F[5],F[6],F[7],F[9]]
+        V = reader.get_volatilities()
+        V = [V[0],V[1],V[2],V[3],V[4],V[5],V[6],V[7],V[9]]
         correlation = reader.get_correlation()
         if self.N_equity == 3:
             correlation = np.array(([1.,0.86,0.],[0.86,1.,0.],[0.,0.,1.]))
@@ -49,25 +51,35 @@ class TVS_LV(gym.Env):
         names = reader.get_stock_names()
         names = [names[0],names[1],names[2],names[3],names[4],names[5],names[6],names[7],names[9]]
         print("Names original",names)
-        V = Market_Local_volatility()
-        LV = [V[0],V[1],V[2],V[3],V[6],V[4],V[5],V[7],V[8]]
+        local_vol = Market_Local_volatility()
+        LV = [local_vol[0],local_vol[1],local_vol[2],local_vol[3],local_vol[6],local_vol[4],local_vol[5],local_vol[7],local_vol[8]]
         if self.N_equity == 3:
             F = [F[0],F[3],F[4]]
             LV = [LV[0],LV[3],LV[4]]
+            V = [V[0],V[3],V[4]]
         elif self.N_equity == 2:
             F = [F[0],F[3]]
             LV = [LV[0],LV[3]]
+            V = [V[0],V[3]]
         print("Simulating equity: ")
         self.spot_prices = np.array([])
         for i in range(self.N_equity):
             print(LV[i].name)
         """Preparing the LV model"""
         self.model = LV_model(fixings=self.observation_grid[1:], local_vol_curve=LV, forward_curve=F, N_grid = self.N_euler_grid)
-        self.euler_grid = self.model.time_grid
-        self.r_t = D.r_t(np.append(0.,self.euler_grid[:-1]))
+        euler_grid = self.model.time_grid
+        self.r_t = D.r_t(np.append(0.,euler_grid[:-1]))
         self.discount = D(self.T)
         self.dt_vector = self.model.dt
-        self.mu_values = Drift(forward_curves = F)(np.append(0.,self.euler_grid[:-1]))
+        self.mu_values = Drift(forward_curves = F)(np.append(0.,euler_grid[:-1]))
+        """Black variance for normalization"""
+        self.integral_variance = np.zeros((N_equity,len(self.observation_grid[1:])))
+        for i in range(self.N_equity):
+            for j in range(len(self.observation_grid[1:])):
+                self.integral_variance[i,j] = quad_piecewise(V[i],V[i].T,0.,self.observation_grid[j+1])
+        self.integral_variance = self.integral_variance.T
+        self.integral_variance_sqrt = sqrt(self.integral_variance)
+
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
             raise Exception("You should provide the sum limit for short and long position")
         if sum_long is not None and sum_short is not None:
@@ -125,6 +137,7 @@ class TVS_LV(gym.Env):
     def reset(self):
         if self.simulation_index == 0 or self.simulation_index==self.Nsim:
             self.simulations_logX, self.simulations_W_corr, self.simulations_Vola = self.model.simulate(corr_chole = self.correlation_chole, random_gen = self.np_random, normalization = 1, Nsim=self.Nsim)
+            self.simulations_logX = (self.simulations_logX+0.5*self.integral_variance)/self.integral_variance_sqrt
             self.simulation_index=0
         self.current_time = 0.
         self.time_index = 0
