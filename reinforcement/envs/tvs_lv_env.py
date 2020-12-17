@@ -98,16 +98,18 @@ class TVS_LV(gym.Env):
         self.current_time = self.observation_grid[self.time_index]
         self.current_logX = self.logX_t[self.time_index-1]
         dt = self.dt_vector[self.time_index-1]
-        index_plus = self.time_index-1
+        index_plus = (self.time_index-1)*self.N_euler_grid
+        """Simulation of I_t"""
         for i in range(self.N_euler_grid):
-            nu = self.sigma[self.time_index-1]*self.Identity@self.correlation_chole
-            self.I_t = 
-
+            idx = index_plus + i 
+            Vola =  self.sigma_t[idx]*self.Identity
+            nu = Vola@self.correlation_chole
+            norm = np.linalg.norm(action@nu)
+            omega = self.target_vol/norm
+            drift = r_t[idx] - omega * (action@self.mu_values[idx])
+            mart = action@Vola@self.W_corr_t[idx]
+            self.I_t = self.I_t * (1. + drift*dt + np.sqrt(dt)*mart)
         
-        norm = np.linalg.norm(action@nu)
-        omega = self.target_vol/norm
-        self.I_t = self.I_t*(1. + omega * action@self.S_increment + (1 - omega*sum_action ) * self.r_values[self.time_index]*self.dt)
-       # print(self.time_index)
         if self.current_time < self.T:
             done = False
             reward = 0.
@@ -116,7 +118,7 @@ class TVS_LV(gym.Env):
             reward = np.maximum(self.I_t-self.strike_opt,0.)*self.discount
             self.simulation_index = self.simulation_index +1
 
-        state = np.append(self.current_X, self.current_time)
+        state = np.append(self.current_logX, self.current_time)
         return state, reward, done, {}
 
 
