@@ -136,6 +136,9 @@ class TVS_LV(gym.Env):
 
     def reset(self):
         if self.simulation_index == 0 or self.simulation_index==self.Nsim:
+            self.simulations_logX = None
+            self.simulations_W_corr = None
+            self.simulations_Vola = None
             self.simulations_logX, self.simulations_W_corr, self.simulations_Vola = self.model.simulate(corr_chole = self.correlation_chole, random_gen = self.np_random, normalization = 1, Nsim=self.Nsim)
             self.simulations_logX = (self.simulations_logX+0.5*self.integral_variance)/self.integral_variance_sqrt
             self.simulation_index=0
