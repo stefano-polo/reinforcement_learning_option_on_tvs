@@ -33,7 +33,7 @@ class TVS_LV(gym.Env):
         self.simulation_index = 0
         self.Nsim = 1e3
         """Loading market curves"""
-        reader = MarketDataReader("TV_example.xml")
+        reader = MarketDataReader("TVS_example.xml")
         D = reader.get_discounts()
         F = reader.get_forward_curves()
         F = [F[0],F[1],F[2],F[3],F[4],F[5],F[6],F[7],F[9]]
@@ -120,7 +120,7 @@ class TVS_LV(gym.Env):
             omega = self.target_vol/norm
             drift = self.r_t[idx] - omega * (action@self.mu_values[idx])
             mart = action@Vola@self.W_corr_t[idx]
-            self.I_t = self.I_t * (1. + drift*dt + np.sqrt(dt)*mart)
+            self.I_t = self.I_t * (1. + drift*dt + np.sqrt(dt)*omega*mart)
         
         if self.current_time < self.T:
             done = False
