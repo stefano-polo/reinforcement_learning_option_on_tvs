@@ -8,7 +8,7 @@ WHICH_LOGS = [
 X_AXIS_TIMESTEPS = True  # otherwise: episodes
 WINDOW = int(5e5)  # measured in episodes  10000
 join_learning = False   
-plt.figure(figsize=(15,8))
+plt.figure(figsize=(8,5))
 
 if join_learning:
     steps_joined, rewards_joined = join_curves(LOG_FOLDER, WHICH_LOGS, X_AXIS_TIMESTEPS)
