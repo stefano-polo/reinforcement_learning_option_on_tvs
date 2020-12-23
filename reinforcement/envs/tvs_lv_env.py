@@ -145,9 +145,12 @@ class TVS_LV(gym.Env):
         self.current_time = 0.
         self.time_index = 0
         self.I_t = self.I_0
-        self.logX_t = self.simulations_logX[self.simulation_index]
-        self.W_corr_t = self.simulations_W_corr[self.simulation_index]
-        self.sigma_t = self.simulations_Vola[self.simulation_index]
+        self.logX_t = self.simulations_logX[0]
+        self.W_corr_t = self.simulations_W_corr[0]
+        self.sigma_t = self.simulations_Vola[0]
+        self.simulations_Vola = np.delete(self.simulations_Vola,0,axis=0)
+        self.simulations_W_corr = np.delete(self.simulations_W_corr,0,axis=0)
+        self.simulations_logX = np.delete(self.simulations_logX,0,axis=0)
         state = np.append(np.zeros(self.N_equity), self.current_time)
         return state
 
