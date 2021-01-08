@@ -35,7 +35,8 @@ for ivar in VARIABLE_INDEXES:
 z_name = 'Value function' if PLOT_VALUE else 'Actions'
 title = '{} at {} = ['.format(z_name, ACTION_SPACE_DESCRIPTION) + ', '.join(reference_str) + ']'
 
-plt.figure(figsize=(8,5))
+fig, ax = plt.subplots(1, 1, figsize=(8, 5))
+
 
 for (arg, env_args, lbl) in AGENTS:
     g = tf.Graph()
@@ -45,5 +46,6 @@ for (arg, env_args, lbl) in AGENTS:
         title, lbl, X_MAX, all_time_dep = time_dep, seed=Seed, strategy_constraint= constraint,
         how_long=sum_long, how_short=sum_short, N_equity = n_equity, normalized=input_normalize, 
         market=market_data, pricing_model=model)
+ax.yaxis.set_major_formatter(ticker.PercentFormatter(1))
 plt.savefig("Action_RL_1x4_seed"+str(Seed)+".png",bbox_inches='tight',dpi=900)
 plt.show()
