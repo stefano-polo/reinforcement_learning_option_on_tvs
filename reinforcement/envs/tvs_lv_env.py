@@ -13,7 +13,7 @@ from envs.pricing.n_sphere import sign_renormalization
 class TVS_LV(gym.Env):
     """Target volatility strategy Option environment with a Local volatility model for the assets
     """
-    def __init__(self, N_equity= 2, target_volatility=5/100, I_0 = 1., r=1/100., strike_opt=1., maturity=1., constraint = "only_long", action_bound=20./100., sum_long = None, sum_short=None):
+    def __init__(self, N_equity= 2, target_volatility=5/100, I_0 = 1., r=1/100., strike_opt=1., maturity=2., constraint = "only_long", action_bound=20./100., sum_long = None, sum_short=None):
         """Pricing parameters for the option"""
         self.constraint = constraint
         self.target_vol = target_volatility
@@ -22,14 +22,21 @@ class TVS_LV(gym.Env):
         self.strike_opt = strike_opt
         self.N_equity = N_equity                                #number of equities
         self.T = maturity
+        ACT = 365.
         """Time grid creation for the simulation"""
         self.Identity = np.identity(self.N_equity)
-        months = np.array([31.,28.,31.,30.,31.,30.,31.,31.,30.,31.,30.,31.])
-        self.observation_grid = np.cumsum(months)/365.
+        month_dates = np.array([31.,28.,31.,30.,31.,30.,31.,31.,30.,31.,30.,31.])
+        months = month_dates
+        if self.T > 1.:
+            for i in range(int(self.T)-1):
+                months = np.append(months, month_dates)
+        self.observation_grid = np.cumsum(months)/ACT
         self.observation_grid = np.insert(self.observation_grid,0,0.)
+        print("Observational grid: ",self.observation_grid)
         self.time_index = 0
         self.current_time = 0.
         self.N_euler_grid = 60
+        self.state_index = np.arange(int(12*self.T)+1)*self.N_euler_grid
         self.simulation_index = 0
         self.Nsim = 1e3
         """Loading market curves"""
@@ -65,20 +72,22 @@ class TVS_LV(gym.Env):
         self.spot_prices = np.array([])
         for i in range(self.N_equity):
             print(LV[i].name)
+            self.spot_prices = np.append(self.spot_prices,F[i].spot)
         """Preparing the LV model"""
-        self.model = LV_model(fixings=self.observation_grid[1:], local_vol_curve=LV, forward_curve=F, N_grid = self.N_euler_grid)
+        self.model = LV_model(fixings=self.observation_grid, local_vol_curve=LV, forward_curve=F, N_grid = self.N_euler_grid)
         euler_grid = self.model.time_grid
         self.r_t = D.r_t(np.append(0.,euler_grid[:-1]))
         self.discount = D(self.T)
         self.dt_vector = self.model.dt
-        self.mu_values = Drift(forward_curves = F)(np.append(0.,euler_grid[:-1]))
         """Black variance for normalization"""
         self.integral_variance = np.zeros((N_equity,len(self.observation_grid[1:])))
         for i in range(self.N_equity):
             for j in range(len(self.observation_grid[1:])):
                 self.integral_variance[i,j] = quad_piecewise(V[i],V[i].T,0.,self.observation_grid[j+1])
         self.integral_variance = self.integral_variance.T
-        self.integral_variance_sqrt = sqrt(self.integral_variance)
+        self.integral_variance = np.insert(self.integral_variance,0,np.zeros(self.N_equity),axis=0)
+        self.integral_variance_sqrt =sqrt(self.integral_variance)
+        self.integral_variance_sqrt[0,:] = 1
 
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
             raise Exception("You should provide the sum limit for short and long position")
@@ -103,12 +112,14 @@ class TVS_LV(gym.Env):
         assert self.action_space.contains(action)   
         if self.constraint == "only_long":
             action = action/np.sum(action)
+            s = 1
         elif self.constraint == "long_short_limit":
             action = sign_renormalization(action,self.how_long,self.how_short)
+            s = np.sum(action)
         
         self.time_index = self.time_index + 1
         self.current_time = self.observation_grid[self.time_index]
-        self.current_logX = self.logX_t[self.time_index-1]
+        self.current_logX = self.logX_t[self.time_index]
         dt = self.dt_vector[self.time_index-1]
         index_plus = (self.time_index-1)*self.N_euler_grid
         """Simulation of I_t"""
@@ -116,12 +127,8 @@ class TVS_LV(gym.Env):
             idx = index_plus + i 
             Vola =  self.sigma_t[idx]*self.Identity
             nu = Vola@self.correlation_chole
-            norm = np.linalg.norm(action@nu)
-            omega = self.target_vol/norm
-            drift = self.r_t[idx] - omega * (action@self.mu_values[idx])
-            mart = action@Vola@self.W_corr_t[idx]
-            self.I_t = self.I_t * (1. + drift*dt + np.sqrt(dt)*omega*mart)
-        
+            omega = self.target_vol/np.linalg.norm(action@nu)
+            self.I_t = self.I_t * (1. + omega * action@self.dS_S[idx] + dt * self.r_t[idx]*(1.-omega*s))
         if self.current_time < self.T:
             done = False
             reward = 0.
@@ -137,21 +144,25 @@ class TVS_LV(gym.Env):
     def reset(self):
         if self.simulation_index == 0 or self.simulation_index==self.Nsim:
             self.simulations_logX = None
-            self.simulations_W_corr = None
             self.simulations_Vola = None
-            self.simulations_logX, self.simulations_W_corr, self.simulations_Vola = self.model.simulate(corr_chole = self.correlation_chole, random_gen = self.np_random, normalization = 1, Nsim=self.Nsim)
-            self.simulations_logX = (self.simulations_logX+0.5*self.integral_variance)/self.integral_variance_sqrt
+            S, self.simulations_Vola = self.model.simulate(corr_chole = self.correlation_chole, random_gen = self.np_random, normalization = 0, Nsim=self.Nsim)
+            S = np.insert(S,0,self.spot_prices,axis=1)
+            self.dS_S_simulations = (S[:,1:,:] - S[:,:-1,:])/S[:,:-1,:]
+            S_sliced = S[:,self.state_index,:]
+            self.simulations_logX = (np.log(S_sliced/np.insert(self.model.forward.T,0,self.spot_prices,axis=0)[self.state_index,:])+0.5*self.integral_variance)/self.integral_variance_sqrt
+            S_sliced = None
+            S = None
             self.simulation_index=0
         self.current_time = 0.
         self.time_index = 0
         self.I_t = self.I_0
         self.logX_t = self.simulations_logX[0]
-        self.W_corr_t = self.simulations_W_corr[0]
+        self.dS_S = self.dS_S_simulations[0]
         self.sigma_t = self.simulations_Vola[0]
         self.simulations_Vola = np.delete(self.simulations_Vola,0,axis=0)
-        self.simulations_W_corr = np.delete(self.simulations_W_corr,0,axis=0)
+        self.dS_S_simulations = np.delete(self.dS_S_simulations,0,axis=0)
         self.simulations_logX = np.delete(self.simulations_logX,0,axis=0)
-        state = np.append(np.zeros(self.N_equity), self.current_time)
+        state = np.append(self.logX_t[0], self.current_time)
         return state
 
 

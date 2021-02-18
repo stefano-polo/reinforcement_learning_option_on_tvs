@@ -241,10 +241,10 @@ class LV_model(PricingModel):
             """Multiasset LV model"""
             self.Ndim = len(forward_curve)
             N_times = len(fixings)
-            self.forward = np.zeros((self.Ndim,N_times))
+            self.forward = np.zeros((self.Ndim,len(self.time_grid)))
             self.time_indexes_matrix = np.array([])
             for i in range(self.Ndim):
-                self.forward[i,:] = forward_curve[i](fixings)
+                self.forward[i,:] = forward_curve[i](self.time_grid)
                 time_indexes = self.vol[i].time_interpolator(self.time_grid).astype(int)
                 self.vol[i].time_indices_simulation(time_indexes)
                 if i == 0:
@@ -286,34 +286,40 @@ class LV_model(PricingModel):
             else:
                 return exp(logmartingale)*self.forward
         else:
+           # logmartingale = np.zeros((Nsim.N_fixings,self.Ndim))
             logX = np.zeros((Nsim,self.Ndim))
-            correlated_wiener = np.array([])
+           # correlated_wiener = np.array([])
+            logmartingale = np.array([])
             vola_t = np.array([])
             for i in range (N_times):
                 Z = np.random.randn(Nsim,self.Ndim)
                 ep = corr_chole@Z.T   #matrix of correlated random variables
-                correlated_wiener = np.append(correlated_wiener,ep)
+               # correlated_wiener = np.append(correlated_wiener,ep)
                 for j in range(self.Ndim):
                     if i ==0:
                         vol = self.vol[j].intelligent_call(0,0.)
                         #print("Asset "+str(j+1)+"vola ",vol)
                         vola_t = np.append(vola_t,vol*np.ones(Nsim))
                         logX[:,j]=-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
+                        logmartingale = np.append(logmartingale,logX[:,j])
                     elif i!=0:
                         vol = self.vol[j].intelligent_call(self.time_indexes_matrix[j,i-1],logX[:,j])
                         vola_t = np.append(vola_t,vol)
                         #print("Asset "+str(j+1)+"vola ",vol)
                         logX[:,j]=logX[:,j]-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
+                        logmartingale = np.append(logmartingale,logX[:,j])
                 counter = i+1
                 if counter%self.N_grid == 0:
+                    #logmartingale[:,time_index,:] = logX
                     time_index +=1
                     if counter < N_times:
                         dt = self.dt[time_index]
             if normalization:
                 return (correlated_wiener.reshape(N_times,self.Ndim,Nsim)).transpose(2,0,1), (vola_t.reshape(N_times,self.Ndim,Nsim)).transpose(2,0,1)
             else:    
+                logmartingale = (logmartingale.reshape(N_times,self.Ndim,Nsim)).transpose(2,0,1)
                 M = exp(logmartingale)*self.forward.T
-                return M
+                return M, (vola_t.reshape(N_times,self.Ndim,Nsim)).transpose(2,0,1)
       
 """Payoff Functions"""
 def Vanilla_PayOff(St=None,strike=None, typo = 1): #Monte Carlo call payoff

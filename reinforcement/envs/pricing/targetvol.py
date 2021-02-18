@@ -20,8 +20,8 @@ class Drift(Curve):
         for i in range(2,Ndim):
             self.mu = np.insert(self.mu,len(self.mu.T),forward_curves[i].q(self.T),axis=1)
         self.m = interp1d(self.T, self.mu, axis=0, kind='previous',fill_value="extrapolate", assume_sorted=False) 
-        print("Drift time grid:",self.T)
-        print("Drift values:", self.mu)   
+       # print("Drift time grid:",self.T)
+        #print("Drift values:", self.mu)   
     def curve(self,date):
         return self.m(date)
 
@@ -41,8 +41,8 @@ class CholeskyTDependent(Curve):
             vol = I*vol
             self.nu[:,:,i] = vol@correlation_chole
         self.n = interp1d(self.T, self.nu, axis=2, kind='previous',fill_value="extrapolate", assume_sorted=False) 
-        print("Cholesky covariance-variance time grid:",self.T)
-        print("Cholesky covariance-variance matrix values:", self.nu)
+      #  print("Cholesky covariance-variance time grid:",self.T)
+     #   print("Cholesky covariance-variance matrix values:", self.nu)
    
     def curve(self,date):
         return self.n(date)
@@ -231,7 +231,7 @@ def loss_function(x,mu,nu):
     """Target function to minimize"""
     return (x@mu)/np.linalg.norm(x@nu)
 
-def optimization_only_long(mu, nu, N_trial,seed):
+def optimization_only_long(mu=None, nu=None,seed = None, N_trial=1):
     """Constrained optimization with only long position and sum of weights equal to 1"""
     np.random.seed(seed)
     f = loss_function
@@ -246,7 +246,7 @@ def optimization_only_long(mu, nu, N_trial,seed):
     #print("Minumum: ", np.min(valutation))
     return r[np.argmin(valutation)]
 
-def optimization_limit_position(mu, nu, limit_position,N_trial,seed):
+def optimization_limit_position(mu, nu, limit_position,N_trial=3,seed=None):
     """Constrained optimization with each |weight|<limit_position"""
     np.random.seed(seed)
     f = loss_function

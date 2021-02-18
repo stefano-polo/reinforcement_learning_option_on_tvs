@@ -231,7 +231,7 @@ def loss_function(x,mu,nu):
     """Target function to minimize"""
     return (x@mu)/np.linalg.norm(x@nu)
 
-def optimization_only_long(mu=None, nu=None,seed = None, N_trial=3):
+def optimization_only_long(mu=None, nu=None,seed = None, N_trial=1):
     """Constrained optimization with only long position and sum of weights equal to 1"""
     np.random.seed(seed)
     f = loss_function
