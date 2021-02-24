@@ -87,8 +87,8 @@ class Strategy(Curve):
                 result = optimization_long_short_position(mu(self.T[i]), nu(self.T[i]), long_limit, short_limit,N_trial,seed)
             self.alpha_t[i] = result
         self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous',fill_value="extrapolate", assume_sorted=False)
-        print("Optimal strategy time grid :",self.T)
-        print("Optimal strategy through minimization: ",self.alpha_t)
+       # print("Optimal strategy time grid :",self.T)
+       # print("Optimal strategy through minimization: ",self.alpha_t)
 
 
     def Intuitive_strategy1(self, forward_curves=None, maturity_date=None):

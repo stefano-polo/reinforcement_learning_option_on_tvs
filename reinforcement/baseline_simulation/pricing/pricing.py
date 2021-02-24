@@ -292,7 +292,7 @@ class LV_model(PricingModel):
             logmartingale = np.array([])
             vola_t = np.array([])
             for i in range (N_times):
-                Z = np.random.randn(Nsim,self.Ndim)
+                Z = random_gen.randn(Nsim,self.Ndim)
                 ep = corr_chole@Z.T   #matrix of correlated random variables
                # correlated_wiener = np.append(correlated_wiener,ep)
                 for j in range(self.Ndim):

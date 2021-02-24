@@ -15,22 +15,21 @@ comm = MPI.COMM_WORLD
 size = comm.Get_size()
 rank = comm.Get_rank()
 t_start = MPI.Wtime()
-Nsim = int(1e2)
+Nsim = int(10)
 run = 0
 Seed = rank+run
+print("Seme ",Seed)
 restart = 1
 Black = 0
 daily = 0
 N_equity = 2                                #number of equities
-T = 1.
 target_vol = 5./100.
-title = 'month/maturity2/fake_final_price_lvinvestigation_2_asset_equalrepo_long_Nsim_'+str(Nsim)+'_vola'+str(target_vol)+'_maturity'+str(T)+'_Black'+str(Black)+'_daily'+str(daily)
-restart_file = 'month/maturity1_new/fake_final_price_lvinvestigation_2_asset_equalrepo_long_Nsim_'+str(Nsim)+'_vola'+str(target_vol)+'_maturity'+str(T)+'_Black'+str(Black)+'_daily'+str(daily)
-T = 2.
+T = 3.
+title = 'prove/m1/rest_final_price_lvinvestigation_2_asset_equalrepo_long_Nsim_'+str(Nsim)+'_vola'+str(target_vol)+'_maturity'+str(T)+'_Black'+str(Black)+'_daily'+str(daily)
+restart_file = 'prove/m1/rest_final_price_lvinvestigation_2_asset_equalrepo_long_Nsim_10_vola0.05_maturity2.0_Black0_daily0'
 if restart:
-    print("Restarto")
     I_0 = np.loadtxt(restart_file+"_rank"+str(rank+run)+'.txt')
-    Nsim = len(I_0)
+    Nsim =len(I_0)
 else:
     I_0 = np.ones(Nsim)
 """Time grid creation for the simulation"""
@@ -47,15 +46,14 @@ if daily:
 else:
     month_dates = np.array([31.,28.,31.,30.,31.,30.,31.,31.,30.,31.,30.,31.])
     months = month_dates
-    N_euler_grid = 6
+    N_euler_grid = 60
     if T > 1.:
        for i in range(int(T)-1):
             months = np.append(months, month_dates)
     observation_grid = np.cumsum(months)/365.
     observation_grid = np.insert(observation_grid,0,0.)
-    print(len(observation_grid))
     
-    print("Monthly adjustment of the stratey in the time grid: ",observation_grid)
+ #   print("Monthly adjustment of the stratey in the time grid: ",observation_grid)
  #   print("Number of discretization points for the Euler sampling of LV: ", N_euler_grid)  
 
 simulation_index = 0
@@ -80,26 +78,23 @@ F.append(EquityForwardCurve(reference=0,discounting_curve=D, spot = spot_prices[
 LV = [LV[0],LV[5]]
 V = [V[0],V[5]]
 names = [names[0],names[5]]
-for i in range(N_equity):
-    print(LV[i].name)
+#for i in range(N_equity):
+   # print(LV[i].name)
 """Preparing the LV model"""
-print(N_euler_grid)
+#print(N_euler_grid)
 model = LV_model(fixings=observation_grid[1:], local_vol_curve=LV, forward_curve=F, N_grid = N_euler_grid)
 euler_grid = model.time_grid
-print(len(euler_grid))
 discount = D(T)
 dt = model.dt[0]
 mu_function = Drift(forward_curves=F)
-generator = np.random
-generator.seed(Seed)
 mean = np.array([])
 correlation_chole = np.linalg.cholesky(correlation)
-if not Black:
-    print('Black Strategy for LV')
-    nu_function = CholeskyTDependent(variance_curves=V,correlation_chole= correlation_chole)
-    alpha = Strategy()
-    alpha.optimization_constrained(mu=mu_function,nu=nu_function,long_limit=25/100,N_trial=500,typo=1)
+nu_function = CholeskyTDependent(variance_curves=V,correlation_chole= correlation_chole)
+alpha = Strategy()
+alpha.optimization_constrained(mu=mu_function,nu=nu_function,long_limit=25/100,N_trial=500,typo=1)
 final_price = np.zeros(Nsim)
+generator = np.random
+generator.seed(Seed)
 S, simulations_Vola = model.simulate(corr_chole = correlation_chole, random_gen =generator, normalization = 0, Nsim=Nsim)
 if not restart:
     S = np.insert(S,0,spot_prices,axis=1)
@@ -107,9 +102,9 @@ if not restart:
     mu_values = mu_function(np.append(0.,euler_grid[:-1]))
 else:
     if daily:
-        cut = days
+        cut = int(day*(T-1))
     else:
-        cut = 12
+        cut = int(12*(T-1))
     S = S[:,(cut*N_euler_grid-1):,:]
     simulations_Vola = simulations_Vola[:,cut*N_euler_grid:,:]
     observation_grid = observation_grid[cut:]
@@ -119,9 +114,8 @@ else:
 dS_S = (S[:,1:,:] - S[:,:-1,:])/S[:,:-1,:]
 for i in range(Nsim):
     I_t = I_0[i]
-    #print(I_t)
-    #counter = 0
-    #counter_tot = 0
+    counter = 0
+    counter_tot = 0
     sigma = simulations_Vola[0]
     norm_price = dS_S[0]
     for j  in range(len(observation_grid[1:])):
@@ -134,26 +128,18 @@ for i in range(Nsim):
                 if Black:
                     action = alpha(observation_grid[j])
                 else:
-    #                counter_tot = counter_tot+1
+                    counter_tot = counter_tot+1
                     mu = mu_values[idx]
                     action = optimization_only_long(mu, nu,seed=rank, guess = alpha(observation_grid[j]))
-                  #  print("Strategia Baseline: ",action)
-                 #   print("Funzione Baseline: ", (action@mu)/np.linalg.norm(action@nu))
-                 #   print("Strategia Black: ",alpha(observation_grid[j]))
-                   # print("Funzione Black: ", (alpha(observation_grid[j])@mu)/np.linalg.norm(alpha(observation_grid[j])@nu))
-                  #  if (alpha(observation_grid[j])@mu)/np.linalg.norm(alpha(observation_grid[j])@nu)>=(action@mu)/np.linalg.norm(action@nu):
-                   #     counter = counter+1
+                    if (alpha(observation_grid[j])@mu)/np.linalg.norm(alpha(observation_grid[j])@nu)>=(action@mu)/np.linalg.norm(action@nu):
+                        counter = counter+1
             norm = np.linalg.norm(action@nu)
             omega = target_vol/norm
             I_t = I_t * (1. + omega*action@norm_price[idx]  + (1 - omega)*r_t[idx]*dt  )
     f = open(title+"_rank"+str(rank+run)+'.txt',"a")
     final_price[i] = I_t
     f.write(str(I_t))
-   # print("Corretto",counter/counter_tot*100)
     f.write('\n')
-   # mean = np.append(mean,counter/counter_tot*100)
- #   if i%100 == 0:
-  #      print("MEan accuracy ",np.mean(mean))    
     f.close()
     simulations_Vola = np.delete(simulations_Vola,0,axis=0)
     dS_S = np.delete(dS_S,0,axis=0)
