@@ -87,8 +87,8 @@ class Strategy(Curve):
                 result = optimization_long_short_position(mu(self.T[i]), nu(self.T[i]), long_limit, short_limit,N_trial,seed)
             self.alpha_t[i] = result
         self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous',fill_value="extrapolate", assume_sorted=False)
-        print("Optimal strategy time grid :",self.T)
-        print("Optimal strategy through minimization: ",self.alpha_t)
+       # print("Optimal strategy time grid :",self.T)
+       # print("Optimal strategy through minimization: ",self.alpha_t)
 
 
     def Intuitive_strategy1(self, forward_curves=None, maturity_date=None):
@@ -231,20 +231,25 @@ def loss_function(x,mu,nu):
     """Target function to minimize"""
     return (x@mu)/np.linalg.norm(x@nu)
 
-def optimization_only_long(mu=None, nu=None,seed = None, N_trial=1):
+def optimization_only_long(mu=None, nu=None,seed = 1, N_trial=None, guess = None):
     """Constrained optimization with only long position and sum of weights equal to 1"""
-    np.random.seed(seed)
+    if guess is None and N_trial is None:
+        N_trial = 1
     f = loss_function
     cons = ({'type': 'eq','fun' : lambda x: np.sum(x)-1},{'type': 'ineq','fun' : lambda x: x})
-    r = np.zeros((N_trial,len(mu)))
-    valutation = np.zeros(N_trial)
-    for i in range (N_trial):
-        x0 =np.random.uniform(0.,1.,len(mu))  #initial position for the optimization algorithm
-        res = minimize(f, x0, args=(mu,nu),constraints=cons)
-        r[i] = res.x
-        valutation[i] = f(res.x,mu,nu)
-    #print("Minumum: ", np.min(valutation))
-    return r[np.argmin(valutation)]
+    if guess is None and N_trial is not None:
+        np.random.seed(seed)
+        r = np.zeros((N_trial,len(mu)))
+        valutation = np.zeros(N_trial)
+        for i in range (N_trial):
+            x0 =np.random.uniform(0.,1.,len(mu))  #initial position for the optimization algorithm
+            res = minimize(f, x0, args=(mu,nu),constraints=cons)#,options={'ftol': 1e-30})
+            r[i] = res.x
+            valutation[i] = f(res.x,mu,nu)
+        #print("Minumum: ", np.min(valutation))
+        return r[np.argmin(valutation)]
+    else:
+        return minimize(f, guess, args=(mu,nu),constraints=cons).x#,options={'ftol': 1e-30})
 
 def optimization_limit_position(mu, nu, limit_position,N_trial=3,seed=None):
     """Constrained optimization with each |weight|<limit_position"""
