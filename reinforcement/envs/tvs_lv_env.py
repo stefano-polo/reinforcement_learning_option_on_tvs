@@ -7,14 +7,14 @@ from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, LV_model,
 from envs.pricing.closedforms import European_option_closed_form
 from envs.pricing.targetvol import Drift, Strategy, TVSForwardCurve, TargetVolatilityStrategy, optimization_only_long
 from envs.pricing.fake_market_lv import load_fake_market_lv
-from envs.pricing.read_market import MarketDataReader, Market_Local_volatility
+from envs.pricing.loadfromtxt import LoadFromTxt
 from envs.pricing.n_sphere import sign_renormalization
 
 class TVS_LV(gym.Env):
     """Target volatility strategy Option environment with a Local volatility model for the assets
     """
-    def __init__(self, N_equity= 2, frequency = "day", target_volatility=5/100, I_0 = 1., strike_opt=1., 
-    maturity=3., constraint = "only_long", action_bound=20./100., sum_long = None, sum_short=None):
+    def __init__(self, N_equity= 2, frequency = "month", target_volatility=5/100, I_0 = 1., strike_opt=1., 
+    maturity=2., constraint = "only_long", action_bound=20./100., sum_long = None, sum_short=None):
         """Pricing parameters for the option"""
         self.constraint = constraint
         self.target_vol = target_volatility
@@ -23,6 +23,9 @@ class TVS_LV(gym.Env):
         self.strike_opt = strike_opt
         self.N_equity = N_equity            
         self.T = maturity
+        names = ["DJ 50 EURO E","S&P 500 NET EUR"]
+        correlation = np.array(([1.,0.],[0.,1.]))
+        folder_name = "FakeSmilesDiffRepo"
         ACT = 365.
         """Time grid creation for the simulation"""
         self.Identity = np.identity(self.N_equity)
@@ -33,47 +36,20 @@ class TVS_LV(gym.Env):
                 for i in range(int(self.T)-1):
                     months = np.append(months, month_dates)
             self.observation_grid = np.cumsum(months)/ACT
+            self.N_euler_grid = 60       
         elif frequency == "day":
             self.observation_grid = np.linspace(1./ACT, self.T, int(self.T*ACT))
+            self.N_euler_grid = 2
+        
         self.observation_grid = np.append(0.,self.observation_grid)
         self.time_index = 0
         self.current_time = 0.
-        self.N_euler_grid = 2
         self.state_index = np.arange(int(365*self.T)+1)*self.N_euler_grid
         self.simulation_index = 0
         self.Nsim = 2
         """Loading market curves"""
-        reader = MarketDataReader("TVS_example.xml")
-        D = reader.get_discounts()
-        F = reader.get_forward_curves()
-        F = [F[0],F[1],F[2],F[3],F[4],F[5],F[6],F[7],F[9]]
-        V = reader.get_volatilities()
-        V = [V[0],V[1],V[2],V[3],V[4],V[5],V[6],V[7],V[9]]
-        correlation = reader.get_correlation()
-        if self.N_equity == 3:
-            correlation = np.array(([1.,0.86,0.],[0.86,1.,0.],[0.,0.,1.]))
-        elif self.N_equity == 2:
-            correlation = np.array(([1.,0.],[0.,1.]))
-        else:   
-            correlation = np.delete(correlation,-1, axis = 1)
-            correlation = np.delete(correlation,-1, axis = 0)
+        D, F, V, LV = LoadFromTxt(names, folder_name)
         self.correlation_chole = np.linalg.cholesky(correlation)
-        names = reader.get_stock_names()
-        names = [names[0],names[1],names[2],names[3],names[4],names[5],names[6],names[7],names[9]]
-        local_vol = Market_Local_volatility()
-        LV = [local_vol[0],local_vol[1],local_vol[2],local_vol[3],local_vol[6],local_vol[4],local_vol[5],local_vol[7],local_vol[8]]
-        if self.N_equity == 3:
-            F = [F[0],F[3],F[4]]
-            LV = [LV[0],LV[3],LV[4]]
-            V = [V[0],V[3],V[4]]
-        elif self.N_equity == 2:
-            spot_prices = reader.get_spot_prices()
-            spot_prices = np.array([spot_prices[0],spot_prices[5]])
-            F = []
-            F.append(EquityForwardCurve(reference=0,discounting_curve=D, spot = spot_prices[0], repo_rates=-1.*np.array([0.0002,0.0001,0.00011]),repo_dates=np.array([30.,223.,466.])/365.))
-            F.append(EquityForwardCurve(reference=0,discounting_curve=D, spot = spot_prices[1], repo_rates=-1.*np.array([0.0001,0.0002,0.0001]),repo_dates=np.array([80.,201.,306.])/365.))
-            LV = [LV[0],LV[5]]
-            V = [V[0],V[5]]
         self.spot_prices = np.array([])
         for i in range(self.N_equity):
             self.spot_prices = np.append(self.spot_prices,F[i].spot)
@@ -153,7 +129,7 @@ class TVS_LV(gym.Env):
             S = np.insert(S,0,self.spot_prices,axis=1)
             self.dS_S_simulations = (S[:,1:,:] - S[:,:-1,:])/S[:,:-1,:]
             S_sliced = S[:,self.state_index,:]
-            self.simulations_logX = (np.log(S_sliced/np.insert(self.model.forward.T,0,self.spot_prices,axis=0)[self.state_index,:])+0.5*self.integral_variance)/self.integral_variance_sqrt
+            self.simulations_logX = (log(S_sliced/np.insert(self.model.forward.T,0,self.spot_prices,axis=0)[self.state_index,:])+0.5*self.integral_variance)/self.integral_variance_sqrt
             S_sliced = None
             S = None
             self.simulation_index=0
@@ -181,7 +157,4 @@ class TVS_LV(gym.Env):
 
 
     def theoretical_price(self):
-        s_righ = Strategy()
-        s_right.Mark_strategy(mu = self.mu, nu = self.nu)
-        TVSF = TVSForwardCurve(reference = self.reference, vola_target = self.target_vol, spot_price = self.spot_I, strategy = s_right, mu = self.mu, nu = self.nu, discounting_curve = self.D)
-        return European_option_closed_form(TVSF(self.T),self.strike_option,self.T,0,self.r,self.target_vol,1)
+        return 0
