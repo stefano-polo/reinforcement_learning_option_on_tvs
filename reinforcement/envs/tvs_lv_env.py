@@ -25,7 +25,7 @@ class TVS_LV(gym.Env):
         self.T = maturity
         names = ["DJ 50 EURO E","S&P 500 NET EUR"]
         correlation = np.array(([1.,0.],[0.,1.]))
-        folder_name = "FakeSmilesDiffRepo"
+        folder_name = "FakeSmiles"
         ACT = 365.
         """Time grid creation for the simulation"""
         self.Identity = np.identity(self.N_equity)
@@ -37,14 +37,15 @@ class TVS_LV(gym.Env):
                     months = np.append(months, month_dates)
             self.observation_grid = np.cumsum(months)/ACT
             self.N_euler_grid = 60       
+            self.state_index = np.arange(int(12*self.T)+1)*self.N_euler_grid
         elif frequency == "day":
             self.observation_grid = np.linspace(1./ACT, self.T, int(self.T*ACT))
             self.N_euler_grid = 2
+            self.state_index = np.arange(int(365*self.T)+1)*self.N_euler_grid
         
         self.observation_grid = np.append(0.,self.observation_grid)
         self.time_index = 0
         self.current_time = 0.
-        self.state_index = np.arange(int(365*self.T)+1)*self.N_euler_grid
         self.simulation_index = 0
         self.Nsim = 2
         """Loading market curves"""

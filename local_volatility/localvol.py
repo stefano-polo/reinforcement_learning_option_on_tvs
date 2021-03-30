@@ -101,7 +101,7 @@ def call_options_pricer(maturities, L_t, L_h,forward, eta_curve, h_min=-4., h_ma
     matrix_call = np.array([])
     for i in range(len(maturities)):
         if i == 0:
-            matrix_call = algorithm(c_i,0,maturities[0],L_t,L_h,d_h,h_grid, forward,eta_curve)
+            matrix_call = algorithm(c_i,0.,maturities[0],L_t,L_h,d_h,h_grid, forward,eta_curve)
         if i>0:
             Delta_t = (maturities[i]-maturities[i-1])/L_t
         if i ==1:
@@ -120,7 +120,7 @@ def from_price_to_vola(matrix_call, maturities, h):
     return vola_matrix
 
 def loss_function(iv_model, market_vola):
-    return np.sum((iv_model-market_vola)**2)
+    return np.max(abs(iv_model-market_vola))
 
 def back_coordinates(IV,maturities,F,market_strikes,h_grid):
     interpo_strike = interp1d(h_grid,IV,axis=0,fill_value="extrapolate")
