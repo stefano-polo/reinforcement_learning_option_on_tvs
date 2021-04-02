@@ -1,0 +1,275 @@
+\documentclass[a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{comment}
+\usepackage{dcolumn,multirow,abstract,fancyhdr}
+\usepackage{geometry}
+\usepackage{mathtools} % serve per fare le formule matematiche 
+\usepackage{textcomp}
+\usepackage{amsfonts}
+\usepackage{dsfont}
+\usepackage{upgreek}
+\geometry{a4paper, top=5cm, bottom=5cm, left=4.5cm, right=4.5cm} %
+%\pagestyle{fancy} 
+\renewcommand{\headrulewidth}{0pt}
+\fancyhead[R]{}
+\lhead{\footnotesize\slshape Daluiso, Pallavicini, Nastasi, Polo, Optimal Strategies for Target Volatility Contracts}
+\chead{}
+\rhead{\thepage}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+\usepackage[font=scriptsize,labelfont=bf]{caption}
+\usepackage[pdfa]{hyperref}
+\hypersetup{colorlinks=true,citecolor=black,filecolor=black,linkcolor=black, urlcolor=black}
+\usepackage{cleveref}
+\usepackage{natbib}
+\setcitestyle{authoryear,open={(},close={)}}
+\newtheorem{theorem}{Theorem}[section] 
+\newtheorem{lem}{Lemma}[section]
+\newtheorem{defi}{Definition}[section]
+\newtheorem{prop}{Proposition}[section]
+\newtheorem{rem}{Remark}[section]
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\newenvironment{eqsys}{\begin{equation}\begin{dcases}}{\end{dcases}\end{equation}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\setcounter{page}{1} % start with first page
+
+\title{Optimal Strategies for Target Volatility Contracts}
+
+\author{
+Roberto Daluiso\thanks{Banca IMI Milan, roberto.daluiso@bancaimi.com}
+\and 
+  Andrea Pallavicini\thanks{Imperial College London and Banca IMI Milan, a.pallavicini@imperial.ac.uk} 
+\and
+  Emanuele Nastasi\thanks{Exprivia, emanuele.nastasi@exprivia.com}
+  \and Stefano Polo \thanks{Intesa Sanpaolo Milan, stefano.polo@intesasanpaolo.com}% indicates same as 2nd thanks
+}
+
+\date{} % leave empty
+\begin{document} % goes here
+
+\maketitle
+
+\begin{abstract}
+...
+\end{abstract}
+
+\smallskip
+\noindent
+\textbf{JEL classification codes:} C63, G13.\\
+\textbf{AMS classification codes:} 65C05, 91G20, 91G60.\\
+\textbf{Keywords:} Asset Allocation, Target Volatility, Funding Costs, Hedging Cost, Reinforcement Learning, Proximal policy optimization. 
+\clearpage
+\tableofcontents
+ % \vspace{\fill\footnotesize \noindent The opinions here expressed are solely those of the authors and do not represent in any way those of their employers.}
+\clearpage
+\pagestyle{fancy}  
+\section{Introduction}
+In the recent years portfolio managers are exposed to very low interest rates and quickly changing market volatilities. An effective solution to control risks under such environment is given by target volatility strategies (TVSs) (also known as constant volatility targeting) which are able to preserve the portfolio at a predetermined level of volatility. A TVS is  a  portfolio  of  risky  assets  (typically  equities)  and  a  risk-free  asset dynamically re-balanced with the aim of maintaining the overall portfolio volatility level closed to some target value. This products were initially offered in the Asian markets, see for instance the reports of \cite{Chew} and \cite{XUE} which highlight the pros and cons for investors, to be adopted in the following years in many other markets in North America and Europe as depicted in \cite{Morrison}.
+
+In literature TVSs are tested to investigate their performances in term of realized returns, see for instance \cite{Hocquard28} and \cite{PERCHET}, and the soundness of the volatility targeting algorithm, as described in \cite{Kim}. Moreover, in pricing literature derivative contracts on TVS are studied, see in particular \cite{Di_Graziano}, \cite{Grasselli}, and \cite{Albeverio}. 
+
+In this contribution we study a problem related to TVS. We deal with the funding costs coming from hedging the risky assets underlying the TVS. We consider the point of view of a bank selling a protection to a portfolio manager on the capital invested in a TVS. the portfolio manager has the freedom of changing the relative weights of the risky assets during the life of the TVS. Since the risky assets have different hedging costs, the bank shall adjust the price of the protection to include them in the worst-case scenario. Hence, the pricing problem becomes a dynamical control problem over the risky portfolio composition. In our contribution we describe the dynamical control problem, and we derive an analytical solution in the simple case of the risky assets driven by a Black-Scholes (BS) model. Then, we tackle the problem in the general case by using reinforcement learning (RL) algorithms.
+\\
+
+The paper is organized ad follows. In \Cref{sec:TVS} we describe the dynamics of a TVS in presence of valuation adjustments. Then, in \Cref{sec:Derivative} we derive the analytical results, and in \Cref{sec:RL} we illustrate how we have applied RL to solve the dynamic control problem. We conclude the paper with \Cref{sec:Numerical_Results} where we present the numerical results obtained in this work.
+
+
+\section{Target Volatility Strategy}\label{sec:TVS}
+In a TVS the fund manager selects an allocation strategy aiming at stabilizing the portfolio volatility to a target level. Clients investing in the fund pay a running fee for the service and their capital is protected. The fund manager usually buys an option on the TVS to ensure capital protection. For instance, the capital can be protected by buying a put option. In this case, we can write the net asset value (NAV) $A_t$ of the strategy as given by\footnote{Here we neglect discounting factors.}
+\begin{equation}
+    A_t \coloneqq \max\{V_t,K\} = V_t + (K-V_t)^+,
+\end{equation}
+where $V_t$ is the price process of the strategy, and $K$ is the guaranteed capital. On the other hand, the fund manager ca n replicate the payoff by means of the put-call parity by investing the capital in a low-risk asset and buying a call on the strategy
+\begin{equation}
+    A_t = K + (V_t-K)^+.
+\end{equation}
+In this way the TVS is only defined in the two contracts client-fund and fund-bank. The fund manager is not implementing the strategy by trading in the market, and he is not subject to additional costs to access the market. On the other way, the bank is paying such costs since she is actively hedging the call option sold to the manager. 
+
+The bank trading activity implemented to actively hedge the option requires funding the collateral procedures of the hedging instruments along with any lending/borrowing fee. The price of a financial product sold by the bank is modified to include any valuation adjustment due to the trading activity. We proceed by defining the price process for the TVS so that we can highlights the impact of valuation adjustments.
+\subsection{The strategy Price Process}
+We work on a filtered probability space $\left(\Omega, \mathcal{F}, \{\mathcal{F}_t\}_{t\geq0}, \mathbb{P}  \right)$ satisfying the usual assumptions for a market model, where $\mathbb{P}$ is the physical probability measure representing the actual distribution of supply and demand shocks on equities prices. 
+
+We consider a fund trading a basket of $n$ risky securities with price process $S_t^i$ with $i=1,\dots,n$ funded with a cash account $B_t$ accruing at $r_t$. Any dividend paid by the securities is re-invested in the fund, so that we limit our analysis to total return securities, namely we assume that holding the security is self-financing. Here, we assume that the TVS is implemented in continuous time, even if in the practice we can implement the strategy only on a discrete set of dates. We introduce the deflated gain process $\Bar{G}_t^i$ associated to the risky securities as given by
+\begin{equation}
+    \Bar{G}_t^i \coloneqq \Bar{S}_t^i + \Bar{D}_t^i,
+\end{equation}
+where we define the deflated price\footnote{We use bar notation for deflated quantities: processes expressed in terms of $B_t$.} and cumulative dividend processes as 
+\begin{equation}
+    \bar{S}_t^i \coloneqq \frac{S_t^i}{B_t}, \quad \bar{D}^i_t \coloneqq \int_0^t\frac{d\pi_u^i}{B_u} + \int_0^t\frac{d\psi_u^i}{B_u},
+\end{equation}
+where $\pi^i_t$ represents the cumulative contractual-coupon process paid by the security, and $\psi_t^i$ represents the cumulative valuation adjustments.
+
+Valuation adjustments (XVAs) is a topic widely discussed in the literature. We refer to \cite{Brigo} for a discussion. Since fund managers allocating TVS usually rely on Equity assets, here we use the results of \cite{Gabrielli} which  analyze the valuation adjustments for equity products. We can write
+\begin{equation}
+    \psi_t^i \coloneqq \int_0^t S_u^i\mu_u^i du,
+\label{eq:XVA_equity}\end{equation}
+where we call $\mu_t^i$ cost of carry, which basically represents the hedging costs for the $i$-th security.
+
+Then, we introduce the strategy price process $V_t$, and we define the deflated gain process $\Bar{G}_t^V$ as given by
+\begin{equation}
+    \Bar{G}_t^V \coloneqq \frac{V_t}{B_t} + \int_0^t\frac{V_u\phi_u}{B_u}du,
+\end{equation}
+where $\phi_t$ are the running fees earned by the fund manager for his activity. We assume that the strategy is self-financing, so that we can write
+\begin{equation}
+    d\Bar{G}_t^V = q_t \cdot d\bar{G}_t,
+\label{eq:self_financing}\end{equation}
+where $q_t^i$ is the quantity invested in the $i$-th security\footnote{In all formulae we use dot notation for scalar product between vectors, i.e. $a \cdot b = \sum_i a_i b_i$, or between matrix and vector, i.e. $A \cdot b = \sum_j a_{ij}b_j$ or $b \cdot A = \sum_i b_i a_{ij}$.}.
+
+Now, in order to prevent arbitrages, we assume the existence of a risk-neutral measure $\mathbb{Q}$ under which the deflated gain processes of all traded security are martingales. Under this assumption we are able to derive the drift conditions on the security price processes, and in turn on the strategy price process.
+\begin{equation}
+    \forall T >t \quad \bar{G}_t^i = \mathbb{E}_t \left[\bar{G}_T^i\right] \quad\Longrightarrow \quad dS_t^i = r_tS_t^idt-d\pi_t^i-d\psi_t^i + dM_t^i,
+\label{eq:risk_neutral}\end{equation}
+where $M_t^i$ are martingale under $\mathbb{Q}$. If we substitute this expression for the security dynamics into the definition of the strategy we can check that the price process of the strategy is accruing at a cash account rate rate $r_t$ compensated for the fund manager fees
+\begin{equation}
+    dV_t = V_t(r_t-\phi_t)dt + dM_t^V,
+\end{equation}
+with $M_t^V$ martingale under $\mathbb{Q}$. Notice that,as expected from non-arbitrage considerations, the coupons paid by each security appear only in the drift of the security price process, but they do not impact the drift of the strategy. 
+
+Yet, the strategy priced by $V_t$ cannot be described in the contract between the parties, since \Cref{eq:self_financing} depends via the security gain processes on the valuation adjustment $\psi_t^i$, which is specific of the investor pricing the strategy. Thus, the TVS defined in the contract will be
+\begin{equation}
+    d\bar{I}_t \coloneqq q_t \cdot \left(d\bar{S}_t + \frac{d\pi_t}{B_t} \right) - \bar{I}_t\phi_t dt \quad \text{with }I_0 = V_0, 
+\label{eq:TVS_first}\end{equation}
+leading to the following price process dynamics
+\begin{equation}
+    dI_t = I_t(r_t-\phi_t)dt -q_t\cdot \psi_t +dM_t^I,
+\end{equation}
+with $M_t^I$ martingale under $\mathbb{Q}$. In this case we observe that $I_t$ depends explicitly both on the valuation adjustments and on the allocation strategy. Indeed, if we substitute the valuation adjustments with their explicit expression (\Cref{eq:XVA_equity}), we get
+\begin{equation}
+    dI_t = I_t(r_t-\phi_t)dt - q_t \cdot S_t \mu_t dt + dM_t^I,
+\end{equation}
+where we can see the dependency on cost of carry $\mu_t^i$.
+\subsection{The Volatility Targeting Constraint}
+In a typical TVS the fund manager selects a risky-asset portfolio with a specific time-dependent allocation strategy expressed by means of the vector of relative weights $\alpha_t$, along with a risk-free asset, which we can identify with the bank account $B_t$. Usually TVSs are total-return products; thus we are justified in assuming $\pi_t=0$. Thus we can write \Cref{eq:TVS_first} as given by
+\begin{equation}
+    \frac{dI_t}{I_t}= \omega_t \alpha_t \cdot \frac{dS_t}{S_t} + \left(1-\omega_t  \alpha_t \cdot \mathds{1} \right)\frac{dB_t}{B_t}- \phi_t dt,
+\label{TVS_elegant}\end{equation}
+where $\mathds{1}$ is a $n$-dimensional vector of ones and $\omega_t\in[0,1]$ is determined so that the strategy log-normal volatility is kept constant, namely
+\begin{equation}
+        \omega_t: \quad \mathrm{Var}_t[dI_t] = \bar{\sigma}^2I_t^2dt,
+\end{equation}
+where $\Bar{\sigma}$ is the target volatility value.
+
+We assume a generic continuous semi-martingale dynamics under the risk-neutral measure for the underlying securities, so that we can write
+In practice, this means that the fund manager will select a risky-portfolio choosing $\alpha_t$ equities from the universe where he can trade and after that his choices will be scaled by the automatic target volatility algorithm\footnote{We recall that the universe of assets where the manager can trade and the value of $\bar{\sigma}$ are written in the contract.} $\omega_t$.
+
+To derive the expression for $\omega_t$ we need to assume a generic continuous semi-martingales dynamics under the risk-neutral measure for the underlying securities, so that we can write \Cref{eq:risk_neutral} as 
+\begin{equation}
+    \frac{dS_t^i}{S_t^i} = \left(r_t - \mu_t^i \right)dt + \nu_t^i \cdot dW_t,
+\label{Equity_process}\end{equation}
+where $\nu_t$ is an adapted matrix process ensuring the existence of a solution for the SDE and $W_t$ is a $n$-dimensional vector of Brownian motions under $\mathbb{Q}$. Under these assumptions we can derive an expression for $\omega_t$, and we get\footnote{In all formulae the norm for a vector $a$ is defined as $\|a\|\coloneqq\sqrt{a\cdot a}$.}
+\begin{equation}
+    \omega_t = \frac{\Bar{\sigma}}{\|\alpha_t\cdot \nu_t \|}.
+\end{equation}
+Hence, putting this last result in the dynamics of $I_t$ we obtain
+
+\begin{equation}
+     \frac{dI_t}{I_t} = \left(r_t -  \phi_t     - \frac{\bar{\sigma} \alpha_t}{\|\alpha_t \cdot \nu_t \|}  \cdot \mu_t \right)dt+ \frac{\bar{\sigma}\alpha_t }{\|\alpha_t \cdot \nu_t \|} \cdot \nu_t \cdot dW_t,
+\label{eq:TVS_last}\end{equation}
+where we can see, as expected, that the strategy grows at the risk-free rate but for adjustments due to valuation adjustments and fees.
+\section{Derivative Pricing}\label{sec:Derivative}
+A derivative contract on the TVS with maturity $T$ can be defined as
+\begin{equation}
+    V_0 \coloneqq \sup_\alpha \mathbb{E}_0\left[\int_0^T D(0,u;\zeta)d\pi_u(\alpha)\right],
+\end{equation}
+where $D(0,T;\zeta)$ is the discount factor with rate $\zeta_t$, inclusive of the derivative valuation adjustments, and $\pi_t$ is the cumulative coupon process paid by the derivative, and it depends on the allocation strategy since in turn the TVS depends on it via the valuation adjustments. We take the supremum over the strategies since we do not have any information on the future activity of the fund manager.
+\subsection{European Options}
+If the derivative contract depends only on the marginal distribution of $I_t$ at maturity (a European payoff), we are able to prove that exists an optimal strategy, and we are able to calculate it. We consider the following pricing problem
+\begin{equation}
+    V_0 \coloneqq \sup_\alpha \mathbb{E}_0\left[D(0,T;\zeta)\Phi(I_t(\alpha))\right],
+\end{equation}
+where $\Phi$ is the payoff function of the derivative. We start by introducing the Markovian projection of the dynamics followed by $I_t$. We name it $I_t^{\text{MP}}$, and we get by applying the Gy\"ongy Lemma
+\begin{equation}
+    \frac{dI_t^{\text{MP}}}{I_t^{\text{MP}}} \coloneqq \left(r_t - \ell \left(t,I_t^{\text{MP}}\right)\right)dt + \bar{\sigma}dW_t^{\text{MP}},
+\label{eq:markovian_projection}\end{equation}
+where the local drift is defined as
+\begin{equation}
+    \ell \left(t,K\right) \coloneqq \bar{\sigma} \mathbb{E}_0\left[\frac{\mu_t \cdot \alpha_t}{\|\alpha_t \cdot \nu_t \|}\bigg|I_t = K\right],
+\end{equation}
+and $W_t^{\text{MP}}$ is a Brownian motion under the risk-neutral measure. Notice that the diffusion coefficient collapses to the target volatility value $\bar{\sigma}$. Since European payoffs depends only on the marginal distribution at maturity, they can be calculated by means of the Markovian projection $I_t^{\text{MP}}$, namely
+\begin{equation}
+V_0 \coloneqq \sup_{\alpha} \mathbb{E}_0\left[D_0\left(T\right)\Phi\left(I_T^{\text{MP}}\left(\alpha\right)\right)\right].
+\end{equation}
+Hence, we have our first result valid only if valuation adjustments can be neglected:
+\begin{prop}
+A European payoff on the TVS can be calculated by assuming any allocation in the underlying risky basket if all the underlying
+securities grow under the risk-neutral measure at the risk-free rate without any valuation adjustment, namely if we can write $\mu_t=0$.
+\end{prop}
+\begin{rem}[Existence of the Solution in the General Case]
+In a more general settings we are not able to find an explicit solution. A proof of the existence of the solution in a general setting is missing. This is a stochastic optimal control problem where by homogeneity we can suppose that $\alpha_t$ lives in a compact domain, namely (a subset of) the unit simplex. A least if $r_t$, $\mu^i_t$ and $\nu^i_t$ are (uniformly) bounded, and if the eigenvalues of $\nu_t$ are (uniformly) bounded away from zero, then drift and diffusion should be uniformly Lipschitz in $\alpha_t$, and classical theorems should exist. 
+\end{rem}
+\subsection{Stochastic Optimal Control Problem}
+In presence of valuation adjustments we need to solve the full optimization problem. We discretize the optimal strategy $\alpha_t$ as
+\begin{equation}
+    \alpha_t \coloneqq \sum_k \mathbf{1}_{ \{t \in [T_{k-1}, T_k)\}}\alpha_{T_{k-1}},
+\label{eq:piecewise_strategy}\end{equation}
+according to a time grid $\mathcal{T}:=\{T_0,...,T_k,...,T_m\}$ with $T_0:=t$ the pricing date and $T_m :=T$ the maturity of the option. 
+Therefore we can apply the dynamic programming principle to express the optimal $\alpha_t$ at time $T_{k-1}$ as
+\begin{equation}
+    \alpha_{T_{k-1}}:=\argmax_{\alpha} \left\{\mathbb{E}_{T_{k-1}}\left[D_{T_{k-1}}\left(T_{k} \right) V_{T_{k}}\left(X_{T_{k}}, I_{T_{k}}(\alpha)\right) \mid X_{T_{k-1}}, I_{T_{k-1}}\right]\right\},
+\end{equation}
+where $V_{T_k}$ is the option value at time $T_k$ and $X$ is any Markovian state such that the drift and the diffusion coefficient of $I_t$ are a function of $\left(X_t,I_t,\alpha_t\right)$. We calculate $I_{T_k}\left(\alpha_{T_{k-1}}\right)$ for any given strategy $\alpha_{T_{k-1}}$ by a suitable discretization of \eqref{eq:TVS_last} starting from $X_{T_{k-1}}$ and $I_{T_{k-1}}$.
+
+Thus the derivative price is given by:
+\begin{equation}
+    V_{T_{k-1}}\left(X_{T_{k-1}}, I_{T_{k-1}}\right)=\mathbb{E}_{T_{k-1}}\left[D_{T_{k-1}}\left(T_{k}\right) V_{T_{k}}\left(X_{T_{k}}, I_{T_{k}}\left(\alpha_{T_{k-1}}\right)\right) \mid X_{T_{k-1}}, I_{T_{k-1}}\right],
+\label{recursion}\end{equation}
+while the iteration starts from maturity date where the boundary condition is set equal to the payoff function:
+\begin{equation}
+    V_{T_m} = \Phi\left(I_{T_m}\right).
+\end{equation}
+\subsection{Black and Scholes Model}
+In the Black and Scholes model with deterministic rates, we can work with empty $X_t$, since in this case the portfolio dynamics \eqref{eq:TVS_last} is Markovian, leading to an optimal strategy $\alpha_t^*$ which depends in principle only on $I_t$. As a consequence, the local drift can be written as
+\begin{equation}
+     \ell \left(t,K\right) = \bar{\sigma}   \frac{\mu\left(t\right) \cdot \alpha\left(t,K\right)}{\|\alpha\left(t,K\right) \cdot \nu\left(t\right)\|},  
+\end{equation}
+so that the optimization problem can be solved looking only at the Markovian projection without simulating all the Brownian motions $W_t$. Notice that we are indicating the dependency on time in parenthesis to highlight that in this formula all the quantities are deterministic function of time.
+
+A direct consequence is the following proposition, which is relevant for plain vanilla options on TVS.
+
+\begin{prop}
+When the underlying securities follow a Black and Scholes model with deterministic rates, the optimal strategy for a monotone payoff consists in minimizing the local drift function, indipendently of the current state $I_t$
+\begin{equation}
+    \alpha^*(t) \coloneqq \argmin_\alpha \frac{\alpha \cdot \mu(t)}{\|\alpha \cdot \nu(t) \|}.
+\label{eq:BS_optimal_strategy}\end{equation}
+\end{prop}
+The absence of stochastic elments in \Cref{eq:BS_optimal_strategy} makes the optimal strategy known \textit{a priori}; in fact one can solve the optimization problema once for all for each $t \in \mathcal{T}$ just looking at the market data $\mu(t)$ and $\nu(t)$ for the securities. Once $\alpha^*$ is known, then one can price the payoff by Monte Carlo simulation. 
+\subsubsection{Free strategy: closed form solution}
+In absence of constraints on $\alpha \coloneqq \alpha(t)$, the problem even admits a closed form solution. We set $\mu \coloneqq \mu(t)$ and $\nu \coloneqq \nu(t)$. By homogeneity we can rewrite \eqref{eq:BS_optimal_strategy} as
+\begin{equation}
+	\boxed{
+		\begin{aligned}
+			&\text { minimize } \alpha \cdot \mu\\
+			&\text { subject to } \|\alpha \cdot \nu\|^2=1
+	\end{aligned}}
+\end{equation}
+By setting the Lagrangian function associated with the problem
+\begin{equation}
+	\mathcal{L}\left(\alpha, \lambda\right)=\alpha \cdot \mu-\lambda\left(\|\alpha \cdot \nu\|^2-1\right) \, ,
+\end{equation}
+we obtain the first order conditions\footnote{We used the property of the Cholesky factor of the covariance matrix $\Sigma = \nu  \nu^T$, where $\nu^T$ is the transpose matrix of $\nu$.}
+\begin{eqsys}
+	\frac{\partial \mathcal{L}}{\partial \alpha}=\mu -2\lambda \Sigma \cdot \alpha=0 \\
+	\frac{\partial \mathcal{L}}{\partial \lambda}= \|\alpha \cdot \nu\|^2-1=0
+	\, .
+\end{eqsys}
+Then, by applying simple algebra, we obtain the analytical form of the free optimal strategy
+\begin{equation}
+	\alpha^* = \pm \frac{\Sigma^{-1} \cdot \mu}{\|(\Sigma^{-1} \cdot \mu)\cdot \nu\|}
+\end{equation}
+We take the minus sign to get the minimum value of the TVS local drift. 
+
+In our work the definition of $\alpha$ is general, thus it is possible to consider the case of constrained allocation strategy; in this case the problem \eqref{eq:BS_optimal_strategy} must be solved numerically.
+
+\section{Reinforcement Learning}\label{sec:RL}
+ Reinforcement Learning (RL) describes how an agent behaves in an environment so to maximize some notion of cumulative reward. The actions of the agent as a function of his observations of the environment are termed the agent policy. In our case the policy is the asset allocation weights $\alpha$, while the rewards are the costs generated by hedging a derivative contract on the TVS. Once the agent is trained, and the optimal policy is selected, we can run a Monte Carlo simulation to calculate the option price on the TVS. 
+ 
+ We adopt as learning strategy the PPO algoritm developed in \cite{ppo} and \cite{gae}. 
+\cleardoublepage
+\bibliographystyle{abbrvnat}
+\bibliography{Bib}
+\end{document}
