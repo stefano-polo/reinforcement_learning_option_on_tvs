@@ -1,0 +1,16 @@
+Logging to ./logs/TVS_LV-v0/ppo2_2.5e8_3x6_3e-4free25_month_observation_seed176970406
+---------------------------------------
+| eplenmean               | 24        |
+| eprewmean               | 0.00519   |
+| fps                     | 43        |
+| loss/approxkl           | 1.12e-05  |
+| loss/clipfrac           | 0         |
+| loss/policy_entropy     | 2.84      |
+| loss/policy_loss        | -0.000275 |
+| loss/value_loss         | 0.106     |
+| misc/explained_variance | -4.08     |
+| misc/nupdates           | 1         |
+| misc/serial_timesteps   | 2.05e+03  |
+| misc/time_elapsed       | 47.2      |
+| misc/total_timesteps    | 2.05e+03  |
+---------------------------------------

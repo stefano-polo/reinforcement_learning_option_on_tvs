@@ -22,10 +22,10 @@ class EquityForwardCurve(Curve):
         self.asset_name = name
         self.reference = reference
         self.discounting_curve = discounting_curve
-        if act =="360":
+        if act =="ACT360":
             self.T = ACT_360(repo_dates,self.reference)
             self.T = self.T*360/365
-        elif act == "365":
+        elif act == "ACT365":
             self.T = ACT_365(repo_dates,self.reference)
         else:
             self.T = abs(repo_dates - self.reference)
@@ -55,9 +55,9 @@ class DiscountingCurve(Curve):
 
     def __init__(self, reference=None, discounts=None, dates=None, act = "No"):
         self.reference = reference
-        if act=="360":
+        if act=="ACT360":
             self.T = ACT_360(dates,self.reference)
-        elif act == "365":
+        elif act == "ACT365":
             self.T = ACT_365(dates,self.reference)
         else:
             self.T = abs(dates - self.reference)
@@ -85,9 +85,9 @@ class ForwardVariance(Curve):  #I calculate the variance and not the volatility 
     def __init__(self, reference=None, spot_volatility=None, strikes=None, maturities=None, strike_interp=None,name = None, act="No"):
         self.reference = reference #pricing date of the implied volatilities
         self.asset_name = name
-        if act=="360":
+        if act=="ACT360":
             self.T = ACT_360(maturities,self.reference)
-        elif act=="365":
+        elif act=="ACT365":
             self.T = ACT_365(maturities,self.reference)
         else:
             self.T = abs(maturities-self.reference)
@@ -289,40 +289,31 @@ class LV_model(PricingModel):
             else:
                 return exp(logmartingale)*self.forward
         else:
-           # logmartingale = np.zeros((Nsim.N_fixings,self.Ndim))
+            logmartingale = np.zeros((Nsim,N_times,self.Ndim))
             logX = np.zeros((Nsim,self.Ndim))
-           # correlated_wiener = np.array([])
-            logmartingale = np.array([])
-            vola_t = np.array([])
+            vola_t = np.zeros((Nsim,N_times,self.Ndim))#np.array([])
             for i in range (N_times):
                 Z = random_gen.randn(Nsim,self.Ndim)
                 ep = corr_chole@Z.T   #matrix of correlated random variables
-               # correlated_wiener = np.append(correlated_wiener,ep)
                 for j in range(self.Ndim):
                     if i ==0:
                         vol = self.vol[j].intelligent_call(0,0.)
-                        #print("Asset "+str(j+1)+"vola ",vol)
-                        vola_t = np.append(vola_t,vol*np.ones(Nsim))
-                        logX[:,j]=-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
-                        logmartingale = np.append(logmartingale,logX[:,j])
+                        vola_t[:,i,j] =vol*np.ones(Nsim)
+                        logmartingale[:,i,j] = -0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
                     elif i!=0:
-                        vol = self.vol[j].intelligent_call(self.time_indexes_matrix[j,i-1],logX[:,j])
-                        vola_t = np.append(vola_t,vol)
-                        #print("Asset "+str(j+1)+"vola ",vol)
-                        logX[:,j]=logX[:,j]-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
-                        logmartingale = np.append(logmartingale,logX[:,j])
+                        vol = self.vol[j].intelligent_call(self.time_indexes_matrix[j,i-1],logmartingale[:,i-1,j])
+                        vola_t[:,i,j] =vol
+                        logmartingale[:,i,j] = logmartingale[:,i-1,j]-0.5*dt*(vol**2)+vol*sqrt(dt)*ep[j]
                 counter = i+1
                 if counter%self.N_grid == 0:
-                    #logmartingale[:,time_index,:] = logX
                     time_index +=1
                     if counter < N_times:
                         dt = self.dt[time_index]
             if normalization:
                 return (correlated_wiener.reshape(N_times,self.Ndim,Nsim)).transpose(2,0,1), (vola_t.reshape(N_times,self.Ndim,Nsim)).transpose(2,0,1)
             else:    
-                logmartingale = (logmartingale.reshape(N_times,self.Ndim,Nsim)).transpose(2,0,1)
                 M = np.exp(logmartingale) * self.forward.T
-                return M, (vola_t.reshape(N_times,self.Ndim,Nsim)).transpose(2,0,1)
+                return M, vola_t
       
 """Payoff Functions"""
 def Vanilla_PayOff(St=None,strike=None, typo = 1): #Monte Carlo call payoff

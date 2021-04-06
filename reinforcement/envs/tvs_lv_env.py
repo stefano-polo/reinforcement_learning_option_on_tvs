@@ -8,6 +8,7 @@ from envs.pricing.closedforms import European_option_closed_form
 from envs.pricing.targetvol import Drift, Strategy, TVSForwardCurve, TargetVolatilityStrategy, optimization_only_long
 from envs.pricing.fake_market_lv import load_fake_market_lv
 from envs.pricing.loadfromtxt import LoadFromTxt
+from envs.pricing.targetvol import optimization_only_long
 from envs.pricing.n_sphere import sign_renormalization
 
 class TVS_LV(gym.Env):
@@ -47,7 +48,7 @@ class TVS_LV(gym.Env):
         self.time_index = 0
         self.current_time = 0.
         self.simulation_index = 0
-        self.Nsim = 2
+        self.Nsim = 1e3
         """Loading market curves"""
         D, F, V, LV = LoadFromTxt(names, folder_name)
         self.correlation_chole = np.linalg.cholesky(correlation)
@@ -57,6 +58,8 @@ class TVS_LV(gym.Env):
         """Preparing the LV model"""
         self.model = LV_model(fixings=self.observation_grid, local_vol_curve=LV, forward_curve=F, N_grid = self.N_euler_grid)
         euler_grid = self.model.time_grid
+        mu_function = Drift(forward_curves=F)
+        self.mu_values  = mu_function(np.append(0.,euler_grid[:-1]))
         self.r_t = D.r_t(np.append(0.,euler_grid[:-1]))
         self.discount = D(self.T)
         self.dt_vector = self.model.dt
@@ -97,7 +100,6 @@ class TVS_LV(gym.Env):
         elif self.constraint == "long_short_limit":
             action = sign_renormalization(action,self.how_long,self.how_short)
             s = np.sum(action)
-                
         self.time_index = self.time_index + 1
         self.current_time = self.observation_grid[self.time_index]
         self.current_logX = self.logX_t[self.time_index]
@@ -108,6 +110,8 @@ class TVS_LV(gym.Env):
             idx = index_plus + i 
             Vola =  self.sigma_t[idx]*self.Identity
             nu = Vola@self.correlation_chole
+            if i==0:
+                action = optimization_only_long(self.mu_values[idx], nu,seed=1, guess = np.array(([0.4,0.6],[0.6,0.4])))        
             omega = self.target_vol/np.linalg.norm(action@nu)
             self.I_t = self.I_t * (1. + omega * action@self.dS_S[idx] + dt * self.r_t[idx]*(1.-omega*s))
         if self.current_time < self.T:

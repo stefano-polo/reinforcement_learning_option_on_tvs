@@ -19,7 +19,7 @@ class TVS_environment(gym.Env):
         self.strike_option = strike_opt
         self.target_vol = target_volatility
         self.T = maturity
-        self.Nsim = 1e4
+        self.Nsim = 1e3
         self.current_time = 0.
         n_observations = 365
         self.time_index = 0

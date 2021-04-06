@@ -2,7 +2,7 @@ import numpy as np
 from numpy import exp, sqrt, log
 from pricing.pricing import piecewise_function, Curve, PricingModel, quad_piecewise
 from numpy.linalg import cholesky
-from scipy.optimize import minimize
+from scipy.optimize import minimize, LinearConstraint, Bounds
 from scipy.interpolate import interp1d
 
 
@@ -236,20 +236,35 @@ def optimization_only_long(mu=None, nu=None,seed = 1, N_trial=None, guess = None
     if guess is None and N_trial is None:
         N_trial = 1
     f = loss_function
-    cons = ({'type': 'eq','fun' : lambda x: np.sum(x)-1},{'type': 'ineq','fun' : lambda x: x})
+    # cons = ({'type': 'eq','fun' : lambda x: np.sum(x)-1},{'type': 'ineq','fun' : lambda x: x})
+    A = np.ones(len(mu))
+    x_low = np.array([1.])
+    x_up = np.array([1.])
+    bounds = Bounds(np.zeros(len(mu)),np.ones(len(mu)))
+    cons = LinearConstraint(A,x_low,x_up)
     if guess is None and N_trial is not None:
         np.random.seed(seed)
         r = np.zeros((N_trial,len(mu)))
         valutation = np.zeros(N_trial)
         for i in range (N_trial):
             x0 =np.random.uniform(0.,1.,len(mu))  #initial position for the optimization algorithm
-            res = minimize(f, x0, args=(mu,nu),constraints=cons)#,options={'ftol': 1e-30})
+            res = minimize(f, x0, args=(mu,nu),constraints=cons,bounds=bounds,method="SLSQP")#,options={'ftol': 1e-30})
             r[i] = res.x
             valutation[i] = f(res.x,mu,nu)
         #print("Minumum: ", np.min(valutation))
         return r[np.argmin(valutation)]
-    else:
-        return minimize(f, guess, args=(mu,nu),constraints=cons).x#,options={'ftol': 1e-30})
+    elif guess.ndim==1:
+        return minimize(f, guess, args=(mu,nu),constraints=cons,bounds = bounds, method = "SLSQP").x#,options={'ftol': 1e-30})
+    elif guess.ndim>1:
+        N_trial = len(guess)
+        r = np.zeros((N_trial,len(mu)))
+        valutation = np.zeros(N_trial)
+        for i in range(N_trial):
+            x0 = guess[i]
+            res =  minimize(f, x0, args=(mu,nu),constraints=cons,bounds=bounds,method="SLSQP")
+            r[i] = res.x
+            valutation[i] = f(res.x,mu,nu)
+        return r[np.argmin(valutation)]
 
 def optimization_limit_position(mu, nu, limit_position,N_trial=3,seed=None):
     """Constrained optimization with each |weight|<limit_position"""
