@@ -52,11 +52,11 @@ class TVS_LV(gym.Env):
         """Loading market curves"""
         D, F, V, LV = LoadFromTxt(names, folder_name)
         self.correlation_chole = np.linalg.cholesky(correlation)
-        self.spot_prices = np.array([])
+        self.spot_prices = np.zeros(self.N_equity)
         for i in range(self.N_equity):
-            self.spot_prices = np.append(self.spot_prices,F[i].spot)
+            self.spot_prices[i] = F[i].spot
         """Preparing the LV model"""
-        self.model = LV_model(fixings=self.observation_grid, local_vol_curve=LV, forward_curve=F, N_grid = self.N_euler_grid)
+        self.model = LV_model(fixings=self.observation_grid[1:], local_vol_curve=LV, forward_curve=F, N_grid = self.N_euler_grid)
         euler_grid = self.model.time_grid
         mu_function = Drift(forward_curves=F)
         self.mu_values  = mu_function(np.append(0.,euler_grid[:-1]))
@@ -72,7 +72,7 @@ class TVS_LV(gym.Env):
         self.integral_variance = np.insert(self.integral_variance,0,np.zeros(self.N_equity),axis=0)
         self.integral_variance_sqrt =sqrt(self.integral_variance)
         self.integral_variance_sqrt[0,:] = 1
-
+        self.forwards = np.insert(self.model.forward.T,0,self.spot_prices,axis=0)[self.state_index,:]
         if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
             raise Exception("You should provide the sum limit for short and long position")
         if sum_long is not None and sum_short is not None:
@@ -134,7 +134,7 @@ class TVS_LV(gym.Env):
             S = np.insert(S,0,self.spot_prices,axis=1)
             self.dS_S_simulations = (S[:,1:,:] - S[:,:-1,:])/S[:,:-1,:]
             S_sliced = S[:,self.state_index,:]
-            self.simulations_logX = (log(S_sliced/np.insert(self.model.forward.T,0,self.spot_prices,axis=0)[self.state_index,:])+0.5*self.integral_variance)/self.integral_variance_sqrt
+            self.simulations_logX = (log(S_sliced/self.forwards)+0.5*self.integral_variance)/self.integral_variance_sqrt
             S_sliced = None
             S = None
             self.simulation_index=0

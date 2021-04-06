@@ -58,16 +58,16 @@ Identity = np.identity(N_equity)
 names = ["DJ 50 EURO E","S&P 500 NET EUR"]
 D, F, V, LV = LoadFromTxt(names, "FakeSmiles")
 correlation = np.identity(len(names))
-spot_prices = np.array([])
+spot_prices = np.ones(len(names)
 for i in range(len(names)):
-    spot_prices = np.append(spot_prices,F[i].spot)
+    spot_prices[i] = F[i].spot
    # print(F[i].q_values)
 """Preparing the LV model"""
 #print(N_euler_grid)
 model = LV_model(fixings=observation_grid[1:], local_vol_curve=LV, forward_curve=F, N_grid = N_euler_grid)
 euler_grid = model.time_grid
 discount = D(T)
-dt = model.dt[0]
+dt_vector = model.dt
 mu_function = Drift(forward_curves=F)
 mean = np.array([])
 correlation_chole = np.linalg.cholesky(correlation)
@@ -106,6 +106,7 @@ for i in range(Nsim):
     sigma = simulations_Vola[0]
     norm_price = dS_S[0]
     for j  in range(len(observation_grid[1:])):
+        dt = dt_vector[j]
         index_plus = j*N_euler_grid
         for k in range(N_euler_grid):
             idx = index_plus + k 
