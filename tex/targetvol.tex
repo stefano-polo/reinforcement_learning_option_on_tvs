@@ -1,16 +1,129 @@
-\documentclass[a4paper]{article}
-\usepackage[utf8]{inputenc}
+\documentclass[11pt]{article}
 \usepackage[english]{babel}
-\usepackage{comment}
-\usepackage{dcolumn,multirow,abstract,fancyhdr}
-\usepackage{geometry}
-\usepackage{mathtools} % serve per fare le formule matematiche 
-\usepackage{textcomp}
-\usepackage{amsfonts}
-\usepackage{dsfont}
-\usepackage{upgreek}
-\geometry{a4paper, top=5cm, bottom=5cm, left=4.5cm, right=4.5cm} %
-%\pagestyle{fancy} 
+\usepackage[latin1]{inputenc}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+%\usepackage[outer=5cm, marginparwidth=4.5cm]{geometry}
+%\usepackage{marginnote}
+\usepackage{amssymb,amsmath,amsthm,latexsym,amsfonts,amscd,dsfont,enumerate,bbm,mathabx}
+\usepackage{graphicx,tikz}
+\usepackage{draftwatermark}
+% \usepackage{listings}
+% \usepackage{booktabs}
+\usepackage{mathtools}
+% \usepackage[gen]{eurosym}
+% \usepackage{algorithm}
+% \usepackage{algpseudocode}
+\usepackage{soul}
+
+
+% \setbeamertemplate{bibliography item}[text]
+% \renewcommand*{\bibfont}{\scriptsize}
+
+% \usepackage{pgfplots}
+% \pgfplotsset{compat=newest}
+
+\definecolor{mylightyellow}{rgb}{1,1,.8}
+\definecolor{mylightgreen}{rgb}{.8,1,.8}
+\definecolor{mydarkred}{RGB}{178,34,34}
+\definecolor{mydarkgreen}{RGB}{34,139,34}
+\definecolor{mydarkblue}{RGB}{72,61,139}
+\definecolor{mydarkyellow}{RGB}{218,165,32}
+
+\definecolor{myblueA}{RGB}{52,41,39}
+\definecolor{myblueB}{RGB}{92,81,109}
+\definecolor{myblueC}{RGB}{132,121,179}
+\definecolor{myblueD}{RGB}{172,161,249}
+\definecolor{myblueE}{RGB}{212,201,255}
+
+\usetikzlibrary{arrows,patterns,shapes,snakes,shadows,fit,backgrounds,positioning,decorations.pathmorphing,external}
+\tikzstyle{nameusd} = [circle, draw, top color=white, bottom color=mydarkblue!50, draw=mydarkblue!75!black!100, drop shadow, minimum height=4em]
+\tikzstyle{nameeur} = [circle, draw, top color=white, bottom color=mydarkred!50, draw=mydarkred!75!black!100, drop shadow, minimum height=4em]
+\tikzstyle{collusd} = [rectangle,fill=mydarkblue!10, inner sep=0.2cm, rounded corners=5mm]
+\tikzstyle{colleur} = [rectangle,fill=mydarkred!10, inner sep=0.2cm, rounded corners=5mm]
+\tikzstyle{fixto} = [draw, -latex']
+\tikzstyle{fixfrom} = [draw, latex'-]
+\tikzstyle{floatto} = [draw, snake=coil, segment aspect=0, line before snake=2ex, line after snake=1ex, -latex']
+\tikzstyle{floatfrom} = [draw, snake=coil, segment aspect=0, line before snake=2ex, line after snake=1ex, latex'-]
+\tikzstyle{investor} = [rectangle, draw, top color=white, bottom color=mydarkyellow!50, draw=mydarkyellow!75!black!100, drop shadow, rounded corners, minimum height=3em, text width=4em, text centered]
+\tikzstyle{trader} = [circle, draw, top color=white, bottom color=blue!30, draw=blue!50!black!100, drop shadow, minimum height=4em]
+\tikzstyle{bank} = [rectangle, draw, top color=white, bottom color=red!20, draw=red!50!black!100, drop shadow, rounded corners, minimum height=3em, text width=4em, text centered]
+\tikzstyle{market} = [rectangle, draw, top color=white, bottom color=green!20, draw=green!50!black!100, drop shadow, rounded corners, minimum height=3em, text width=4em, text centered]
+\tikzstyle{yellowbox} = [rectangle, draw, top color=white, bottom color=mydarkyellow!50, draw=mydarkyellow!75!black!100, drop shadow, rounded corners, text centered]
+\tikzstyle{fadedyellowbox} = [rectangle, draw=gray, text=gray, top color=white, bottom color=mydarkyellow!25, draw=mydarkyellow!50, drop shadow, rounded corners, text centered]
+\tikzstyle{redbox} = [rectangle, draw, top color=white, bottom color=mydarkred!50, draw=mydarkred!75!black!100, drop shadow, rounded corners, text centered]
+\tikzstyle{fadedredbox} = [rectangle, draw=gray, text=gray, top color=white, bottom color=mydarkred!25, draw=mydarkred!50, drop shadow, rounded corners, text centered]
+\tikzstyle{bluebox} = [rectangle, draw, top color=white, bottom color=mydarkblue!50, draw=mydarkblue!75!black!100, drop shadow, rounded corners, text centered]
+\tikzstyle{fadedbluebox} = [rectangle, draw=gray, text=gray, top color=white, bottom color=mydarkblue!25, draw=mydarkblue!50, drop shadow, rounded corners, text centered]
+\tikzstyle{greenbox} = [rectangle, draw, top color=white, bottom color=mydarkgreen!50, draw=mydarkgreen!75!black!100, drop shadow, rounded corners, text centered]
+\tikzstyle{fadedgreenbox} = [rectangle, draw=gray, text=gray, top color=white, bottom color=mydarkgreen!25, draw=mydarkgreen!50, drop shadow, rounded corners, text centered]
+
+\newcommand{\tikzmark}[1]{\tikz[remember picture] \node[coordinate] (#1) {#1};}
+
+% \pgfplotstableread{data/total_consumption_example.dat}\swingtotal
+
+\usepackage[]{hyperref}
+\hypersetup{
+	colorlinks=true,breaklinks=true,
+	urlcolor= mydarkblue,linkcolor= mydarkblue,citecolor= mydarkgreen,
+	pdfauthor={Daluiso, R., Pallavicini, A.},
+}
+\usepackage{natbib}
+\setcitestyle{authoryear,open={(},close={)}}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}{Corollary}[theorem]
+\newtheorem{remark}{Remark}[section]
+\newtheorem{example}[remark]{Example}
+
+\newcommand{\Eq}[1]{{\begin{equation}{#1}\end{equation}}}
+
+\newcommand{\Exo}[1]{\mathbb{E}\!\left[\,#1\,\right]}
+\newcommand{\Ex}[2]{\mathbb{E}_{#1}\!\left[\,#2\,\right]}
+\newcommand{\ExG}[2]{\mathbb{E}\!\left[\,#2\,\left|{\cal G}_{#1}\right.\right]}
+\newcommand{\ExF}[2]{\mathbb{E}\!\left[\,#2\,\left|{\cal F}_{#1}\right.\right]}
+\newcommand{\ExFT}[3]{\mathbb{E}^{#2}\!\left[\,#3\,\left.\right|{\cal F}_{#1}\right]}
+\newcommand{\ExGT}[3]{\mathbb{E}^{#2}\!\left[\,#3\,\left.\right|{\cal G}_{#1}\right]}
+\newcommand{\ExCo}[2]{\mathbb{E}\!\left[\left.\,#1\,\right|\,#2\,\right]}
+\newcommand{\ExC}[3]{\mathbb{E}_{#1}\!\left[\left.\,#2\,\right|\,#3\,\right]}
+\newcommand{\ExCT}[4]{\mathbb{E}_{#1}^{#2}\!\left[\left.\,#3\,\right|\,#4\,\right]}
+\newcommand{\ExT}[3]{\mathbb{E}_{#1}^{#2}\!\left[\,#3\,\right]}
+\newcommand{\Exf}[2]{\hat{\mathbb{E}}_{#1}\!\left[\,#2\,\right]}
+\newcommand{\ExfT}[3]{\hat{\mathbb{E}}_{#1}^{#2}\!\left[\,#3\,\right]}
+\newcommand{\Px}[1]{\mathbb{P}\left\{\,#1\,\right\}}
+\newcommand{\PxC}[2]{\mathbb{P}\!\left\{\,#1\,\left.\right|\,#2\,\right\}}
+\newcommand{\Qx}[1]{\mathbb{Q}\left\{\,#1\,\right\}}
+\newcommand{\QxC}[2]{\mathbb{Q}\!\left\{\,#1\,\left.\right|\,#2\,\right\}}
+\newcommand{\QxCT}[3]{\mathbb{Q}^{#1}\!\left\{\,#2\,\left.\right|\,#3\,\right\}}
+\newcommand{\QxT}[2]{\mathbb{Q}^{#1}\left\{\,#2\,\right\}}
+\newcommand{\Qxf}[1]{\hat{\mathbb{Q}}\left\{\,#1\,\right\}}
+\newcommand{\Var}[2]{\operatorname{Var}_{#1}\!\left[\,#2\,\right]}
+\newcommand{\Covar}[3]{\operatorname{Covar}_{#1}\!\left[\,#2,#3\,\right]}
+\newcommand{\ind}[1]{1_{\{#1\}}}
+\newcommand{\clip}[3]{\operatorname{clip}\!\left({#1},{#2},{#3}\right)}
+\newcommand{\one}{\ensuremath{\mathbbm{1}}}
+\newcommand{\onehalf}{\tfrac{1}{2}}
+
+\newcommand{\tr}[1]{{#1}^{\intercal}} %transpose
+\let\oldnorm\norm   % <-- Store original \norm as \oldnorm
+\let\norm\undefined % <-- "Undefine" \norm
+\DeclarePairedDelimiter\norm{\lVert}{\rVert}
+
+\newcommand{\rec}{R}
+\newcommand{\lgd}{\mbox{L{\tiny GD}}}
+
+\newcommand{\pvcall}{{\mathcal{C}}}
+\newcommand{\pvput}{{\mathcal{P}}}
+
+\usepackage{eurosym}
+\newcommand{\euroms}[0]{\mbox{\small \euro}}
+\usepackage{cleveref}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\newenvironment{eqsys}{\begin{equation}\begin{dcases}}{\end{dcases}\end{equation}}
+\usepackage{fancyhdr}
 \renewcommand{\headrulewidth}{0pt}
 \fancyhead[R]{}
 \lhead{\footnotesize\slshape Daluiso, Pallavicini, Nastasi, Polo, Optimal Strategies for Target Volatility Contracts}
@@ -19,24 +132,9 @@
 \lfoot{}
 \cfoot{}
 \rfoot{}
-\usepackage[font=scriptsize,labelfont=bf]{caption}
-\usepackage[pdfa]{hyperref}
-\hypersetup{colorlinks=true,citecolor=black,filecolor=black,linkcolor=black, urlcolor=black}
-\usepackage{cleveref}
-\usepackage{natbib}
-\setcitestyle{authoryear,open={(},close={)}}
-\newtheorem{theorem}{Theorem}[section] 
-\newtheorem{lem}{Lemma}[section]
-\newtheorem{defi}{Definition}[section]
-\newtheorem{prop}{Proposition}[section]
-\newtheorem{rem}{Remark}[section]
-\DeclareMathOperator*{\argmax}{arg\,max}
-\DeclareMathOperator*{\argmin}{arg\,min}
-\newenvironment{eqsys}{\begin{equation}\begin{dcases}}{\end{dcases}\end{equation}}
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\setcounter{page}{1} % start with first page
+
 
 \title{Optimal Strategies for Target Volatility Contracts}
 
@@ -195,13 +293,13 @@ and $W_t^{\text{MP}}$ is a Brownian motion under the risk-neutral measure. Notic
 V_0 \coloneqq \sup_{\alpha} \mathbb{E}_0\left[D_0\left(T\right)\Phi\left(I_T^{\text{MP}}\left(\alpha\right)\right)\right].
 \end{equation}
 Hence, we have our first result valid only if valuation adjustments can be neglected:
-\begin{prop}
+\begin{proposition}
 A European payoff on the TVS can be calculated by assuming any allocation in the underlying risky basket if all the underlying
 securities grow under the risk-neutral measure at the risk-free rate without any valuation adjustment, namely if we can write $\mu_t=0$.
-\end{prop}
-\begin{rem}[Existence of the Solution in the General Case]
+\end{proposition}
+\begin{remark}[Existence of the Solution in the General Case]
 In a more general settings we are not able to find an explicit solution. A proof of the existence of the solution in a general setting is missing. This is a stochastic optimal control problem where by homogeneity we can suppose that $\alpha_t$ lives in a compact domain, namely (a subset of) the unit simplex. A least if $r_t$, $\mu^i_t$ and $\nu^i_t$ are (uniformly) bounded, and if the eigenvalues of $\nu_t$ are (uniformly) bounded away from zero, then drift and diffusion should be uniformly Lipschitz in $\alpha_t$, and classical theorems should exist. 
-\end{rem}
+\end{remark}
 \subsection{Stochastic Optimal Control Problem}
 In presence of valuation adjustments we need to solve the full optimization problem. We discretize the optimal strategy $\alpha_t$ as
 \begin{equation}
@@ -231,14 +329,14 @@ so that the optimization problem can be solved looking only at the Markovian pro
 
 A direct consequence is the following proposition, which is relevant for plain vanilla options on TVS.
 
-\begin{prop}
+\begin{proposition}
 When the underlying securities follow a Black and Scholes model with deterministic rates, the optimal strategy for a monotone payoff consists in minimizing the local drift function, indipendently of the current state $I_t$
 \begin{equation}
     \alpha^*(t) \coloneqq \argmin_\alpha \frac{\alpha \cdot \mu(t)}{\|\alpha \cdot \nu(t) \|}.
 \label{eq:BS_optimal_strategy}\end{equation}
-\end{prop}
+\end{proposition}
 The absence of stochastic elments in \Cref{eq:BS_optimal_strategy} makes the optimal strategy known \textit{a priori}; in fact one can solve the optimization problema once for all for each $t \in \mathcal{T}$ just looking at the market data $\mu(t)$ and $\nu(t)$ for the securities. Once $\alpha^*$ is known, then one can price the payoff by Monte Carlo simulation. 
-\subsubsection{Free strategy: closed form solution}
+\subsubsection{Closed form solution for free strategy}
 In absence of constraints on $\alpha \coloneqq \alpha(t)$, the problem even admits a closed form solution. We set $\mu \coloneqq \mu(t)$ and $\nu \coloneqq \nu(t)$. By homogeneity we can rewrite \eqref{eq:BS_optimal_strategy} as
 \begin{equation}
 	\boxed{
@@ -251,12 +349,13 @@ By setting the Lagrangian function associated with the problem
 \begin{equation}
 	\mathcal{L}\left(\alpha, \lambda\right)=\alpha \cdot \mu-\lambda\left(\|\alpha \cdot \nu\|^2-1\right) \, ,
 \end{equation}
-we obtain the first order conditions\footnote{We used the property of the Cholesky factor of the covariance matrix $\Sigma = \nu  \nu^T$, where $\nu^T$ is the transpose matrix of $\nu$.}
+we obtain the first order conditions
 \begin{eqsys}
 	\frac{\partial \mathcal{L}}{\partial \alpha}=\mu -2\lambda \Sigma \cdot \alpha=0 \\
 	\frac{\partial \mathcal{L}}{\partial \lambda}= \|\alpha \cdot \nu\|^2-1=0
-	\, .
+	\, ,
 \end{eqsys}
+where we have set $\Sigma = \nu  \nu^T$, with $\nu^T$ the transpose matrix of $\nu$.
 Then, by applying simple algebra, we obtain the analytical form of the free optimal strategy
 \begin{equation}
 	\alpha^* = \pm \frac{\Sigma^{-1} \cdot \mu}{\|(\Sigma^{-1} \cdot \mu)\cdot \nu\|}
@@ -264,6 +363,48 @@ Then, by applying simple algebra, we obtain the analytical form of the free opti
 We take the minus sign to get the minimum value of the TVS local drift. 
 
 In our work the definition of $\alpha$ is general, thus it is possible to consider the case of constrained allocation strategy; in this case the problem \eqref{eq:BS_optimal_strategy} must be solved numerically.
+\subsubsection{Active Asset (or Bang Bang) Solution}
+A closed form solution to the minimization of the local drift correction \eqref{eq:BS_optimal_strategy} can also be derived in the common case that all costs of carry are nonnegative and the only constraint on portfolio weights is nonnegativity, which would mean a long only strategy by the fund manager.
+
+\begin{lemma}
+	Let $\mu \in \mathbb{R}^n$ be a vector with nonnegative components, $\nu \in \mathbb{R}^{n\times n}$ be a full rank matrix, and $\Sigma = \nu \nu^{T}$. Then
+	\begin{equation}\label{eq:inf}
+		\inf_{\alpha \in \mathbb{R}_{+}^n \setminus \{0\}} \frac{\alpha \cdot \mu}{\norm{\alpha \cdot \nu}} = \min_{i\leq n} \frac{\mu_i}{\sqrt{\Sigma_{ii}}};
+	\end{equation}
+	if $\bar{\imath}$ is the index which realizes the min, then the infimimum is realized by a vector concentrated on the $\bar{\imath}$ component: $\alpha_i = \delta_{i\bar{\imath}}$. 
+\end{lemma}
+\begin{proof}
+	Let us first consider the case in which $\mu = \mathbbm{1}$. Since the argument of the infimum is zero-homogeneous, normalizing by $\alpha \cdot \mathbbm{1} > 0$ we can restrict to the affine hyperspace $\{\alpha \cdot \mathbbm{1} = 1\}$, where the minimization \eqref{eq:inf} reduces to the maximization of its denominator: the required infimum will be square root of the reciprocal of
+	\[
+	\sup\left\{\norm{\alpha \cdot \nu}^2 \mid \alpha \in \mathbb{R}_{+}^n,\, \alpha \cdot \mathbbm{1} = 1\right\}.
+	\]
+	Now we can note that $\Sigma$ is positive definite, hence $\Sigma_{ij} < \sqrt{\Sigma_{ii}\Sigma_{jj}} \leq \Sigma_{\bar{\imath}\bar{\imath}}$, which implies
+	\[
+	\norm{\alpha \cdot \nu}^2 = \sum_{i,j=1}^{n} \alpha_i \alpha_j \Sigma_{ij} \leq \sum_{i,j=1}^{n} \alpha_i \alpha_j \Sigma_{\bar{\imath}\bar{\imath}} = \Sigma_{\bar{\imath}\bar{\imath}}
+	\]
+	because $\sum_i \alpha_i = 1$. Since we trivially have equality for $\alpha_i = \delta_{i\bar{\imath}}$, this concludes the proof of the case $\mu = \mathbbm{1}$.
+	
+	Next, let us consider the case in which all components of $\mu$ are strictly positive, and define $M$ as the diagonal matrix with diagonal $\mu$. Then we can rewrite the infimum as a function of $\beta = M\alpha$:
+	\[
+	\inf_{\beta \in \mathbb{R}_{+}^n \setminus \{0\}} \frac{\beta \cdot \mathbbm{1}}{\norm{\beta \cdot M^{-1}\nu}},
+	\]
+	which by the first part of the proof equals 
+	\[
+	\min_{i \leq n} \frac{1}{\sqrt{\tilde{\Sigma}_{ii}}} = \min_{i \leq n} \frac{\mu_i}{\sqrt{\Sigma_{ii}}}, \quad \tilde{\Sigma} := M^{-1}\nu\nu^{T} M^{-1} = M^{-1}\Sigma M^{-1}.
+	\]
+	
+	Finally, let us consider the general case in which $\mu$ may have some components equal to zero. For an arbitrary $\epsilon \geq 0$ let us define
+	\[
+	f_{\epsilon}(\alpha) = \frac{\alpha \cdot (\mu+\epsilon)}{\norm{\alpha \cdot \nu}}.
+	\]
+	One can easily note that as $\epsilon \to 0$, $f_{\epsilon}$ tends to $f_{0}$ uniformly on the compact set $\{\alpha \in \mathbb{R}^n_+ \mid \alpha \cdot \mathbbm{1} = 1\}$, so that the minimum converges to the minimum on that set. Since we know by homogeneity that the minimum on $\{\alpha \in \mathbb{R}^n_+ \mid \alpha \cdot \mathbbm{1} = 1\}$ equals the minimum on $\mathbb{R}^n_+ \setminus \{0\}$, we conclude
+	\[
+	\inf_{\alpha \in \mathbb{R}_{+}^n \setminus \{0\}} f_0(\alpha) = 
+	\lim_{\epsilon \to 0+} \inf_{\alpha \in \mathbb{R}_{+}^n \setminus \{0\}} f_{\epsilon}(\alpha) = 
+	\lim_{\epsilon \to 0+} \min_{i\leq n} \frac{\mu_i+\epsilon}{\sqrt{\Sigma_{ii}}} =
+	\min_{i\leq n} \frac{\mu_i}{\sqrt{\Sigma_{ii}}}.
+	\]
+\end{proof}
 
 \section{Reinforcement Learning}\label{sec:RL}
  Reinforcement Learning (RL) describes how an agent behaves in an environment so to maximize some notion of cumulative reward. The actions of the agent as a function of his observations of the environment are termed the agent policy. In our case the policy is the asset allocation weights $\alpha$, while the rewards are the costs generated by hedging a derivative contract on the TVS. Once the agent is trained, and the optimal policy is selected, we can run a Monte Carlo simulation to calculate the option price on the TVS. 
