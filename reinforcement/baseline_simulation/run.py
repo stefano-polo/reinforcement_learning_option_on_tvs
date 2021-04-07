@@ -24,8 +24,8 @@ daily = 0
 N_equity = 2                                #number of equities
 target_vol = 5./100.
 T = 3.
-title = 'day_new/d3/final_price_lvinvestigation_2_asset_equalrepo_long_Nsim_'+str(Nsim)+'_vola'+str(target_vol)+'_maturity'+str(T)+'_Black'+str(Black)+'_daily'+str(daily)+strategy
-restart_file = 'day_new/d2/final_price_lvinvestigation_2_asset_equalrepo_long_Nsim_8000_vola0.05_maturity2.0_Black0_daily0only_long'
+title = 'day_new/d'+str(int(T))+'/final_price_lvinvestigation_2_asset_equalrepo_long_Nsim_'+str(Nsim)+'_vola'+str(target_vol)+'_maturity'+str(T)+'_Black'+str(Black)+'_daily'+str(daily)+strategy
+restart_file = 'day_new/d'+str(int(T-1))+'/final_price_lvinvestigation_2_asset_equalrepo_long_Nsim_8000_vola0.05_maturity'+str(T-1)+'_Black'+str(Black)+'_daily'+str(daily)+strategy
 
 if restart:
     I_0 = np.loadtxt(restart_file+"_rank"+str(rank+run)+'.txt')
@@ -58,7 +58,7 @@ Identity = np.identity(N_equity)
 names = ["DJ 50 EURO E","S&P 500 NET EUR"]
 D, F, V, LV = LoadFromTxt(names, "FakeSmiles")
 correlation = np.identity(len(names))
-spot_prices = np.ones(len(names)
+spot_prices = np.ones(len(names))
 for i in range(len(names)):
     spot_prices[i] = F[i].spot
    # print(F[i].q_values)
