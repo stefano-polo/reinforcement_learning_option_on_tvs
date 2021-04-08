@@ -17,6 +17,7 @@ class TVS_LV(gym.Env):
     def __init__(self, N_equity= 2, frequency = "month", target_volatility=5/100, I_0 = 1., strike_opt=1., 
     maturity=2., constraint = "only_long", action_bound=20./100., sum_long = None, sum_short=None):
         """Pricing parameters for the option"""
+        self.bang_bang_action = 1
         self.constraint = constraint
         self.target_vol = target_volatility
         self.I_0 = I_0
@@ -73,18 +74,21 @@ class TVS_LV(gym.Env):
         self.integral_variance_sqrt =sqrt(self.integral_variance)
         self.integral_variance_sqrt[0,:] = 1
         self.forwards = np.insert(self.model.forward.T,0,self.spot_prices,axis=0)[self.state_index,:]
-        if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
-            raise Exception("You should provide the sum limit for short and long position")
-        if sum_long is not None and sum_short is not None:
-            self.sum_long = sum_long
-            self.sum_short = sum_short
-        if self.constraint != "only_long":
-            low_action = np.ones(self.N_equity)*(-abs(action_bound))-1e-6
-            high_action = np.ones(self.N_equity)*abs(action_bound)+1e-6
+        if not self.bang_bang_action:
+            if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
+                raise Exception("You should provide the sum limit for short and long position")
+            if sum_long is not None and sum_short is not None:
+                self.sum_long = sum_long
+                self.sum_short = sum_short
+            if self.constraint != "only_long":
+                low_action = np.ones(self.N_equity)*(-abs(action_bound))-1e-6
+                high_action = np.ones(self.N_equity)*abs(action_bound)+1e-6
+            else:
+                low_action = np.ones(self.N_equity)*1e-7
+                high_action = np.ones(self.N_equity)
+            self.action_space = spaces.Box(low = np.float32(low_action), high = np.float32(high_action))
         else:
-            low_action = np.ones(self.N_equity)*1e-7
-            high_action = np.ones(self.N_equity)
-        self.action_space = spaces.Box(low = np.float32(low_action), high = np.float32(high_action))
+            self.action_space = spaces.Discrete(2)
         high = np.ones(N_equity)*2.5
         low_bound = np.append(-high,0.)
         high_bound = np.append(high,self.T+1./365)
@@ -94,12 +98,16 @@ class TVS_LV(gym.Env):
 #current time start at zero
     def step(self, action): 
         assert self.action_space.contains(action)
-        if self.constraint == "only_long":
-            action = action/np.sum(action)
+        if not self.bang_bang_action:
+            if self.constraint == "only_long":
+                action = action/np.sum(action)
+                s = 1.
+            elif self.constraint == "long_short_limit":
+                action = sign_renormalization(action,self.how_long,self.how_short)
+                s = np.sum(action)
+        else:
+            action = np.array([action, 1.-action])
             s = 1.
-        elif self.constraint == "long_short_limit":
-            action = sign_renormalization(action,self.how_long,self.how_short)
-            s = np.sum(action)
         self.time_index = self.time_index + 1
         self.current_time = self.observation_grid[self.time_index]
         self.current_logX = self.logX_t[self.time_index]
