@@ -30,7 +30,9 @@ Thumbs.db
 [Dd]ebug*/
 *.lib
 *.sbr
+go.py
 obj/
+**/.vscode
 **/__pycache__
 **/.ipynb_checkpoints
 **/logs
