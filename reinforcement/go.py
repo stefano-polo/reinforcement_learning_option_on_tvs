@@ -127,18 +127,18 @@ if __name__ == '__main__':
        restart_training = False,
        env='TVS_LV-v0',#'TVS_simple-v0',
        alg='ppo2',
-       num_layers='3',
-       num_hidden='6',
+       num_layers='4',
+       num_hidden='8',
        num_env='1',
        lr='3e-4',
-       train_timesteps='2.5e8',
+       train_timesteps='5e4',
        test_episodes='1e5',
        print_episodes='1',
        print_period='64',
-       save_interval='1e8',
+       save_interval='60',    
        #activation='sigmoid',
        value_network='copy',
-       custom_suffix='free25_month_observation_seed176970406'   #test on one_month 6,10,1e6
+       custom_suffix='bangbang_month2_observation_seed176970406'   #test on one_month 6,10,1e6
     )
 
     main(cur_args)

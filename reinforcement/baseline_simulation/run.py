@@ -127,9 +127,9 @@ for i in range(Nsim):
        #         if f_bl>=f_base:
         #            counter = counter+1
          #       counter_tot = counter_tot+1
-            norm = np.linalg.norm(action@nu)
+            prod = action@nu
+            norm = np.sqrt(prod@prod)
             omega = target_vol/norm
-        #    lnI_t = lnI_t +omega*action@norm_price[idx] + (1-omega*np.sum(action))*r_t[idx]*dt
             I_t = I_t * (1. + omega*action@norm_price[idx]  + (1 - omega*np.sum(action))*r_t[idx]*dt  )
     f = open(title+"_rank"+str(rank+run)+'.txt',"a")
     #final_price[i] = I_t

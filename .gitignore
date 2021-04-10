@@ -30,11 +30,13 @@ Thumbs.db
 [Dd]ebug*/
 *.lib
 *.sbr
-go.py
+*.prof
+**/go.py
 obj/
 **/.vscode
 **/__pycache__
 **/.ipynb_checkpoints
+**/trained_agents
 **/logs
 [Rr]elease*/
 _ReSharper*/
