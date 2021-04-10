@@ -76,6 +76,8 @@ class TVS_LV(gym.Env):
         self.integral_variance_sqrt =sqrt(self.integral_variance)
         self.integral_variance_sqrt[0,:] = 1
         self.forwards = np.insert(self.model.forward.T,0,self.spot_prices,axis=0)[self.state_index,:]
+        if self.bang_bang_action and self.constraint=="free":
+            raise Exception("You can not use a bang bang strategy with free constraint")
         if not self.bang_bang_action:
             if not self.baseline:
                 if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
@@ -138,8 +140,10 @@ class TVS_LV(gym.Env):
                 elif self.constraint == "free":
                     baseline = Markowitz_solution(self.mu_values[idx],nu,-1)
                     action = action+baseline
-                    s = np.sum(action)                
-            omega = self.target_vol/np.linalg.norm(action@nu)
+                    s = np.sum(action) 
+            prod = action@nu
+            norm = sqrt(prod@prod)               
+            omega = self.target_vol/norm
             self.I_t = self.I_t * (1. + omega * action@self.dS_S[idx] + dt * self.r_t[idx]*(1.-omega*s))
         if self.current_time < self.T:
             done = False
@@ -171,9 +175,9 @@ class TVS_LV(gym.Env):
         self.logX_t = self.simulations_logX[0]
         self.dS_S = self.dS_S_simulations[0]
         self.sigma_t = self.simulations_Vola[0]
-        self.simulations_Vola = np.delete(self.simulations_Vola,0,axis=0)
-        self.dS_S_simulations = np.delete(self.dS_S_simulations,0,axis=0)
-        self.simulations_logX = np.delete(self.simulations_logX,0,axis=0)
+        self.simulations_Vola = self.simulations_Vola[1:,:,:]
+        self.dS_S_simulations = self.dS_S_simulations[1:,:,:]
+        self.simulations_logX = self.simulations_logX[1:,:,:]
         state = np.append(self.logX_t[0], self.current_time)
         return state
 

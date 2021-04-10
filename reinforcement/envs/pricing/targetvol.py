@@ -224,12 +224,17 @@ def Markowitz_solution(mu,nu,sign):
     """Closed form of the optimal strategy"""
     S = nu@nu.T  #covariance matrix
     S_1 = np.linalg.inv(S) #inverse of covariance matrix
-    norm = sign*0.5*np.linalg.norm((S_1@mu)@nu)
-    return 0.5*(1/norm)*(S_1@mu)
+    prod = S_1@mu
+    p_m = prod@nu
+    norm = sqrt(p_m @ p_m)
+    normalization = sign*0.5*norm
+    return 0.5*(1./normalization)*(prod)
 
 def loss_function(x,mu,nu):
     """Target function to minimize"""
-    return (x@mu)/np.linalg.norm(x@nu)
+    prod = x@nu
+    norm = sqrt(prod@prod)
+    return (x@mu)/norm
 
 def optimization_only_long(mu=None, nu=None,seed = 1, N_trial=None, guess = None):
     """Constrained optimization with only long position and sum of weights equal to 1"""
