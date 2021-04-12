@@ -32,7 +32,7 @@ Thumbs.db
 *.lib
 *.sbr
 *.prof
-**/go.py
+reinforcement/go.py
 obj/
 **/.vscode
 **/__pycache__

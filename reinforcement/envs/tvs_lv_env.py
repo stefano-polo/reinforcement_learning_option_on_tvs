@@ -5,7 +5,7 @@ from numpy import log, sqrt, exp
 import numpy as np
 from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, LV_model, ForwardVariance, quad_piecewise
 from envs.pricing.closedforms import European_option_closed_form
-from envs.pricing.targetvol import Drift, Strategy, TVSForwardCurve, TargetVolatilityStrategy, optimization_only_long
+from envs.pricing.targetvol import Drift, Strategy, TVSForwardCurve, CholeskyTDependent, optimization_only_long
 from envs.pricing.fake_market_lv import load_fake_market_lv
 from envs.pricing.loadfromtxt import LoadFromTxt
 from envs.pricing.targetvol import optimization_only_long, Markowitz_solution
@@ -18,7 +18,8 @@ class TVS_LV(gym.Env):
     maturity=2., constraint = "free", action_bound=5., sum_long = None, sum_short=None):
         """Pricing parameters for the option"""
         self.bang_bang_action = 0
-        self.baseline = 1
+        self.frombaseline = 0
+        self.fromblack = 1
         self.constraint = constraint
         self.target_vol = target_volatility
         self.I_0 = I_0
@@ -60,9 +61,17 @@ class TVS_LV(gym.Env):
         """Preparing the LV model"""
         self.model = LV_model(fixings=self.observation_grid[1:], local_vol_curve=LV, forward_curve=F, N_grid = self.N_euler_grid)
         euler_grid = self.model.time_grid
-        if self.baseline:
+        if self.frombaseline or self.fromblack:
             mu_function = Drift(forward_curves=F)
             self.mu_values  = mu_function(np.append(0.,euler_grid[:-1]))
+        if self.fromblack:
+            nu_function = CholeskyTDependent(V, self.correlation_chole)
+            alpha = Strategy()
+            if self.constraint == "only_long":
+                alpha.optimization_constrained(mu=mu_function,nu=nu_function,long_limit=25/100,N_trial=500,typo=1)
+            else: 
+                alpha.Mark_strategy(mu=mu_function,nu=nu_function)
+            self.alpha_t = alpha(self.observation_grid[:-1])
         self.r_t = D.r_t(np.append(0.,euler_grid[:-1]))
         self.discount = D(self.T)
         self.dt_vector = self.model.dt
@@ -76,10 +85,12 @@ class TVS_LV(gym.Env):
         self.integral_variance_sqrt =sqrt(self.integral_variance)
         self.integral_variance_sqrt[0,:] = 1
         self.forwards = np.insert(self.model.forward.T,0,self.spot_prices,axis=0)[self.state_index,:]
+        if self.frombaseline and self.fromblack:
+            raise Exception("You can not start from black and baseline")
         if self.bang_bang_action and self.constraint=="free":
             raise Exception("You can not use a bang bang strategy with free constraint")
         if not self.bang_bang_action:
-            if not self.baseline:
+            if not self.frombaseline and not self.fromblack:
                 if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
                     raise Exception("You should provide the sum limit for short and long position")
                 if sum_long is not None and sum_short is not None:
@@ -107,13 +118,13 @@ class TVS_LV(gym.Env):
     def step(self, action): 
         assert self.action_space.contains(action)
         if not self.bang_bang_action:
-            if self.constraint == "only_long" and not self.baseline:
+            if self.constraint == "only_long" and not self.frombaseline:
                 action = action/np.sum(action)
                 s = 1.
             elif self.constraint == "long_short_limit":
                 action = sign_renormalization(action,self.how_long,self.how_short)
                 s = np.sum(action)
-            elif self.constraint == "free" and not self.baseline:
+            elif self.constraint == "free" and not self.frombaseline:
                 s = np.sum(action)
         else:
             action = np.array([action, 1.-action])
@@ -128,19 +139,25 @@ class TVS_LV(gym.Env):
             idx = index_plus + i 
             Vola =  self.sigma_t[idx]*self.Identity
             nu = Vola@self.correlation_chole
-            if self.baseline and i==0:
-                if self.constraint == "only_long":
-                    baseline = optimization_only_long(self.mu_values[idx], nu,seed=1, guess = np.array(([0.4,0.6],[0.6,0.4])))        
+            if i==0:
+                if self.constraint=='only_long':
+                    if self.frombaseline:
+                        baseline = optimization_only_long(self.mu_values[idx], nu,seed=1, guess = np.array(([0.4,0.6],[0.6,0.4])))        
+                    else:
+                        baseline = self.alpha_t[self.time_index-1]
                     action = action + baseline
                     action[action<0] = 0.
                     if action.any() == np.zeros(self.N_equity).any():
                         action = baseline
                     action = action/np.sum(action)
                     s = 1.
-                elif self.constraint == "free":
-                    baseline = Markowitz_solution(self.mu_values[idx],nu,-1)
-                    action = action+baseline
-                    s = np.sum(action) 
+                elif self.constraint=="free":
+                    if self.frombaseline:
+                        baseline = Markowitz_solution(self.mu_values[idx],nu,-1)        
+                    else:
+                        baseline = self.alpha_t[self.time_index-1]
+                    action = action + baseline
+                    s = np.sum(action)
             prod = action@nu
             norm = sqrt(prod@prod)               
             omega = self.target_vol/norm
