@@ -69,8 +69,8 @@ class Strategy(Curve):
                 self.alpha_t[i] = a_plus
         
         self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous',fill_value="extrapolate", assume_sorted=False)
-        print("Markowitz strategy time grid :",self.T)
-        print("Markowitz strategy : ",self.alpha_t)
+       # print("Markowitz strategy time grid :",self.T)
+        #print("Markowitz strategy : ",self.alpha_t)
 
     def optimization_constrained(self, mu = None, nu = None, long_limit = 25/100, short_limit = 25/100, N_trial = 20, seed = 13, typo = 1):
         Ndim = len(mu(0.))
