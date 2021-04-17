@@ -118,7 +118,9 @@ for i in range(Nsim):
                 else:
                     mu = mu_values[idx]
                     if strategy=="only_long":
-                        action = optimization_only_long(mu, nu,seed=rank, guess = np.array(([0.4,0.6],[0.6,0.4])))
+                        #action = optimization_only_long(mu, nu,seed=rank, guess = np.array(([0.4,0.6],[0.6,0.4])))
+                        action = np.zeros(N_equity) 
+                        action[np.argmax(sigma_t[idx])] = 1. 
                     else:
                         action =  Markowitz_solution(mu,nu,-1)
      #           action2 = alpha(observation_grid[j])
