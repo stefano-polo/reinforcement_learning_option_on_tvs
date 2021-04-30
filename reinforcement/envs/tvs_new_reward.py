@@ -7,16 +7,16 @@ from numpy import log, sqrt, exp
 import numpy as np
 from scipy.integrate import quad
 from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, LV_model, ForwardVariance, quad_piecewise
-from envs.pricing.targetvol import Drift, Strategy, TVSForwardCurve, CholeskyTDependent, optimization_only_long
+from envs.pricing.targetvol import Drift
 from envs.pricing.loadfromtxt import LoadFromTxt
-from envs.pricing.targetvol import optimization_only_long, Markowitz_solution
-from scipy.interpolate import interp1d
+from envs.pricing.targetvol import Markowitz_solution
+from envs.pricing.closedforms import European_option_closed_form
 
 class TVS_LV_newreward(gym.Env):
     """Target volatility strategy Option environment with a Local volatility model for the assets
     """
     def __init__(self, N_equity= 2, frequency = "month", target_volatility=5/100, I_0 = 1., strike_opt=1., 
-    maturity=2., constraint = "only_long", action_bound=5., sum_long = None, sum_short=None):
+    maturity=2., constraint = "free", action_bound=5., sum_long = None, sum_short=None):
         #Simulation parameters
         self.constraint = constraint
         
@@ -132,7 +132,7 @@ class TVS_LV_newreward(gym.Env):
         mu_values = self.mu_function(grid[1:])
         local_drift = np.sum(np.sum(a_bs *mu_values,axis=1)*np.diff(grid))*omega
         forward_tvs = self.I_t * (np.exp(-local_drift)/self.intermidiate_discounts[self.time_index])
-        self.V_t_plus = gem.GemUtility.BS(self.T-self.current_time,forward_tvs,self.strike_opt,self.target_vol,1,self.intermidiate_discounts[self.time_index])[0]
+        self.V_t_plus = European_option_closed_form(forward_tvs, self.strike_opt, self.T-self.current_time,self.intermidiate_discounts[self.time_index] , self.target_vol, 1)
         reward = self.V_t_plus - self.V_t
         
         if self.current_time < self.T:

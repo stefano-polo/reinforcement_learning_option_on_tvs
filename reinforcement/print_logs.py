@@ -4,19 +4,23 @@ import numpy as np
 from matplotlib import ticker
 
 font = 13
-LOG_FOLDER = './logs/TVS_simple-v0/'   #in which folder I find the file to plot
+n_sigma = 1.5
+strategy = 'free'
+
+LOG_FOLDER = './logs/TVS_LV_newreward-v0/'   #in which folder I find the file to plot
 WHICH_LOGS = [
-    ('ppo2_1e8_4x6_3e-4long_month_observation_beta0.7_2.5variance_seed1353720613', 'seed=1353720613'),
+('ppo2_6e7_5x8_3e-4free_no_corr','RL'),
+#('ppo2_3e7_5x8_3e-4free_no_corr2','')
 ]
-X_AXIS_TIMESTEPS = True  # otherwise: episodes
-WINDOW = int(5e5)  # measured in episodes  10000
-join_learning = False   
+X_AXIS_TIMESTEPS = 0  # otherwise: episodes
+WINDOW = int(3e5)  # measured in episodes  10000
+join_learning = 0   
 fig, ax = plt.subplots(1, 1, figsize=(8, 5))
 
 
 if join_learning:
     steps_joined, rewards_joined = join_curves(LOG_FOLDER, WHICH_LOGS, X_AXIS_TIMESTEPS)
-    plot_rolling(steps_joined, rewards_joined, WINDOW, r"$\beta$=0.7 4x6")
+    plot_rolling(steps_joined, rewards_joined*1.0097815717231273, WINDOW, r"RL")  #discount factor
 else:
     for log, title in WHICH_LOGS:
         results = pu.load_results(LOG_FOLDER + log)
@@ -25,17 +29,27 @@ else:
         rewards = r.monitor.r           # episode reward
         plot_rolling(steps, rewards, WINDOW, title)
 
-formatter = ticker.ScalarFormatter(useMathText=True) #scientific notation
-formatter.set_scientific(True)
-formatter.set_powerlimits((-1,1))
-ax.xaxis.set_major_formatter(formatter)
-ax.yaxis.set_major_formatter(formatter)
-plt.axhline(0.026816785924320553, color='red', linestyle = '--',label="3 asset option price")
-plt.axhline(0.02590927186763423,color='blue',linestyle = '--',label="2 asset option price")
+
+if strategy=="only_long":
+    plt.axhline( 0.014129190929724296+2.5447894383989902e-05*n_sigma, color='red', lw=2.5,linestyle = '--',label="BS Strategy")
+    plt.axhline( 0.014129190929724296-2.5447894383989902e-05*n_sigma, color='red',lw=2.5, linestyle = '--')
+    plt.axhline(0.014784083837497124+3.2454334287712235e-05*n_sigma, color='green',lw=2.5, linestyle = '-.',label="Baseline Strategy")
+    plt.axhline(0.014784083837497124-3.2454334287712235e-05*n_sigma, color='green',lw=2.5, linestyle = '-.')
+        
+elif strategy=='free':
+    plt.axhline(0.04095011290308573 +n_sigma*5.007677825957378e-05, color='red', lw=2.5,linestyle = '--',label="BS Strategy")
+    plt.axhline( 0.04095011290308573-n_sigma*5.007677825957378e-05, color='red',lw=2.5, linestyle = '--')
+    plt.axhline(0.04148428380424038+n_sigma* 5.245313523959805e-05, color='green',lw=2.5, linestyle = '-.',label="Baseline Strategy")
+    plt.axhline(0.04148428380424038-n_sigma* 5.245313523959805e-05, color='green',lw=2.5, linestyle = '-.')
 plt.legend()
 plt.grid(True)
 plt.xlabel('Time step' if X_AXIS_TIMESTEPS else 'Episode',fontsize=font)
 plt.ylabel('Episode reward rolling avg [EUR]',fontsize=font)
 plt.title('Learning curve',fontsize=font)
-plt.savefig("Learning_curve_market_original_4x4_8x5.png",bbox_inches='tight',dpi=900)
+formatter = ticker.ScalarFormatter(useMathText=True) #scientific notation
+formatter.set_scientific(True)
+formatter.set_powerlimits((-1,1))
+ax.xaxis.set_major_formatter(formatter)
+#ax.yaxis.set_major_formatter(formatter)
+#plt.savefig("Learning_curve_market_original_4x4_8x5.png",bbox_inches='tight',dpi=900)
 plt.show()

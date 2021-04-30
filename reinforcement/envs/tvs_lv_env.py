@@ -15,10 +15,10 @@ class TVS_LV(gym.Env):
     """Target volatility strategy Option environment with a Local volatility model for the assets
     """
     def __init__(self, N_equity= 2, frequency = "month", target_volatility=5/100, I_0 = 1., strike_opt=1., 
-    maturity=2., constraint = "only_long", action_bound=5., sum_long = None, sum_short=None):
+    maturity=2., constraint = "free", action_bound=5., sum_long = None, sum_short=None):
         """Pricing parameters for the option"""
         self.bang_bang_action = 0
-        self.frombaseline = 1
+        self.frombaseline = 0
         self.fromblack = 0
         self.constraint = constraint
         self.target_vol = target_volatility
@@ -28,8 +28,8 @@ class TVS_LV(gym.Env):
         self.N_equity = N_equity            
         self.T = maturity
         names = ["DJ 50 EURO E","S&P 500 NET EUR"]
-        correlation = np.array(([1.,0.],[0.,1.]))
-        folder_name = "FakeSmiles"
+        correlation = np.array(([1.,0.6],[0.6,1.]))
+        folder_name = "FakeSmilesDisplacedDiffusion"
         ACT = 365.
         """Time grid creation for the simulation"""
         self.Identity = np.identity(self.N_equity)
@@ -118,13 +118,13 @@ class TVS_LV(gym.Env):
     def step(self, action): 
         assert self.action_space.contains(action)
         if not self.bang_bang_action:
-            if self.constraint == "only_long" and not self.frombaseline:
+            if self.constraint == "only_long" and (self.frombaseline or self.fromblack):
                 action = action/np.sum(action)
                 s = 1.
             elif self.constraint == "long_short_limit":
                 action = sign_renormalization(action,self.how_long,self.how_short)
                 s = np.sum(action)
-            elif self.constraint == "free" and not self.frombaseline:
+            elif self.constraint == "free" and not (self.frombaseline or self.fromblack):
                 s = np.sum(action)
         else:
             action = np.array([action, 1.-action])

@@ -4,25 +4,29 @@ from numpy import exp, log, sqrt
 
 
 """Functions for Black & Scholes Formula"""
-def d1(forward = None, strike= None, maturity=None, reference=None, volatility=None):
+def d1(forward = None, strike= None, time_to_maturity=None, reference=None, volatility=None):
     """d_1 function for BS model"""
-    return (log(forward / strike) + 0.5 * (volatility ** 2) * (maturity-reference)) / (volatility * sqrt(maturity-reference))
+    return (log(forward / strike) + 0.5 * (volatility ** 2) * time_to_maturity) / (volatility * sqrt(time_to_maturity))
 
 def d2(forward = None, strike= None, maturity=None, reference=None, volatility=None):
     """d_1 function for BS model"""
     return (log(forward / strike) - 0.5 * (volatility ** 2) * (maturity-reference)) / (volatility * sqrt(maturity-reference))
 
-def European_option_closed_form(forward = None, strike= None, maturity=None, reference=None, zero_interest_rate = None, volatility=None, typo = 1):
+def European_option_closed_form(forward = None, strike= None, time_to_maturity=None, discount = None, volatility=None, typo = 1):
     """Closed form of Call Option for BS model"""
-    d_1 = d1(forward, strike, maturity, reference, volatility)
-    d_2 = d2(forward, strike, maturity, reference, volatility)
-    discount = exp(-zero_interest_rate*(maturity-reference))
-    if typo ==1:
-        """Call option"""
-        return discount * (forward * si.norm.cdf(d_1, 0.0, 1.0) - strike * si.norm.cdf(d_2, 0.0, 1.0))
-    elif typo==-1:
-        """Put option"""
-        return discount * (strike * si.norm.cdf(-d_2, 0.0, 1.0) - forward * si.norm.cdf(-d_1, 0.0, 1.0))
+    if time_to_maturity>1e-14:
+        variance = (volatility ** 2) * time_to_maturity
+        std = sqrt(time_to_maturity)*volatility
+        d_1 = (log(forward / strike) + 0.5*variance)/std
+        d_2 = d_1 - std
+        if typo ==1:
+            """Call option"""
+            return discount * (forward * si.norm.cdf(d_1, 0.0, 1.0) - strike * si.norm.cdf(d_2, 0.0, 1.0))
+        elif typo==-1:
+            """Put option"""
+            return discount * (strike * si.norm.cdf(-d_2, 0.0, 1.0) - forward * si.norm.cdf(-d_1, 0.0, 1.0))
+    else:
+        return np.maximum(typo*(forward - strike),0.)
 
 def Delta(forward = None, strike= None, maturity=None, reference=0, volatility=None):
     return si.norm.cdf(d1(forward, strike, maturity, reference, volatility))

@@ -2,6 +2,7 @@ from pricing.pricing import LV_model
 from pricing.loadfromtxt import LoadFromTxt
 from pricing.targetvol import optimization_only_long, CholeskyTDependent, Strategy,Drift,  Markowitz_solution
 import numpy as np
+import time
 try:
     from mpi4py import MPI
 except ImportError:
@@ -12,19 +13,20 @@ if MPI is None or MPI.COMM_WORLD.Get_rank()==0:
 else:
     rank = MPI.COMM_WORLD.Get_rank()
 
-Nsim = int(8e3)
+t0 = time.clock()
+Nsim = int(1e5)
 run = 0
 Seed = run+rank#3000
-strategy = "only_long"   #free
+strategy = "free"   #free
 #print("Seme ",Seed)
 I_0 = 1.
-restart =1 
+restart =0 
 Black = 0
 daily = 0
 N_equity = 2                                #number of equities
 target_vol = 5./100.
-T = 3.
-title = 'day_new/d'+str(int(T))+'/final_price_lvinvestigation_2_asset_equalrepo_long_Nsim_'+str(Nsim)+'_vola'+str(target_vol)+'_maturity'+str(T)+'_Black'+str(Black)+'_daily'+str(daily)+strategy
+T = 2.
+title = 'new/d'+str(int(T))+'/final_price_lvinvestigation_2_asset_equalrepo_long_Nsim_'+str(Nsim)+'_vola'+str(target_vol)+'_maturity'+str(T)+'_Black'+str(Black)+'_daily'+str(daily)+strategy
 restart_file = 'day_new/d'+str(int(T-1))+'/final_price_lvinvestigation_2_asset_equalrepo_long_Nsim_8000_vola0.05_maturity'+str(T-1)+'_Black'+str(Black)+'_daily'+str(daily)+strategy
 
 if restart:
@@ -56,7 +58,7 @@ simulation_index = 0
 Identity = np.identity(N_equity)
 """Loading market curves"""
 names = ["DJ 50 EURO E","S&P 500 NET EUR"]
-D, F, V, LV = LoadFromTxt(names, "FakeSmiles")
+D, F, V, LV = LoadFromTxt(names, "FakeSmilesDisplacedDiffusion")
 correlation = np.identity(len(names))
 spot_prices = np.ones(len(names))
 for i in range(len(names)):
@@ -120,7 +122,7 @@ for i in range(Nsim):
                     if strategy=="only_long":
                         #action = optimization_only_long(mu, nu,seed=rank, guess = np.array(([0.4,0.6],[0.6,0.4])))
                         action = np.zeros(N_equity) 
-                        action[np.argmax(sigma_t[idx])] = 1. 
+                        action[np.argmax(sigma[idx])] = 1. 
                     else:
                         action =  Markowitz_solution(mu,nu,-1)
      #           action2 = alpha(observation_grid[j])
@@ -144,4 +146,4 @@ for i in range(Nsim):
     simulations_Vola = np.delete(simulations_Vola,0,axis=0)
     dS_S = np.delete(dS_S,0,axis=0)
 
-
+print("EXECUTION TIME",(time.clock()-t0)/3600)
