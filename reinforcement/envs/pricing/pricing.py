@@ -61,21 +61,15 @@ class DiscountingCurve(Curve):
             self.T = ACT_365(dates,self.reference)
         else:
             self.T = abs(dates - self.reference)
-        r_instant = np.array([])
         if self.T[0] ==0:
-            r_zero = np.array([0])   #at reference date the discount is 1
-            r_zero = np.append(r_zero,(-1./((self.T[1:])))*log(discounts[1:]))
-            r_zero[0] = r_zero[1]
-            r_instant = np.array([(-1./self.T[1])*log(discounts[1])])
-            r_instant = np.append(r_instant,(-1./(self.T[2:]-self.T[1:-1]))*log(discounts[2:]/discounts[1:-1]))
-        else:
-            r_zero = (-1./(self.T))*log(discounts)
-            r_instant = np.append(r_instant,(-1./(self.T[1:]-self.T[:-1]))*log(discounts[1:]/discounts[:-1]))
+            self.T = self.T[1:]
+            discounts = discounts[1:]
+        r_zero = (-1./self.T)*log(discounts)
+        r_instant = np.append(r_zero[0],(1./(self.T[:-1]-self.T[1:]))*log(discounts[1:]/discounts[:-1]))
         self.R = interp1d(self.T,r_zero,fill_value="extrapolate") #zero rate from 0 to T1
-        self.r_t = interp1d(self.T[:-1],r_instant,kind='previous',fill_value="extrapolate")  #instant interest rate
+        self.r_t = interp1d(self.T,r_instant,kind='next',fill_value="extrapolate")  #instant interest rate
       #  print("zero interest rate time grid",self.T)
       #  print("zero interest rate: ",r_zero)
-
     def curve(self, date):
         return exp(-self.R(date)*date)
 

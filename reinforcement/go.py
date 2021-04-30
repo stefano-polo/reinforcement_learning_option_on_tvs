@@ -72,7 +72,7 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
 
     if do_train:
        agent_mode='save'
-       seed='83493061'
+       seed='5343061'
        options.append('--log_path=' + log_path)
        options.append('--lr=' + lr)
     else:
@@ -90,7 +90,7 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
             raise Exception("You have to provide the inizial guess where to start the training")
         initial_guess = './trained_agents/'+str(env)+'/'+str(initial_guess)
         args = [
-                '--gamma=1.',
+                '--gamma=0.89',
                 '--env=' + env,
                 '--num_env=' + num_env,
                 '--num_layers=' + num_layers,
@@ -103,7 +103,7 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
             ]
     else:
         args = [
-            '--gamma=1.',
+            '--gamma=0.89',
             '--env=' + env,
             '--num_env=' + num_env,
             '--num_layers=' + num_layers,
@@ -122,23 +122,31 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
 if __name__ == '__main__':
 
     cur_args = build_args(
-       do_train=True,
-       do_test=False,
-       restart_training = False,
-       env='TVS_LV-v0',#'TVS_simple-v0',
+       do_train=1,
+       do_test=0,
+       restart_training = 0,
+       initial_guess='ppo2_1.5e8_5x8_3e-4NEW_PROVA_onlylong_displacedmarket_noise0.05ent0.01_corr06_month_2assets_beta0.7_maturity2_seed5343061',
+       env='TVS_LV_newreward-v0',#'TVS_simple-v0',
        alg='ppo2',
-       num_layers='4',
+       num_layers='5',
        num_hidden='8',
        num_env='1',
        lr='3e-4',
-       train_timesteps='5e4',
-       test_episodes='1e5',
+       train_timesteps='2e4',
+       test_episodes='1e6',
        print_episodes='1',
        print_period='64',
-       save_interval='60',    
+       save_interval='100',    
        #activation='sigmoid',
        value_network='copy',
-       custom_suffix='bangbang_month2_observation_seed176970406'   #test on one_month 6,10,1e6
+       #ent='0.01',
+       noise='0.5',
+       custom_suffix='onlylong_displacedmarket_noise0.05ent0.01_corr06_month_2assets_beta0.7_maturity2_seed5343061_PROVA'   #test on one_month 6,10,1e6
     )
 
     main(cur_args)
+
+
+
+
+            

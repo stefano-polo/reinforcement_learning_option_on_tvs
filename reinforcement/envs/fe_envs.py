@@ -39,3 +39,8 @@ register(
     entry_point='envs.tvs_lv_env:TVS_LV',
 
 )
+register(
+    id='TVS_LV_newreward-v0',
+    entry_point='envs.tvs_new_reward:TVS_LV_newreward',
+
+)
