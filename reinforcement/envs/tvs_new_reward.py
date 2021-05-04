@@ -1,6 +1,4 @@
 import gym
-import envs.GemSessionUtility as gsu
-import pyGem as gem
 from gym import spaces
 from gym.utils import seeding
 from numpy import log, sqrt, exp
