@@ -30,7 +30,7 @@ class TVS_LV_newreward(gym.Env):
         self.V_t_plus = 0. #derivative value at time t+1
 
         names = ["DJ 50 EURO E","S&P 500 NET EUR"]
-        correlation = np.array(([1.,0.6],[0.6,1.]))
+        correlation = np.array(([1.,0.],[0.,1.]))
         folder_name = "FakeSmilesDisplacedDiffusion"
         ACT = 365.
         """Time grid creation for the simulation"""
