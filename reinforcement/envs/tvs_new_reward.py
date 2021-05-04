@@ -144,7 +144,6 @@ class TVS_LV_newreward(gym.Env):
 
            
         state = np.append(self.current_logX, np.array([self.I_t,self.current_time]))
-        print(state)
         return state, reward, done, {}
 
 
