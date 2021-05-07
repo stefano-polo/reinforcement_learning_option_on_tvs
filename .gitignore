@@ -27,6 +27,7 @@ Thumbs.db
 *.toc
 *.run.xml
 *.ilk
+*.bcf
 *.log
 [Bb]in
 [Dd]ebug*/

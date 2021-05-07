@@ -8,13 +8,12 @@ n_sigma = 1.5
 strategy = 'free'
 
 LOG_FOLDER = './logs/TVS_LV_newreward-v0/'   #in which folder I find the file to plot
-WHICH_LOGS = [
-('ppo2_6e7_5x8_3e-4free_no_corr','RL'),
-#('ppo2_3e7_5x8_3e-4free_no_corr2','')
+WHICH_LOGS = [  #("name of the output folder", "legend label")
+#('ppo2_8e7_5x8_3e-4freestrategy_maturity2_monthgrid_noise05_beta07','RL'),
 ]
 X_AXIS_TIMESTEPS = 0  # otherwise: episodes
 WINDOW = int(3e5)  # measured in episodes  10000
-join_learning = 0   
+join_learning = 0  
 fig, ax = plt.subplots(1, 1, figsize=(8, 5))
 
 
@@ -37,10 +36,10 @@ if strategy=="only_long":
     plt.axhline(0.014784083837497124-3.2454334287712235e-05*n_sigma, color='green',lw=2.5, linestyle = '-.')
         
 elif strategy=='free':
-    plt.axhline(0.04095011290308573 +n_sigma*5.007677825957378e-05, color='red', lw=2.5,linestyle = '--',label="BS Strategy")
-    plt.axhline( 0.04095011290308573-n_sigma*5.007677825957378e-05, color='red',lw=2.5, linestyle = '--')
-    plt.axhline(0.04148428380424038+n_sigma* 5.245313523959805e-05, color='green',lw=2.5, linestyle = '-.',label="Baseline Strategy")
-    plt.axhline(0.04148428380424038-n_sigma* 5.245313523959805e-05, color='green',lw=2.5, linestyle = '-.')
+    plt.axhline(0.040947694174563704 +n_sigma*4.325646589751639e-05, color='red', lw=2.5,linestyle = '--',label="BS Strategy")
+    plt.axhline( 0.040947694174563704-n_sigma*4.325646589751639e-05, color='red',lw=2.5, linestyle = '--')
+    plt.axhline(0.04174359990484794+n_sigma*5.798528935881833e-05, color='green',lw=2.5, linestyle = '-.',label="Baseline Strategy")
+    plt.axhline(0.04174359990484794-n_sigma* 5.798528935881833e-05, color='green',lw=2.5, linestyle = '-.')
 plt.legend()
 plt.grid(True)
 plt.xlabel('Time step' if X_AXIS_TIMESTEPS else 'Episode',fontsize=font)

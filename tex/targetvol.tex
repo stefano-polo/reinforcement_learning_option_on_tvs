@@ -3,11 +3,12 @@
 \usepackage[latin1]{inputenc}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
-%\usepackage[outer=5cm, marginparwidth=4.5cm]{geometry}
+\usepackage[outer=3.5cm, marginparwidth=4.5cm]{geometry}
 %\usepackage{marginnote}
 \usepackage{amssymb,amsmath,amsthm,latexsym,amsfonts,amscd,dsfont,enumerate,bbm,mathabx}
 \usepackage{graphicx,tikz}
 \usepackage{draftwatermark}
+\usepackage{enumerate} 
 % \usepackage{listings}
 % \usepackage{booktabs}
 \usepackage{mathtools}
@@ -15,7 +16,7 @@
 % \usepackage{algorithm}
 % \usepackage{algpseudocode}
 \usepackage{soul}
-
+\usepackage{comment}
 
 % \setbeamertemplate{bibliography item}[text]
 % \renewcommand*{\bibfont}{\scriptsize}
@@ -108,6 +109,7 @@
 \newcommand{\onehalf}{\tfrac{1}{2}}
 
 \newcommand{\tr}[1]{{#1}^{\intercal}} %transpose
+\DeclareMathOperator{\Tr}{Tr}
 \let\oldnorm\norm   % <-- Store original \norm as \oldnorm
 \let\norm\undefined % <-- "Undefine" \norm
 \DeclarePairedDelimiter\norm{\lVert}{\rVert}
@@ -138,15 +140,15 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-\title{Optimal Strategies for Target Volatility Contracts}
+\title{Reinforcement Learning for Options on Target Volatility Funds}
 
 \author{
-Roberto Daluiso\thanks{Banca IMI Milan, roberto.daluiso@bancaimi.com}
-\and 
-  Andrea Pallavicini\thanks{Imperial College London and Banca IMI Milan, a.pallavicini@imperial.ac.uk} 
-\and
-  Emanuele Nastasi\thanks{Exprivia, emanuele.nastasi@exprivia.com}
-  \and Stefano Polo \thanks{Intesa Sanpaolo Milan, stefano.polo@intesasanpaolo.com}% indicates same as 2nd thanks
+	Roberto Daluiso\thanks{Intesa Sanpaolo Milan, roberto.daluiso@intesasanpaolo.com}
+	\and 
+	Emanuele Nastasi\thanks{Marketz S.p.A., emanuele.nastasi@marketz.eu}
+	\and Andrea Pallavicini\thanks{Imperial College London and Intesa Sanpaolo Milan, a.pallavicini@imperial.ac.uk} 
+	\and
+	Stefano Polo \thanks{Intesa Sanpaolo Milan, stefano.polo@intesasanpaolo.com}% indicates same as 2nd thanks
 }
 
 \date{
@@ -157,23 +159,23 @@ Roberto Daluiso\thanks{Banca IMI Milan, roberto.daluiso@bancaimi.com}
 \maketitle
 
 \begin{abstract}
-...
+\noindent In recent years Reinforcement Learning (RL) techniques are gaining popularity in the field of quantitative finance since they are proving to be an efficient way to solve  high-dimensional optimal control problems. 
+Our research project is devoted to apply RL to price derivative contracts on target volatility strategies (TVSs), portfolios of risky assets and a risk-free one dynamically rebalanced in order to keep the realized volatility of the portfolio on a certain level. The uncertainty in the TVS risky portfolio composition along with the difference in hedging costs for each component requires to solve a stochastic control problem to evaluate the option prices. The topic of hedging costs is a novelty never dealt in the TVS literature and we provide a formal description of the entire control problem. We tackle the problem by implementing a Reinforcement Learning algorithm to determine the optimal risky portfolio composition leading to the most conservative option price.  We investigate the problem for two models of the risky asset dynamics: time-dependent Black \& Scholes and Local Volatility. In the first case we prove the existence of an analytical solution of the problem; a result that we use as benchmark to perform a series of fine-tuning of the hyper-parameters of the RL algorithm. At the end we provide numerical results for the Local Volatility model, for which an \textit{a priori} solution is not available.
 \end{abstract}
 
 \smallskip
 \noindent
-\textbf{JEL classification codes:} C63, G13.\\
+\textbf{JEL classification codes:} C63, C45, C61, G11, G13.\\
 \textbf{AMS classification codes:} 65C05, 91G20, 91G60.\\
-\textbf{Keywords:} Asset Allocation, Target Volatility, Funding Costs, Hedging Cost, Reinforcement Learning, Proximal policy optimization. 
-\clearpage
+\textbf{Keywords:} Reinforcement Learning, Hedging Costs, Funding Costs, Proximal Policy Optimization, Target Volatility, Asset Allocation. 
+\newpage
 \tableofcontents
- % \vspace{\fill\footnotesize \noindent The opinions here expressed are solely those of the authors and do not represent in any way those of their employers.}
-\clearpage
-\pagestyle{fancy}  
+\newpage
+\pagestyle{myheadings} \markboth{}{{\footnotesize Daluiso, Pallavicini, Nastasi, Polo, Reinforcement Learning for Options on Target Volatility Funds}}
 \section{Introduction}
-In the recent years portfolio managers are exposed to very low interest rates and quickly changing market volatilities. An effective solution to control risks under such environment is given by target volatility strategies (TVSs) (also known as constant volatility targeting) which are able to preserve the portfolio at a predetermined level of volatility. A TVS is  a  portfolio  of  risky  assets  (typically  equities)  and  a  risk-free  asset dynamically re-balanced with the aim of maintaining the overall portfolio volatility level closed to some target value. This products were initially offered in the Asian markets, see for instance the reports of \cite{Chew} and \cite{XUE} which highlight the pros and cons for investors, to be adopted in the following years in many other markets in North America and Europe as depicted in \cite{Morrison}.
+In the recent years portfolio managers are exposed to very low interest rates and quickly changing market volatilities. An effective solution to control risks under such environment is given by target volatility strategies (TVSs) (also known as constant volatility targeting) which are able to preserve the portfolio at a predetermined level of volatility. A TVS is  a  portfolio  of  risky  assets  (typically  equities)  and  a  risk-free  asset dynamically re-balanced with the aim of maintaining the overall portfolio volatility level closed to some target value. This products were initially offered in the Asian markets, see for instance the reports of \textcite{Chew} and \textcite{XUE} which highlight the pros and cons for investors, to be adopted in the following years in many other markets in North America and Europe as depicted in \textcite{Morrison}.
 
-In literature TVSs are tested to investigate their performances in term of realized returns, see for instance \cite{Hocquard28} and \cite{PERCHET}, and the soundness of the volatility targeting algorithm, as described in \cite{Kim}. Moreover, in pricing literature derivative contracts on TVS are studied, see in particular \cite{Di_Graziano}, \cite{Grasselli}, and \cite{Albeverio}. 
+In literature TVSs are tested to investigate their performances in term of realized returns, see for instance \textcite{Hocquard28} and \textcite{PERCHET}, and the soundness of the volatility targeting algorithm, as described in \textcite{Kim}. Moreover, in pricing literature derivative contracts on TVS are studied, see in particular \textcite{Di_Graziano}, \textcite{Grasselli}, and \textcite{Albeverio}. 
 
 In this contribution we study a problem related to TVS. We deal with the funding costs coming from hedging the risky assets underlying the TVS. We consider the point of view of a bank selling a protection to a portfolio manager on the capital invested in a TVS. the portfolio manager has the freedom of changing the relative weights of the risky assets during the life of the TVS. Since the risky assets have different hedging costs, the bank shall adjust the price of the protection to include them in the worst-case scenario. Hence, the pricing problem becomes a dynamical control problem over the risky portfolio composition. In our contribution we describe the dynamical control problem, and we derive an analytical solution in the simple case of the risky assets driven by a Black-Scholes (BS) model. Then, we tackle the problem in the general case by using reinforcement learning (RL) algorithms.
 \\
@@ -206,7 +208,7 @@ where we define the deflated price\footnote{We use bar notation for deflated qua
 \end{equation}
 where $\pi^i_t$ represents the cumulative contractual-coupon process paid by the security, and $\psi_t^i$ represents the cumulative valuation adjustments.
 
-Valuation adjustments (XVAs) is a topic widely discussed in the literature. We refer to \cite{Brigo} for a discussion. Since fund managers allocating TVS usually rely on Equity assets, here we use the results of \cite{Gabrielli} which  analyze the valuation adjustments for equity products. We can write
+Valuation adjustments (XVAs) is a topic widely discussed in the literature. We refer to \textcite{Brigo} for a discussion. Since fund managers allocating TVS usually rely on Equity assets, here we use the results of \textcite{Gabrielli} which  analyze the valuation adjustments for equity products. We can write
 \begin{equation}
     \psi_t^i \coloneqq \int_0^t S_u^i\mu_u^i du,
 \label{eq:XVA_equity}\end{equation}
@@ -255,8 +257,6 @@ where $\mathds{1}$ is a $n$-dimensional vector of ones and $\omega_t\in[0,1]$ is
         \omega_t: \quad \mathrm{Var}_t[dI_t] = \bar{\sigma}^2I_t^2dt,
 \end{equation}
 where $\Bar{\sigma}$ is the target volatility value.
-
-We assume a generic continuous semi-martingale dynamics under the risk-neutral measure for the underlying securities, so that we can write
 In practice, this means that the fund manager will select a risky-portfolio choosing $\alpha_t$ equities from the universe where he can trade and after that his choices will be scaled by the automatic target volatility algorithm\footnote{We recall that the universe of assets where the manager can trade and the value of $\bar{\sigma}$ are written in the contract.} $\omega_t$.
 
 To derive the expression for $\omega_t$ we need to assume a generic continuous semi-martingales dynamics under the risk-neutral measure for the underlying securities, so that we can write \Cref{eq:risk_neutral} as 
@@ -313,17 +313,18 @@ according to a time grid $\mathcal{T}:=\{T_0,...,T_k,...,T_m\}$ with $T_0:=t$ th
 Therefore we can apply the dynamic programming principle to express the optimal $\alpha_t$ at time $T_{k-1}$ as
 \begin{equation}
     \alpha_{T_{k-1}}:=\argmax_{\alpha} \left\{\mathbb{E}_{T_{k-1}}\left[D_{T_{k-1}}\left(T_{k} \right) V_{T_{k}}\left(X_{T_{k}}, I_{T_{k}}(\alpha)\right) \mid X_{T_{k-1}}, I_{T_{k-1}}\right]\right\},
-\end{equation}
+\label{eq:recursion}\end{equation}
 where $V_{T_k}$ is the option value at time $T_k$ and $X$ is any Markovian state such that the drift and the diffusion coefficient of $I_t$ are a function of $\left(X_t,I_t,\alpha_t\right)$. We calculate $I_{T_k}\left(\alpha_{T_{k-1}}\right)$ for any given strategy $\alpha_{T_{k-1}}$ by a suitable discretization of \eqref{eq:TVS_last} starting from $X_{T_{k-1}}$ and $I_{T_{k-1}}$.
 
 Thus the derivative price is given by:
 \begin{equation}
     V_{T_{k-1}}\left(X_{T_{k-1}}, I_{T_{k-1}}\right)=\mathbb{E}_{T_{k-1}}\left[D_{T_{k-1}}\left(T_{k}\right) V_{T_{k}}\left(X_{T_{k}}, I_{T_{k}}\left(\alpha_{T_{k-1}}\right)\right) \mid X_{T_{k-1}}, I_{T_{k-1}}\right],
-\label{recursion}\end{equation}
+\label{eq:recursion2}\end{equation}
 while the iteration starts from maturity date where the boundary condition is set equal to the payoff function:
 \begin{equation}
     V_{T_m} = \Phi\left(I_{T_m}\right).
 \end{equation}
+
 \subsection{Black and Scholes Model}
 In the Black and Scholes model with deterministic rates, we can work with empty $X_t$, since in this case the portfolio dynamics \eqref{eq:TVS_last} is Markovian, leading to an optimal strategy $\alpha_t^*$ which depends in principle only on $I_t$. As a consequence, the local drift can be written as
 \begin{equation}
@@ -415,13 +416,67 @@ A closed form solution to the minimization of the local drift correction \eqref{
 	\]
 \end{proof}
 
+\subsection{Hamilton-Jacobi-Bellman Equation for Target Volatility Options} 
+In this section we want to provide to the reader a formal description of the dynamic problem associated to options on target volatility strategies by writing the Hamilton-Jacobi-Bellman equation for the derivative value. We prove that from this description it is available the same closed formula \eqref{eq:BS_optimal_strategy} for the time-dependent BS model derived from the Gy\"ongy. 
+
+In full generality we suppose that the risky securities follows a generic multidimensional diffusive process $X_t$ given by the following SDE
+\begin{equation}
+		dX_t = M(X_t)dt + \Sigma(X_t) \cdot dW_t.
+\end{equation}
+The TVS dynamics is given as follows 
+\begin{equation}
+	\frac{dI_t}{I_t} = \left(r_t(X_t) -  \frac{\bar{\sigma} \alpha_t}{\|\alpha_t \cdot \nu_t(X_t)\|}  \cdot \mu_t(X_t)    \right)dt +\frac{\bar{\sigma}\alpha_t }{\|\alpha_t \cdot \nu_t(X_t) \|} \cdot \nu_t(X_t) \cdot dW_t
+\end{equation}
+Given $X := X_t$ and $I := I_t$, we can write the HJB equation for $V := V(t,I,X)$ as follows
+\begin{equation}
+	\begin{aligned}
+		\frac{\partial V}{\partial t} + \max_\alpha  \left\{   \left(r_t(X) - \bar{\sigma}\frac{\alpha \cdot \mu_t(X)}{\|\alpha \cdot \nu_t(X)\|}\right) I \frac{\partial V}{\partial I} + (\nabla_X V) \cdot M(X) + \frac{1}{2} \bar{\sigma}^2I^2 \frac{\partial^2V}{\partial I^2}  \right.\\ 
+		\left. +\frac{1}{2}\Tr\left(\tr{\Sigma(X)}(H_XV)\Sigma(X)\right)  + (\nabla_{X,I}V) \cdot \Sigma(X) \cdot \left(I\bar{\sigma}\frac{\alpha \cdot \nu_t(X)}{\|\alpha \cdot \nu_t(X)\|}\right)\right\} = 0,
+	\end{aligned}
+\end{equation}
+where $\Tr(A)$ is the trace operator of $A$, $\nabla_X V$ the gradient of $V$ w.r.t. $X$, $H_XV$ the Hessian matrix of $V$ w.r.t. $X$ and $\nabla_{X,I}V $ is the vector defined by:
+\begin{equation}
+	\nabla_{X,I} V= \tr{\left(\frac{\partial^2 V}{\partial X^1 \partial I},\dots, \frac{\partial^2 V}{\partial X^n \partial I} \right)}.
+\end{equation}
+We take out from the maximum operator all the elements that do not depend on the risky allocation strategy $\alpha$
+\begin{equation}
+	\begin{aligned}
+		\frac{\partial V}{\partial t} +   r_t(X) I \frac{\partial V}{\partial I} + (\nabla_X V) \cdot M(X) + \frac{1}{2} \bar{\sigma}^2I^2 \frac{\partial^2V}{\partial I^2} + \frac{1}{2}\Tr\left(\tr{\Sigma(X)}(H_XV)\Sigma(X)\right)  \\ 
+		+\max_\alpha  \left\{  -\frac{\partial V}{\partial I} I  \bar{\sigma}\frac{\alpha \cdot \mu_t(X)}{\|\alpha \cdot \nu_t(X)\|} + 
+		(\nabla_{X,I}V) \cdot \Sigma(X) \cdot \left(I\bar{\sigma}\frac{\alpha \cdot \nu_t(X)}{\|\alpha \cdot \nu_t(X)\|}\right)\right\} = 0.
+		\end{aligned}
+\label{eq:HJB_general}\end{equation}
+\Cref{eq:HJB_general} represent the Hamilton-Jacobi-Bellman equation describing the TVS dynamic problem for a generic dynamics of the risky securities underlying the portfolio.
+In our work we have that\footnote{We use $\circ$ for the element-wise product between two vectors and between vector and matrix.} $X_t = S_t$, $M(X_t) \coloneqq (r_t\mathds{1} - \mu_t)\circ S_t$ and $\Sigma(X_t) = S_t \circ \nu_t$.
+
+If we assume a time-dependent BS dynamics for the risky equities ($\mu_t$, $r_t$ and $\nu_t$ deterministic), then $V = V(t,I)$ and all the derivatives w.r.t $X$ are all zero. Thus the reduced HJB is
+\begin{equation}
+	\frac{\partial V}{\partial t} +  I r(t)\frac{\partial V}{\partial I}  + \frac{1}{2}\bar{\sigma}^2I^2\frac{\partial^2V}{\partial I^2} + \max_\alpha \left\{ -\frac{\partial V}{\partial I} I  \bar{\sigma}\frac{\alpha \cdot \mu(t)}{\|\alpha \cdot \nu(t)\|}\right\} = 0,
+\end{equation}
+so that if the payoff is increasing in $I_T$ by homogeneity of the SDE we get that $V$ is increasing and so the solution is given by
+\begin{equation}
+ \alpha^*(t) = \argmin_\alpha \frac{\alpha \cdot \mu(t)}{\|\alpha \cdot \nu(t)\|}
+	\end{equation}
+which is the same result expressed in \cref{eq:BS_optimal_strategy}. If the payoff is decreasing in $I_T$ then the solution will be the argmax.
+
+Conversely, if we deal with a LV model for the $S_t$-dynamics, then $\nu_t = \nu(t,S_t)$ and there are no apparent simplifications in \cref{eq:HJB_general} thus we are not able to derive a closed form solution as in BS. In fact in the LV dynamics we have in the maximum operator the first order term derived from the drift of $I_t$ (as in BS) and a second order term which takes into account the volatility's smile functions deriving from the $S_t$-dynamics. 
+
+
 \section{Reinforcement Learning}\label{sec:RL}
-As we have seen previously the determination of the derivative price on the TVS requires to  solve a stochastic control problem with continuous actions. Among the available standard techniques, Reinforcement Learning (RL) represents a new efficient way to solve stochastic optimal control problems in high dimensions.
+As we have discussed previously in the case of general payoffs or risky securities dynamics, one must resort to numerical approaches to solve the stochastic control problem. The standard approach could be to use classical techniques based on backwards recursion \eqref{eq:recursion}-\eqref{eq:recursion2}. However their performances may degrade as the dimension $n$ of the problem increases. In our contribution we adopt a novel technique that is gaining popularity in many scientific branches for solving stochastic optimal control problems: Reinforcement Learning. 
 
- Reinforcement Learning (RL) describes how an agent behaves in an environment so to maximize some notion of cumulative reward. The actions of the agent as a function of his observations of the environment are termed the agent policy.  In our case the policy is the asset allocation weights $\alpha$, while the rewards are the costs generated by hedging a derivative contract on the TVS. Once the agent is trained, and the optimal policy is selected, we can run a Monte Carlo simulation to calculate the option price on the TVS. 
+Reinforcement Learning is a branch of Machine Learning (ML) which allows an artificial agent to interact with an environment through actions and observations in order to maximize total rewards to achieve specific goals. In RL the agent is not told which actions to take but instead it must discover by trial and error which are the behaviors yielding to the greatest reward by trying them several times. This aspect makes RL independent  from pre-collected data as other ML techniques. Because of its nature, RL has been successful in quantitative finance for solving control problems; among the most important RL applications in this field, we refer to \textcite{pioneerrlfinance} as the pioneers in studying self-taught reinforcement trading problems, while to \textcite{rlintroductionfinance} and \textcite{rlfinance} for hedging derivatives with RL under market frictions.
+
+
+\begin{comment}
+\section{Numerical Investigation}
+Dire qui che abbiamo lavorato con l'implementazione di OpenAi 
+
+
+The actions of the agent as a function of its observations of the environment are termed the agent policy.  In our case the policy is the asset allocation weights $\alpha$, while the rewards are the costs generated by hedging a derivative contract on the TVS. Once the agent is trained, and the optimal policy is selected, we can run a Monte Carlo simulation to calculate the option price on the TVS. 
  
- We adopt as learning strategy the PPO algoritm developed in \cite{ppo} and \cite{gae}. We have 
-
+ We adopt as learning strategy the PPO algoritm developed in \textcite{ppo} and \textcite{gae}. We have 
+\end{comment}
 \cleardoublepage
 \printbibliography
 \end{document}
