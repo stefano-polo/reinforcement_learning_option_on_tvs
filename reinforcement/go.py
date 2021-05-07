@@ -72,7 +72,7 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
 
     if do_train:
        agent_mode='save'
-       seed='5343011'
+       seed='43561'
        options.append('--log_path=' + log_path)
        options.append('--lr=' + lr)
     else:
@@ -124,7 +124,8 @@ if __name__ == '__main__':
     cur_args = build_args(
        do_train=1,
        do_test=0,
-       restart_training = 0,
+       restart_training = False,
+       #initial_guess='ppo2_3e7_5x8_3e-4freestrategy_maturity2_monthgrid_noise05_beta07_restarted2',
        env='TVS_LV_newreward-v0',
        alg='ppo2',
        num_layers='5',
@@ -137,7 +138,7 @@ if __name__ == '__main__':
        print_period='64',
        save_interval='200',    
        value_network='copy',
-       noise='0.5',
+       noise='2',
        beta='0.7',
        custom_suffix='freestrategy_maturity2_monthgrid_noise05_beta07'   #test on one_month 6,10,1e6
     )
