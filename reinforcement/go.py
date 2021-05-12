@@ -28,7 +28,7 @@ import envs.fe_envs
 
 def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
                train_timesteps, test_episodes, print_episodes, print_period, activation=None,save_interval=None,
-               value_network=None, lam=None, noise=None, beta=None, ent=None, restart_training=None, initial_guess=None,
+               value_network=None, lam=None, gamma = None, noise=None, beta=None, ent=None, training_seed=None, test_seed=None, restart_training=None, initial_guess=None,
                batch=None, custom_options=None, custom_suffix=None):
     """Utility function for the most common argument configurations."""
 
@@ -36,61 +36,72 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
     options = [] if custom_options is None else custom_options
 
     if activation is not None:
-       custom_suffix = '_' + activation + custom_suffix
+       suffix = '_' + activation + custom_suffix
        options.append('--activation=tf.nn.' + activation)
 
     if value_network is not None:
-       custom_suffix = '_' + value_network + custom_suffix
+       suffix = '_' + value_network + suffix
        options.append('--value_network=' + value_network)
 
     if lam is not None:
-       custom_suffix = '_lam' + lam
+       suffix = '_lam' + lam + suffix
        options.append('--lam=' + lam)
 
     if noise is not None:
-       custom_suffix = '_noise' + noise
+       suffix = '_noise' + noise + suffix
        options.append('--init_logstd=' + noise)
 
     if beta is not None:
-       custom_suffix = '_beta' + beta
+       suffix = '_beta' + beta + suffix
        options.append('--vf_coef=' + beta)
 
     if ent is not None:
-       custom_suffix = '_ent' + ent
+       suffix = '_ent' + ent + suffix
        options.append('--ent_coef=' + ent)
 
     if batch is not None:
-       custom_suffix = '_batch' + batch
+       suffix = '_batch' + batch + suffix
        options.append('--nsteps=' + batch)
+      
+    if gamma is not None:
+       suffix = '_gamma' + gamma + suffix
+       
+         
     
     if save_interval is not None:
         options.append('--save_interval=' + save_interval)
-
+    
+    if training_seed is not None:
+        suffix = '_trainingseed' + training_seed + suffix
+        
     description = '{}_{}_{}x{}_{}{}'.format(alg, train_timesteps, num_layers, num_hidden, lr, suffix)
     log_path='./logs/{}/{}'.format(env, description)
     agent_path='./trained_agents/{}/{}'.format(env, description)  #saving files
 
     if do_train:
        agent_mode='save'
-       seed='43561'
        options.append('--log_path=' + log_path)
        options.append('--lr=' + lr)
+       options.append('--gamma='+gamma)
+       options.append('--seed='+training_seed)
+
     else:
        train_timesteps='0'
        agent_mode='load'
-       seed='1248'
+       
 
     if do_test:
        options.append('--play_episodes=' + test_episodes)
        options.append('--print_episodes=' + print_episodes)
        options.append('--print_period=' + print_period)
+       options.append('--seed='+test_seed)
+       
 
     if do_train and restart_training:
         if initial_guess is None:
             raise Exception("You have to provide the inizial guess where to start the training")
         initial_guess = './trained_agents/'+str(env)+'/'+str(initial_guess)
         args = [
-                '--gamma=1.',
                 '--env=' + env,
                 '--num_env=' + num_env,
                 '--num_layers=' + num_layers,
@@ -99,9 +110,18 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
                 '--{}_path={}'.format(agent_mode, agent_path),
                 '--load_path={}'.format(initial_guess),
                 '--num_timesteps=' + train_timesteps,
-                '--seed=' + seed
             ]
-    else:
+    elif do_train :
+        args = [
+            '--env=' + env,
+            '--num_env=' + num_env,
+            '--num_layers=' + num_layers,
+            '--num_hidden=' + num_hidden,
+            '--alg=' + alg,
+            '--{}_path={}'.format(agent_mode, agent_path),
+            '--num_timesteps=' + train_timesteps,
+        ]
+    elif do_test :
         args = [
             '--gamma=1.',
             '--env=' + env,
@@ -111,7 +131,6 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
             '--alg=' + alg,
             '--{}_path={}'.format(agent_mode, agent_path),
             '--num_timesteps=' + train_timesteps,
-            '--seed=' + seed
         ]
 
     return args + options
@@ -124,23 +143,26 @@ if __name__ == '__main__':
     cur_args = build_args(
        do_train=1,
        do_test=0,
+       test_seed = '114',
+       training_seed="34561",
        restart_training = False,
        #initial_guess='ppo2_3e7_5x8_3e-4freestrategy_maturity2_monthgrid_noise05_beta07_restarted2',
        env='TVS_LV_newreward-v0',
        alg='ppo2',
        num_layers='5',
        num_hidden='8',
-       num_env='27', 
+       num_env='27',
        lr='3e-4',
-       train_timesteps='8e7',
+       gamma = '1.',  #in the test phase is set to 1
+       train_timesteps='1e8',
        test_episodes='1e6',
        print_episodes='1',
        print_period='64',
        save_interval='200',    
        value_network='copy',
-       noise='2',
+       noise='7.',
        beta='0.7',
-       custom_suffix='freestrategy_maturity2_monthgrid_noise05_beta07'   #test on one_month 6,10,1e6
+       custom_suffix='_freestrategy_displacedmarket_2assets_monthgrid_maturity2_strikeatm'   #test on one_month 6,10,1e6
     )
 
     main(cur_args)
