@@ -122,8 +122,8 @@ def build_args(do_train,do_test, env, alg, num_layers, num_hidden, num_env, lr,
 
 if __name__ == '__main__':
     cur_args = build_args(
-        do_train=True,
-        do_test=False,
+        do_train=False,
+        do_test=True,
         test_seed='114',
         training_seed='34561',
         env='TVS_LV_newreward-v0',
