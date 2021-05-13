@@ -1,9 +1,10 @@
+from baselines.common.math_util import discount
 import matplotlib.pyplot as plt 
 import numpy as np
 
 ### RL Test Result ####
-MC_price = 
-MC_error =  
+MC_price = 0
+MC_error =  0
 
 ### BS PRICE ###
 BS_Price = 0.040947694174563704 
@@ -12,6 +13,10 @@ BS_Price_error = 4.325646589751639e-05
 ### Baseline Price ###
 Baseline_price = 0.04174359990484794
 Baseline_price_error = 5.798528935881833e-05 
+
+discount_factor = 1.0097815717231273
+MC_price = MC_price * discount_factor
+MC_error = MC_error * discount_factor
 
 n_sigma = 2.55
 MC_error = MC_error * n_sigma
