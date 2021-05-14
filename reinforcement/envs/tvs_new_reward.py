@@ -17,7 +17,7 @@ class TVS_LV_newreward(gym.Env):
     maturity=2., constraint = "free", action_bound=5., sum_long = None, sum_short=None):
         #Simulation parameters
         self.constraint = constraint
-        
+        self.from_baseline = 1
         self.target_vol = target_volatility
         self.N_equity = N_equity            
         self.strike_opt = strike_opt
@@ -60,9 +60,9 @@ class TVS_LV_newreward(gym.Env):
             self.spot_prices[i] = F[i].spot
         """Preparing the LV model"""
         self.model = LV_model(fixings=self.observation_grid[1:], local_vol_curve=LV, forward_curve=F, N_grid = self.N_euler_grid)
-        euler_grid = self.model.time_grid
+        self.euler_grid = self.model.time_grid
         """Discount part"""
-        self.r_t = D.r_t(np.append(0.,euler_grid[:-1]))
+        self.r_t = D.r_t(np.append(0.,self.euler_grid[:-1]))
         self.discount = D(self.T)
         self.intermidiate_discounts = D(self.T)/D(self.observation_grid)
         self.dt_vector = self.model.dt
@@ -80,8 +80,12 @@ class TVS_LV_newreward(gym.Env):
         self.integral_variance_sqrt[0,:] = 1
         self.forwards = np.insert(self.model.forward.T,0,self.spot_prices,axis=0)[self.state_index,:]
         if self.constraint == "free":
-            low_action = np.ones(self.N_equity)*(-abs(action_bound))
-            high_action = np.ones(self.N_equity)*abs(action_bound)
+            if not self.from_baseline:
+                low_action = np.ones(self.N_equity)*(-abs(action_bound))
+                high_action = np.ones(self.N_equity)*abs(action_bound)
+            elif self.from_baseline:
+                low_action = np.ones(self.N_equity)*-1.
+                high_action = np.ones(self.N_equity)
         elif self.constraint == "only_long":
             low_action = np.ones(self.N_equity)*1e-10
             high_action = np.ones(self.N_equity)
@@ -95,10 +99,11 @@ class TVS_LV_newreward(gym.Env):
 #current time start at zero
     def step(self, action): 
         assert self.action_space.contains(action)
+        s = 0.
         if self.constraint == "only_long":
             action = action/np.sum(action)
             s = 1.
-        elif self.constraint == "free":
+        elif self.constraint == "free" and not self.from_baseline:
             s = np.sum(action)
         
         self.time_index = self.time_index + 1
@@ -111,12 +116,17 @@ class TVS_LV_newreward(gym.Env):
             idx = index_plus + i 
             Vola =  self.sigma_t[idx]*self.Identity
             nu = Vola@self.correlation_chole
+            if self.from_baseline and i ==0:
+                baseline = Markowitz_solution(self.mu_function(self.euler_grid[idx]),nu,-1)
+                action = action + baseline
+                s = np.sum(action)
             prod = action@nu
             norm = sqrt(prod@prod)               
             omega = self.target_vol/norm
             self.I_t = self.I_t * (1. + omega * action@self.dS_S[idx] + dt * self.r_t[idx]*(1.-omega*s))
         
-        """Evaluation of the reward"""
+        ## Evaluation of the reward
+        a_bs = 0.
         if self.constraint=="free":
             a_bs = Markowitz_solution(self.mu_function(self.current_time),nu,-1)
         else:

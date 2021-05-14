@@ -132,7 +132,6 @@ if __name__ == '__main__':
         num_hidden='8',
         num_env='27',
         lr='3e-4',
-        gamma='0.85',  #in the test phase it is set to 1
         train_timesteps='8e7',
         test_episodes='1e6',
         print_episodes='1',
@@ -140,6 +139,6 @@ if __name__ == '__main__':
         save_interval='200',    
         value_network='copy',
         beta='0.7',
-        custom_suffix='_freestrategy_displacedmarket_2assets_monthgrid_maturity2_strikeatm'   #test on one_month 6,10,1e6
+        custom_suffix='freestrategyfrombaseline_displacedmarket_2assets_monthgrid_maturity2'   #test on one_month 6,10,1e6
         )
     main(cur_args)
