@@ -3,7 +3,7 @@
 \usepackage[latin1]{inputenc}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
-\usepackage[outer=3.5cm, marginparwidth=4.5cm]{geometry}
+\usepackage[outer=4cm, marginparwidth=4.5cm]{geometry}
 %\usepackage{marginnote}
 \usepackage{amssymb,amsmath,amsthm,latexsym,amsfonts,amscd,dsfont,enumerate,bbm,mathabx}
 \usepackage{graphicx,tikz}
@@ -116,7 +116,7 @@
 
 \newcommand{\rec}{R}
 \newcommand{\lgd}{\mbox{L{\tiny GD}}}
-
+\newcommand{\virgolette}[1]{``#1''}
 \newcommand{\pvcall}{{\mathcal{C}}}
 \newcommand{\pvput}{{\mathcal{P}}}
 
@@ -294,7 +294,7 @@ where the local drift is defined as
 \end{equation}
 and $W_t^{\text{MP}}$ is a Brownian motion under the risk-neutral measure. Notice that the diffusion coefficient collapses to the target volatility value $\bar{\sigma}$. Since European payoffs depends only on the marginal distribution at maturity, they can be calculated by means of the Markovian projection $I_t^{\text{MP}}$, namely
 \begin{equation}
-V_0 \coloneqq \sup_{\alpha} \mathbb{E}_0\left[D_0\left(T\right)\Phi\left(I_T^{\text{MP}}\left(\alpha\right)\right)\right].
+V_0 \coloneqq \sup_{\alpha} \mathbb{E}_0\left[D\left(0,T;\zeta\right)\Phi\left(I_T^{\text{MP}}\left(\alpha\right)\right)\right].
 \end{equation}
 Hence, we have our first result valid only if valuation adjustments can be neglected:
 \begin{proposition}
@@ -312,13 +312,13 @@ In presence of valuation adjustments we need to solve the full optimization prob
 according to a time grid $\mathcal{T}:=\{T_0,...,T_k,...,T_m\}$ with $T_0:=t$ the pricing date and $T_m :=T$ the maturity of the option. 
 Therefore we can apply the dynamic programming principle to express the optimal $\alpha_t$ at time $T_{k-1}$ as
 \begin{equation}
-    \alpha_{T_{k-1}}:=\argmax_{\alpha} \left\{\mathbb{E}_{T_{k-1}}\left[D_{T_{k-1}}\left(T_{k} \right) V_{T_{k}}\left(X_{T_{k}}, I_{T_{k}}(\alpha)\right) \mid X_{T_{k-1}}, I_{T_{k-1}}\right]\right\},
+    \alpha_{T_{k-1}}:=\argmax_{\alpha} \left\{\mathbb{E}_{T_{k-1}}\left[D\left(T_{k-1},T_{k} \right) V_{T_{k}}\left(X_{T_{k}}, I_{T_{k}}(\alpha)\right) \mid X_{T_{k-1}}, I_{T_{k-1}}\right]\right\},
 \label{eq:recursion}\end{equation}
 where $V_{T_k}$ is the option value at time $T_k$ and $X$ is any Markovian state such that the drift and the diffusion coefficient of $I_t$ are a function of $\left(X_t,I_t,\alpha_t\right)$. We calculate $I_{T_k}\left(\alpha_{T_{k-1}}\right)$ for any given strategy $\alpha_{T_{k-1}}$ by a suitable discretization of \eqref{eq:TVS_last} starting from $X_{T_{k-1}}$ and $I_{T_{k-1}}$.
 
 Thus the derivative price is given by:
 \begin{equation}
-    V_{T_{k-1}}\left(X_{T_{k-1}}, I_{T_{k-1}}\right)=\mathbb{E}_{T_{k-1}}\left[D_{T_{k-1}}\left(T_{k}\right) V_{T_{k}}\left(X_{T_{k}}, I_{T_{k}}\left(\alpha_{T_{k-1}}\right)\right) \mid X_{T_{k-1}}, I_{T_{k-1}}\right],
+    V_{T_{k-1}}\left(X_{T_{k-1}}, I_{T_{k-1}}\right)=\mathbb{E}_{T_{k-1}}\left[D\left(T_{k-1},T_{k}\right) V_{T_{k}}\left(X_{T_{k}}, I_{T_{k}}\left(\alpha_{T_{k-1}}\right)\right) \mid X_{T_{k-1}}, I_{T_{k-1}}\right],
 \label{eq:recursion2}\end{equation}
 while the iteration starts from maturity date where the boundary condition is set equal to the payoff function:
 \begin{equation}
@@ -326,7 +326,7 @@ while the iteration starts from maturity date where the boundary condition is se
 \end{equation}
 
 \subsection{Black and Scholes Model}
-In the Black and Scholes model with deterministic rates, we can work with empty $X_t$, since in this case the portfolio dynamics \eqref{eq:TVS_last} is Markovian, leading to an optimal strategy $\alpha_t^*$ which depends in principle only on $I_t$. As a consequence, the local drift can be written as
+In the \textcite{BlackScholes} model with deterministic rates, we can work with empty $X_t$, since in this case the portfolio dynamics \eqref{eq:TVS_last} is Markovian, leading to an optimal strategy $\alpha_t^*$ which depends in principle only on $I_t$. As a consequence, the local drift can be written as
 \begin{equation}
      \ell \left(t,K\right) = \bar{\sigma}   \frac{\mu\left(t\right) \cdot \alpha\left(t,K\right)}{\|\alpha\left(t,K\right) \cdot \nu\left(t\right)\|},  
 \end{equation}
@@ -335,12 +335,20 @@ so that the optimization problem can be solved looking only at the Markovian pro
 A direct consequence is the following proposition, which is relevant for plain vanilla options on TVS.
 
 \begin{proposition}
-When the underlying securities follow a Black and Scholes model with deterministic rates, the optimal strategy for a monotone payoff consists in minimizing the local drift function, indipendently of the current state $I_t$
+When the underlying securities follow a Black and Scholes (BS) model with deterministic rates, the optimal strategy for a monotone payoff consists in minimizing the local drift function, indipendently of the current state $I_t$
 \begin{equation}
     \alpha^*(t) \coloneqq \argmin_\alpha \frac{\alpha \cdot \mu(t)}{\|\alpha \cdot \nu(t) \|}.
 \label{eq:BS_optimal_strategy}\end{equation}
 \end{proposition}
-The absence of stochastic elments in \Cref{eq:BS_optimal_strategy} makes the optimal strategy known \textit{a priori}; in fact one can solve the optimization problema once for all for each $t \in \mathcal{T}$ just looking at the market data $\mu(t)$ and $\nu(t)$ for the securities. Once $\alpha^*$ is known, then one can price the payoff by Monte Carlo simulation. 
+The absence of stochastic elments in \Cref{eq:BS_optimal_strategy} makes the optimal strategy known \textit{a priori}; in fact one can solve the optimization problema once for all for each $t \in \mathcal{T}$ just looking at the market data $\mu(t)$ and $\nu(t)$ for the securities. Once $\alpha^*$ is known, then one can price the payoff by the following BS formula
+\begin{equation}
+	V_0^{BS} = BS(F^{\text{TVS}}(0,T;\alpha^*), K, T, \bar{\sigma}, D(0,T;\zeta)),
+\end{equation}
+where $F^{\text{TVS}}(t,T;\alpha)$ is the TVS forward curve defined by
+\begin{equation}
+	F^{\text{TVS}}(t,T;\alpha) = I_t \exp\left[\int_t^T\left(r(u)-\bar{\sigma}\frac{\alpha(u)\cdot \mu(u)}{\|\alpha(u)\cdot \nu(u)\|}\right)du\right],
+\end{equation}
+while $BS(F,K,T,\sigma,D)$ is the standard BS formula for an European option with forward curve $F$, strike $K$, time to maturity $T$, volatility $\sigma$ and discount factor $D$.  
 \subsubsection{Black's Closed form solution}
 In absence of constraints on the allocation strategy, we are able to derive a closed form solution to the BS problem \eqref{eq:BS_optimal_strategy}
 \begin{lemma}
@@ -416,7 +424,7 @@ A closed form solution to the minimization of the local drift correction \eqref{
 	\]
 \end{proof}
 
-\subsection{Hamilton-Jacobi-Bellman Equation for Target Volatility Options} 
+\subsection{Hamilton-Jacobi-Bellman Equation for Target Volatility Options}\label{subsec:HJB}
 In this section we want to provide to the reader a formal description of the dynamic problem associated to options on target volatility strategies by writing the Hamilton-Jacobi-Bellman equation for the derivative value. We prove that from this description it is available the same closed formula \eqref{eq:BS_optimal_strategy} for the time-dependent BS model derived from the Gy\"ongy. 
 
 In full generality we suppose that the risky securities follows a generic multidimensional diffusive process $X_t$ given by the following SDE
@@ -457,7 +465,7 @@ so that if the payoff is increasing in $I_T$ by homogeneity of the SDE we get th
 \begin{equation}
  \alpha^*(t) = \argmin_\alpha \frac{\alpha \cdot \mu(t)}{\|\alpha \cdot \nu(t)\|}
 	\end{equation}
-which is the same result expressed in \cref{eq:BS_optimal_strategy}. If the payoff is decreasing in $I_T$ then the solution will be the argmax.
+which is the same result expressed in \cref{eq:BS_optimal_strategy}. If the payoff is decreasing in $I_T$ then the solution will be the $\argmax$.
 
 Conversely, if we deal with a LV model for the $S_t$-dynamics, then $\nu_t = \nu(t,S_t)$ and there are no apparent simplifications in \cref{eq:HJB_general} thus we are not able to derive a closed form solution as in BS. In fact in the LV dynamics we have in the maximum operator the first order term derived from the drift of $I_t$ (as in BS) and a second order term which takes into account the volatility's smile functions deriving from the $S_t$-dynamics. 
 
@@ -465,7 +473,42 @@ Conversely, if we deal with a LV model for the $S_t$-dynamics, then $\nu_t = \nu
 \section{Reinforcement Learning}\label{sec:RL}
 As we have discussed previously in the case of general payoffs or risky securities dynamics, one must resort to numerical approaches to solve the stochastic control problem related to the TVS. The standard approach could be to use classical techniques based on backwards recursion \eqref{eq:recursion}-\eqref{eq:recursion2}. However their performances may degrade as the dimension $n$ of the problem increases. In our contribution we adopt a novel technique that is gaining popularity in many scientific branches for solving stochastic optimal control problems: Reinforcement Learning. 
 
-Reinforcement Learning is a branch of Machine Learning (ML) which allows an artificial agent to interact with an environment through actions and observations in order to maximize total rewards to achieve specific goals. In RL the agent is not told which actions to take but instead it must discover by trial and error which are the behaviors yielding to the greatest reward by trying them several times. This is obtained by updating the agent policy which is  This peculiarity makes RL independent from pre-collected data as other ML techniques. Because of its nature, RL has been successful in quantitative finance for solving control problems; among the most important RL applications in this field, we refer to \textcite{pioneerrlfinance} as the pioneers in studying self-taught reinforcement trading problems, while to \textcite{rlintroductionfinance} and \textcite{rlfinance} for hedging derivatives with RL under market frictions.
+Reinforcement Learning is a branch of Machine Learning (ML) which allows an artificial agent to interact with an environment through actions and observations in order to maximize total rewards to achieve specific goals. In RL the agent is not told which actions to take but instead it must discover by trial and error which are the behaviors yielding to the greatest reward by trying them several times. This is obtained by updating the agent policy $\pi$ which is a mapping from the environment states to the set of actions. Thus RL is independent from pre-collected data as opposed to other ML techniques. Because of its nature, RL has been successful in quantitative finance for solving control problems; among the most important RL applications in this field, we refer to \textcite{pioneerrlfinance} as the pioneers in studying self-taught reinforcement trading problems, while to \textcite{rlintroductionfinance} and \textcite{rlfinance} for hedging derivatives with RL under market frictions.
+
+In our work we adopt as learning strategy the Proximal Policy Optimization (PPO) developed in \textcite{ppo} and \textcite{gae}. PPO is an actor-critic algorithm well-suited for continuous control problems. The term \virgolette{actor-critic} means that it estimates the value function  $J$, which represents the expected value of future rewards, and updates the policy in the direction suggested by $J$. In PPO the policy distribution and the value function are parameterized by a set of parameters $\theta$: $J^\theta$, $\pi^\theta$. The PPO collects a small batch of experiences interacting with the environment to update $\theta$ by computing an estimator of the policy gradient and plugging it into a stochastic gradient ascent algorithm in order to maximize an objective function $L^{\text{PPO}}$. The PPO objective is defined as
+\begin{equation}
+	L^{\text{PPO}} = L^\pi - c_1 L^J + c_2 L^{E}
+\end{equation}
+where $L^\pi$ is the policy surrogate, $L^J$ the value function error term and $L^E$ the entropy bonus, while $c_1$ and $c_2$ are hyper-parameters of the algorithm. We refer to \textcite{ppo} for a deeper description of those terms. 
+ We use the PPO implementation found in \textsc{OpenAI Baselines} \citep{baselines}, where the parameterization procedure is performed by using artificial neural networks (ANNs), where the set of parameters $\theta$ are the hidden weights of the networks. In the following section we describe the the way we have formalized the TVS problem in the Reinforcement Learning framework.
+ 
+ \subsection{Episode Description: Agent-Environment Interaction}
+ We consider an episode $\tau$ of length $m+1$ that takes place on a discrete time-grid of fixing times $\mathcal{T}:=\{T_0,...,T_k,...,T_m\}$ with $T_0:=0$ and $T_m=T$ maturity of the option. At a given episodic time $T_k$ the RL agent interacts with the environment: it receives a representation of the environment called state $s_k$ and on the basis of that it selects an action $a_k$ sampling from the current policy $\pi^\theta_k$.
+ In our case the agent can choose the composition of the risky asset portfolio, so that the policy is the asset allocation weights $\alpha$. From the HJB equation we have derived in section \Cref{subsec:HJB}, we select as state of th environment the following block
+ \begin{equation}
+ 	s_{k} \coloneqq \left[T_k,I_{T_k}, S_{T_k}\right] \quad \forall T_k \in \mathcal{T}.
+ \label{eq:state}\end{equation}
+ This state contains all the informations needed by the agent to take an optimal action, leading to the maximum option price on the TVS. 
+ Once the agent has selected the action $a_k$, it receives the next time $T_{k+1}$ a reward $r_{k+1}$ generated by the environment defined by
+ \begin{equation}
+ 	r_{k+1} \coloneqq  \gamma^{k}[V_{\text{BS}}(T_{k+1})-V_\text{\text{BS}}(T_k)],
+ \label{eq:reward}\end{equation}
+where $\gamma \in[0,1]$ is an hyper-parameter of the PPO, while $V_{\text{BS}}(T_k)$ is the BS price as proxy of the residual option price defined by
+\begin{equation}
+	V_{\text{BS}}(T_k) \coloneqq BS(F^{\text{TVS}}(T_k,T;\alpha^*_{\text{BS}}),K,T-T_k,\bar{\sigma},D(T_k,T;\zeta)) \quad \text{and} \quad V(T_0)=0
+\end{equation} 
+with $\alpha^*_{BS}$ the BS optimal strategy \eqref{eq:BS_optimal_strategy} calculated in the state $s_k$. The parameter $\gamma$ plays the role of a discount rate in the sense that, as $\gamma$ approaches to zero, the RL agent will tend to maximize immediate rewards while neglecting possible larger rewards in the future. Choosing $\gamma<1$ introduces a bias in the final result.
+If we take the cumulative reward per episode and set $\gamma =1$ we obtain
+\begin{equation}
+	R(\tau) = \sum_{k=0}^{m-1} r_{k+1} = \sum_{k=0}^{m-1}[V_{\text{BS}}(T_{k+1})-V_\text{\text{BS}}(T_k)] = V_{BS}(T) = (I_T-K)^+,
+\end{equation} 
+which is equal to the intrinsic value of the option. This result does not depend on the definition of $V_{\text{BS}}$  $\forall T_k<T$, but we think that the closer $V_{\text{BS}}$ is to the value function, the easier the agent is in learning.
+
+ Thus one can train the agent choosing $\gamma\in[0,1]$, and then run, as test phase, a Monte Carlo (MC) simulation with $\gamma=1$, where, if the agent has reached the optimal policy $\pi^* = \pi^{\theta^*}$, the average of $R(\tau$) along different episodes will match the optimal undiscounted price of the derivative contract on the TVS.  
+
+\subsection{Policy and Action Parameterization}
+As discussed before, PPO parameterizes the agent policy by means of an artificial neural network. In our case we use a feed forward neural network (FFNN), a network with an acyclic topology and completely characterized by the following hyper-parameters: number of hidden layers $N$, number of neurons per hidden layer $M$, activation function per hidden layer and output activation function. The number of output neurons is fixed by the action space dimension, which is the number of assets $n$ in the risky portfolio, while the number of  input neurons is determined by the dimensionality of the state \eqref{eq:state}, $n+2$.
+
 
 
 
