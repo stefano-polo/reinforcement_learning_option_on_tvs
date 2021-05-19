@@ -127,8 +127,8 @@ if __name__ == '__main__':
         test_seed='114',
         training_seed='20319',
         env='TVS_LV_newreward-v0',
+        gamma='0.95',
         alg='ppo2',
-        gamma = '0.95', 
         num_layers='5',
         num_hidden='8',
         num_env='27',
@@ -140,6 +140,7 @@ if __name__ == '__main__':
         save_interval='200',    
         value_network='copy',
         beta='0.7',
-        custom_suffix='freestrategyfrombaseline_displacedmarket_2assets_monthgrid_maturity2'   #test on one_month 6,10,1e6
+        noise='1.',
+        custom_suffix='freefrombaseline_displacedmarket_2assets_monthgrid_maturity2'   #test on one_month 6,10,1e6
         )
     main(cur_args)

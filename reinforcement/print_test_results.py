@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 ### RL Test Result ####
-MC_price = 0
-MC_error =  0
+MC_price = 0.04105623158024169
+MC_error =  5.0366052653869903e-05
 
 ### BS PRICE ###
 BS_Price = 0.040947694174563704 

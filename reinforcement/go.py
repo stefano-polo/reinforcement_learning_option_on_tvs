@@ -140,6 +140,7 @@ if __name__ == '__main__':
         save_interval='200',    
         value_network='copy',
         beta='0.7',
-        custom_suffix='freestrategyfrombaseline_displacedmarket_2assets_monthgrid_maturity2'   #test on one_month 6,10,1e6
+        noise='1.',
+        custom_suffix='freefrombaseline_displacedmarket_2assets_monthgrid_maturity2'   #test on one_month 6,10,1e6
         )
     main(cur_args)
