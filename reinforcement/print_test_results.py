@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 ### RL Test Result ####
-MC_price = 0.04105623158024169
+MC_price = 0.041024303986084185
 MC_error =  5.0366052653869903e-05
 
 ### BS PRICE ###
@@ -11,12 +11,15 @@ BS_Price = 0.040947694174563704
 BS_Price_error = 4.325646589751639e-05
 
 ### Baseline Price ###
-Baseline_price = 0.04174359990484794
-Baseline_price_error = 5.798528935881833e-05 
+Baseline_price = 0.04108567123304307
+Baseline_price_error = 5.03916718605177e-05
 
 discount_factor = 1.0097815717231273
 MC_price = MC_price * discount_factor
 MC_error = MC_error * discount_factor
+
+Baseline_price = Baseline_price*discount_factor
+Baseline_price_error = Baseline_price_error*discount_factor
 
 n_sigma = 2.55
 MC_error = MC_error * n_sigma

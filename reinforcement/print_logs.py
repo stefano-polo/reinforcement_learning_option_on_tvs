@@ -9,17 +9,18 @@ strategy = 'free'
 
 LOG_FOLDER = './logs/TVS_LV_newreward-v0/'   #in which folder I find the file to plot
 WHICH_LOGS = [  #("name of the output folder", "legend label")
-#('ppo2_8e7_5x8_3e-4freestrategy_maturity2_monthgrid_noise05_beta07','RL'),
+('ppo2_9e7_2x8_3e-4_trainingseed20319_beta0.7_copyfreefrombaseline_displacedmarket_2assets_monthgrid_maturity2','RL'),
 ]
 X_AXIS_TIMESTEPS = 0  # otherwise: episodes
 WINDOW = int(3e5)  # measured in episodes  10000
 join_learning = 0  
 fig, ax = plt.subplots(1, 1, figsize=(8, 5))
 
+discount = 1.0097815717231273
 
 if join_learning:
     steps_joined, rewards_joined = join_curves(LOG_FOLDER, WHICH_LOGS, X_AXIS_TIMESTEPS)
-    plot_rolling(steps_joined, rewards_joined*1.0097815717231273, WINDOW, r"RL")  #discount factor
+    plot_rolling(steps_joined, rewards_joined*discount, WINDOW, r"RL")  #discount factor
 else:
     for log, title in WHICH_LOGS:
         results = pu.load_results(LOG_FOLDER + log)
@@ -38,8 +39,8 @@ if strategy=="only_long":
 elif strategy=='free':
     plt.axhline(0.040947694174563704 +n_sigma*4.325646589751639e-05, color='red', lw=2.5,linestyle = '--',label="BS Strategy")
     plt.axhline( 0.040947694174563704-n_sigma*4.325646589751639e-05, color='red',lw=2.5, linestyle = '--')
-    plt.axhline(0.04174359990484794+n_sigma*5.798528935881833e-05, color='green',lw=2.5, linestyle = '-.',label="Baseline Strategy")
-    plt.axhline(0.04174359990484794-n_sigma* 5.798528935881833e-05, color='green',lw=2.5, linestyle = '-.')
+    plt.axhline((0.04108567123304307+n_sigma*5.03916718605177e-05)*discount, color='green',lw=2.5, linestyle = '-.',label="Baseline Strategy")
+    plt.axhline((0.04108567123304307-n_sigma* 5.03916718605177e-05)*discount, color='green',lw=2.5, linestyle = '-.')
 plt.legend()
 plt.grid(True)
 plt.xlabel('Time step' if X_AXIS_TIMESTEPS else 'Episode',fontsize=font)

@@ -111,6 +111,7 @@ class TVS_LV_newreward(gym.Env):
         self.current_logX = self.logX_t[self.time_index]
         dt = self.dt_vector[self.time_index-1]
         index_plus = (self.time_index-1)*self.N_euler_grid
+
         """Simulation of I_t"""
         for i in range(self.N_euler_grid):
             idx = index_plus + i 
@@ -120,6 +121,7 @@ class TVS_LV_newreward(gym.Env):
                 baseline = Markowitz_solution(self.mu_function(self.euler_grid[idx]),nu,-1)
                 action = action + baseline
                 s = np.sum(action)
+                
             prod = action@nu
             norm = sqrt(prod@prod)               
             omega = self.target_vol/norm
