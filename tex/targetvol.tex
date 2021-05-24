@@ -69,7 +69,7 @@
 \hypersetup{
 	colorlinks=true,breaklinks=true,
 	urlcolor= mydarkblue,linkcolor= mydarkblue,citecolor= mydarkgreen,
-	pdfauthor={Daluiso, R., Pallavicini, A., Nastasi, E., Polo, S.},
+	pdfauthor={Daluiso, R., Nastasi, E., Pallavicini, A., Polo, S.},
 }
 \usepackage[backend=biber,style=authoryear-comp,maxcitenames=2,sorting=nyt,natbib=true,sortcites=false]{biblatex}
 \addbibresource{Bib.bib}
@@ -132,7 +132,7 @@
 \usepackage{fancyhdr}
 \renewcommand{\headrulewidth}{0pt}
 \fancyhead[R]{}
-\lhead{\footnotesize\slshape Daluiso, Pallavicini, Nastasi, Polo, Optimal Strategies for Target Volatility Contracts}
+\lhead{\footnotesize\slshape Daluiso, Nastasi, Pallavicini, Polo, Optimal Strategies for Target Volatility Contracts}
 \chead{}
 \rhead{\thepage}
 \lfoot{}
@@ -508,7 +508,7 @@ which is equal to the intrinsic value of the option. This result does not depend
 
  Thus one can train the agent choosing $\gamma\in[0,1]$, and then run, as test phase, a Monte Carlo (MC) simulation with $\gamma=1$, where, if the agent has reached the optimal policy $\pi^* = \pi^{\theta^*}$, the average of $R(\tau$) along different episodes will match the optimal undiscounted price of the derivative contract on the TVS.  
 
-\subsection{Policy and Action Parameterization}
+\subsection{Policy and Action Parameterization}\label{subsec:policy_action}
 As discussed before, PPO parameterizes the agent policy by means of an artificial neural network. In our case we use a feed forward neural network (FFNN), a network with an acyclic topology and completely characterized by the following hyper-parameters: number of hidden layers $N$, number of neurons per hidden layer $M$, activation function per hidden layer and output activation function. The number of output neurons is fixed by the action space dimension, which is the number of assets $n$ in the risky portfolio, while the number of  input neurons is determined by the dimensionality of the state \eqref{eq:state}, $n+2$. We work with a stochastic policy whose functional form is a multivariate diagonal Gaussian distribution where the mean $\mu^\theta(s_k)$ is the output vector of the FFNN and the log-standard deviation $\log\sigma$ is an external parameter
 \begin{equation}
 	\pi^\theta(s_k) \sim \mathcal{N}(\mu^\theta(s_k),e^{\log\sigma}).
@@ -545,13 +545,9 @@ We study two different action parameterizations for this kind of constraint.
 In this section we present the numerical results of our work. In particular we focus our analysis on an European option on the TVS with at-the-money strike considering two different models for the dynamics followed by the risky securities: Black and Scholes and local volatility. In \Cref{subsec:BS_model} we have proved that under the BS dynamics the solution of the control problem is given by \Cref{eq:BS_optimal_strategy}. We want to take advantage of this \textit{a priori} solution as a benchmark to gather evidence on the robustness of our RL approach and to check if our analytical result is correct. Moreover, the availability of this faster solution allows let us to identify the key parameters of the ANN, PPO and the action parameterization, so that to analyze how they impact on the final results and performances.  
 Then we dedicate a full section to the LV case where the dynamical control problem must be solved by the RL agent.
 
-In our work we keep fixed to the default values of \textsc{OpenAI Baselines} some PPO hyper-parameters that will not be study of our fine tuning tests: the SGA learning rate $\rho=3\times10^{-4}$, the lambda GAE parameter $\lambda=0.95$ and the  $L^\pi$ clip threshold\footnote{We refer to \textcite{ppo} for a more accurate description of $\epsilon$ and to \textcite{gae} for $\lambda$.} $\epsilon=0.2$. In every training phase, PPO builds two FFNNs with same architecture and activation functions to evaluate respectively the actions and the value function at each episode step $k$. The update of their hidden weights $\theta$ is performed after collecting a mini-batch of 2048 episodes.
+In our work we keep fixed to the default values of \textsc{OpenAI Baselines} some PPO hyper-parameters that will not be study of our fine tuning tests: the SGA learning rate $\rho=3\times10^{-4}$, the lambda GAE parameter $\lambda=0.95$ and the  $L^\pi$ clip threshold\footnote{We refer to \textcite{ppo} for a more accurate description of $\epsilon$ and to \textcite{gae} for $\lambda$.} $\epsilon=0.2$. In every training phase, PPO builds two FFNNs with same architecture and activation functions to evaluate respectively the actions and the value function at each episode step $k$. The library initialize the hidden weights $\theta$ using an orthogonal initialization with $\sqrt{2}$ scaling factor and  update them after collecting a mini-batch of 2048 episodes. The network biases are set to zero.
 
-The two FFNNs take in input the environment state \eqref{eq:state}. It is well known in literature that ANNs give better performances in the training phase if the input data are well normalized \citep{inputnormalization,normalizationinput}. Thus we manipulate the input state as follows:
-\begin{equation}
-	s_{T_k} = [T_k,X_{T_k}, I_{T_k}/I_0] \quad \forall T_k\in\mathcal{T},
-\end{equation}
-with 
+The two FFNNs take in input the environment state \eqref{eq:state}. It is well known in literature that ANNs give better performances in the training phase if the input data are well normalized \citep{inputnormalization,normalizationinput}. Thus we modify the state block by replacing $\forall T_k\in\mathcal{T}$ the TVS spot price $I_{T_k}$ with $I_{T_k}/I_0$ and the equity price vector $S_{T_k}$ with:
 	\begin{equation}
 	X_{T_k} \coloneqq \frac{\log\left(S_{T_k}/F(0,T_k)\right)+ \frac{1}{2}\int_{0}^{T_k} (\nu^2(t)\cdot \mathds{1})dt}{\sqrt{\int_{0}^{T_k} (\nu^2(t)\cdot \mathds{1})dt}}, \quad X_{T_k} \in [-2.5,2.5]^n, 
 	\label{eq:input_normalization}\end{equation}
@@ -560,8 +556,43 @@ where $F(t,T)$ is the forward curve vector of the risky assets from $t$ to $T$. 
 All the training experiments required on average 40 CPU cores, 1 NVIDIA Volta V100 GPU and 100 GB RAM to manage the parallel environments generated by \textsc{OpenAI Baselines}; the code is written in Python.
 
 \subsection{Black and Scholes: Hyper-Parameters Fine Tuning}
+We use the BS environment as toy model to understand which parameters of the RL algorithm play key roles in the training and testing phase. We also study which action parameteriziation is most effective in the case of a long only allocation strategy $\alpha$. We consider a target volatility call option with the following contract details between bank and fund manager
+\begin{equation}\nonumber
+	K = 1 \, \text{EUR}, \quad T=1 \, \text{yr}, \quad \bar{\sigma} = 5\%.
+\end{equation}
+We test the action parameterizations discussed in \Cref{subsec:policy_action} increasing the number $n$ of equities in the basket; we have evidence that the $(n-1)$-sphere parameterization  \eqref{eq:euler_angles} suffers of labelling problems when $n>2$. In fact if we consider a spherical case ($n=3$), \cref{eq:euler_angles} introduces an asymmetry in the action space (\Cref{fig:n_sphere_parameterization} on the left) that translates into the choice by the agent of sub-optimal policies during the training phase. Because of that we privilege the action parameterization through normalization \eqref{eq:normalized_action}. 
+ In \Cref{fig:n_sphere_parameterization} on the right we provide the learning curve of a $5\times8$ ANN\footnote{We use the notation $L\times N$ to describe a FFNN with $L$ hidden layers each made up of $N$ neurons.} with $tanh$ as activation function, $\gamma=1$, $c_1=0.7$ and $c_2=0$. This learning curve, just like all the ones we will show in this work, is the best result in term of reward on the last $10^7$ episodes among four simulations with different initial seed for the weights $\theta$. This is done since the objective function is not convex.
+ 
+ In \Cref{fig:n_sphere_parameterization} we can observe that the average cumulative reward converges as the number of training episode increases to the optimal option value calculated \textit{a priori} with the BS formula \eqref{eq:bs_closed_solution}, proving a successful learning of the optimal BS strategy. This can be observed also by fixing a never-seen MC scenario and interrogating the trained agent on this test path: we see that the ANN takes actions that are according to the closed allocation strategy (\Cref{fig:RL_actions}). 
+ 
+ We use the above PPO parameters since are the results of our tests of fine tuning (\Cref{fig:fine_tuning}). In particular we train the agent in BS environments with simple market data structures building a grid search on different hyper-parameters: the ANN architecture, the activation function and the value function trade-off $c_1$. We first fix a $2\times3$ ANN and $c_1=0.5$ and study the activation function, where we see that the $\tanh$ outperforms the popular sigmoid and RELU that reaches suboptimal policies. Then we perform a search in the $c_1$ direction, where the optimal value is 0.7. At the end we study the number of layers and neurons in the FFNN; we can see in \Cref{fig:fine_tuning} top-right that adding hidden layers in the ANN architecture gives better results in the learning phase than adding hidden neurons per layer, since deeper ANNs seem less sensitive to get stuck in local optimal strategies. We do not need to turn on the entropy element $c_2$ since in the BS environment the RL agent finds successfully $\pi^*$, and adding an entropy term could deteriorate the learning phase. 
+ 
+ All those numerical analysis will be useful to study the LV environment. 
+ 
+  
+\begin{figure}[ht!]
+	\centering
+	\includegraphics[height=5cm,width=5.8cm]{actionspace3D.pdf}
+	\includegraphics[width=8.3cm,height=6.5cm]{Learning_5x8_marketdata_long_5x8_3asset_beta07_noise05_best_WINDOW5e6_EUR_900dpi}
+	
+	\caption{On the left $n$-sphere strategy parameterization for 3 equities: $\alpha$ in function of the colatitude $\phi_1$ and latitude $\phi_2$. The domain of the angles is $[0,\pi/2]$. On the right the  learning curve for an agent policy parameterized with $5\times8$ and $\tanh$ as activation function. The agent is trained in a BS environment with three equities. On the horizontal axis the number of training episodes. The solid lines are the moving average of the realized rewards on the last $5\times 10^6$ episodes. The shadows represent the $98\%$ confidence intervals. The dash-dotted horizontal red line is the conservative TVO price computed according to the optimal risky portfolio composition through \cref{eq:bs_closed_solution}.}
+	\label{fig:n_sphere_parameterization}
+\end{figure}  
+\begin{figure}[ht!]
+	\centering
+	\includegraphics[width=7.2cm,height=6cm]{Instant_Optimal_percentage_strategy_three_assets_real_market.pdf}
+	\includegraphics[width=7.2cm,height=6cm]{Action_RL_5x8_marketdata_seed16_long.pdf}
+	\caption{Comparison between the BS optimal risky strategy (\Cref{eq:BS_optimal_strategy}) and the RL actions taken in a test episode never seen by the agent. On the horizontal axis time in term of year fractions. The agent training session is showed in \Cref{fig:n_sphere_parameterization}. }\label{fig:RL_actions}\end{figure}
 
-
+\begin{figure}[ht!]
+	\centering
+	\includegraphics[height=6cm,width=7.2cm]{Activation_functions_Learning_curve_1x40_network_confront_activation_strategy_EUR_8x5_900dpi.pdf}
+	\includegraphics[height=6cm,width=7.2cm]{Value_function_Learning_curve_1x40_beta_confront_varying_strategy_EUR_8x5_400dpi_compressed.pdf}
+	\includegraphics[height=6cm,width=7.2cm]{Hidden_Layers_Learning_curve_3asset_varystrategy_window1000000_EUR_5e8timestep_comparison_900dpi_compressed.pdf}
+	\caption{Fine tuning simulations: on the top-left learning curves with different activation functions, on the top-right grid search on the policy-value trade-off and on bottom-centre learning curves on ANNs architectures. On the horizontal axis the number of training episodes. The solid lines are the moving average of the realized rewards on the last $5\times 10^5$ episodes. The shadows represent the $98\%$ confidence intervals. The dash-dotted horizontal red lines are the conservative TVO prices computed according to the optimal risky portfolio composition through \cref{eq:bs_closed_solution}.}
+	\label{fig:fine_tuning}
+\end{figure}  
+\subsection{Local Volatility Dynamics}
 \begin{comment}
 
 
