@@ -264,7 +264,7 @@ In practice, this means that the fund manager will select a risky-portfolio choo
 To derive the expression for $\omega_t$ we need to assume a generic continuous semi-martingales dynamics under the risk-neutral measure for the underlying securities, so that we can write \Cref{eq:risk_neutral} as 
 \begin{equation}
     \frac{dS_t^i}{S_t^i} = \left(r_t - \mu_t^i \right)dt + \nu_t^i \cdot dW_t,
-\label{Equity_process}\end{equation}
+\label{eq:Equity_process}\end{equation}
 where $\nu_t$ is an adapted matrix process ensuring the existence of a solution for the SDE and $W_t$ is a $n$-dimensional vector of Brownian motions under $\mathbb{Q}$. Under these assumptions we can derive an expression for $\omega_t$, and we get\footnote{In all formulae the norm for a vector $a$ is defined as $\|a\|\coloneqq\sqrt{a\cdot a}$.}
 \begin{equation}
     \omega_t = \frac{\Bar{\sigma}}{\|\alpha_t\cdot \nu_t \|}.
@@ -593,6 +593,41 @@ We test the action parameterizations discussed in \Cref{subsec:policy_action} in
 	\label{fig:fine_tuning}
 \end{figure}  
 \subsection{Local Volatility Dynamics}
+In this section we study the TVS control problem assuming a local volatility model for the dynamics of the risky assets. Thus in this case we have a diffusive term in \Cref{eq:Equity_process} that is a deterministic function both of time and state, i.e. the spot price, $\nu_t=\nu(t,S_t)$. This additional dependency of volatility makes the problem of finding the optimal strategy non-trivial; in fact if we consider the whole equity smiles then the second order term in the HBJ equation \eqref{eq:HJB_general} is non null and thus a closed formula for $\alpha^*$ is not available anymore. Because of that one must resort on Reinforcement Learning to recover the problem solution. Unlike BS model where the strategy depends only on time, in LV dynamics there are no unnecessary information provided by the state block in \Cref{eq:state} to take the optimal action. 
+
+We first apply our RL algorithm in the same market data conditions as in the case showed in \Cref{fig:n_sphere_parameterization} on the right, but in the LV dynamics. This choice is done to compare the optimal solution in two well-known financial models. We keep the same ANN architecture as in previous section: a $5\times8$ FFNN with $\tanh$ activation function. This enables us to perform the training using two different initial guesses for the PPO:
+\begin{itemize}
+	\item \textbf{Random starting point}: the hidden weights $\theta$ of the ANN are randomly initialized so that the training phase starts from a casual policy.
+	\item \textbf{Black \& Scholes initial guess}: the algorithm initialize the values of $\theta$ with those of the ANN trained in the BS environment. 
+\end{itemize}    
+The idea behind the second guess is that the LV dynamics differs from BS for a corrective term in the HJB equation and thus we guess that a network which has learnt the BS optimal strategy will be a good starting point for the RL algorithm as sub-optimal value. We present in \Cref{fig:local_vol_learning_curves} on the left the resulting learning curves for two ANNs trained with the two initialization methods just described.   
+
+\begin{figure}[ht!]
+	\centering
+	\includegraphics[height=6cm,width=7.2cm]{Learning_curve_all_5x8_localvol_3asset_compressed.pdf}
+	\includegraphics[height=6cm,width=7.2cm]{Action_RL_5x8_marketdata_seed80_long.pdf}
+	\caption{On the left, learning curve for two $5\times8$ FFNNs with $\tanh$ activation function and $c_1 = 0.7$.  The networks are both trained in the same LV but with different starting point: random policy for the orange line and BS optimal policy for the blue one. The dash-dotted horizontal red line is the conservative BS call option price  computed according to the optimal risky portfolio in \Cref{fig:RL_actions} on the left.
+	On the right agent actions in a never-seen MC episode.	
+}
+	\label{fig:local_vol_learning_curves}
+\end{figure}  
+
+\noindent Analyzing the training results, we observe that the two curves converges both to the same saturation value which is compatible with the optimal BS price for the TVO curve. The RL agent has learnt in both cases the optimal allocation strategy of the BS model. In fact if we plot the agent actions taken in never-seen scenarios (\Cref{fig:local_vol_learning_curves} on the right), we see that they are in accordance with those of BS. 
+
+As told before, in the LV model the optimal strategy is not available \textit{a priori} as in BS and thus we can not say if the solution found by the RL agent is sub-optimal. However we can check if the agent is stuck in a local optimum by building a n\"aif strategy to measure the performance of the RL algorithm; we call this strategy \virgolette{baseline}. Since we have proved in \Cref{subsec:BS_model} that in the BS model the solution is the allocation strategy that maximizes the local drift of the TVS, we choose as baseline a manager that applies path-wise the BS solution \eqref{eq:BS_optimal_strategy}. 
+In \Cref{tab:mc_results_lv} we compare the MC prices obtained applying in $10^6$ paths the baseline and the ANNs trained before.
+\begin{table}[t]
+	\centering
+	\begin{tabular}{|c|c|} \hline
+		Method & TVO price [EUR]  \\ \hline 
+		RL from random $\theta$ & $(1.912 \pm 0.003) \times 10^{-2}$ \\
+		RL from BS $\theta$ & $(1.915 \pm 0.003) \times 10^{-2}$ \\
+		Baseline & $(1.915 \pm 0.004) \times 10^{-2}$ \\ \hline
+	\end{tabular}\caption{MC prices of an atm-spot TVO with LV dynamics for the risky assets and with $K=1\,[\text{EUR}]$, $T = 1\,[\text{yr}]$ and $\bar{\sigma}=5\%$.  The prices are obtained computing three different allocation strategies: the ANN trained starting from a random policy, the ANN trained from the BS strategy and the baseline. }
+	\label{tab:mc_results_lv}\end{table}
+All the prices computed with different strategies are $2\sigma$-compatible among them. Thus we can assert that in the market data conditions we have considered, the LV optimal strategy coincides with the BS one. Moreover we observe that the baseline strategy and the BS optimal one provide the same TVO price, such as the risky securities dynamics is irrelevant for the resulting price. 
+
+Thus we try different configurations for the hedging costs $\mu_t$ and the implied volatility surfaces in order to find a market where the TVO prices  
 \begin{comment}
 
 
@@ -616,6 +651,8 @@ In the Black and Scholes environment we study some markets composed by simple
 --introduzione sui modelli fatti 
 --dire perchè black e del fine tuning dei parametri 
 
+
+%%Buona simulazione local vol [ ppo2_1.5e8_5x8_3e-4frombaselinelong_displacedmarket_month_2assets_beta0.7_maturity2_seed5343061 ] su macchina remota in TVS_LV-v0
 
 
 \ref{sec:target_volatility_option_derivative_pricing}, the bank evaluation of the most conservative call option price strictly depends on the dynamics followed by the equities underlying the \acrshort{tvs}; in particular the volatility term of the securities affects the \acrshort{tvs} price process \eqref{TVS_last}. In our work we will try to solve this pricing problem through the \acrshort{rl} technique, training the agent in two different environments corresponding to two different mathematical models for the dynamics of financial markets: the time-dependent \acrlong{bs} model and the \acrlong{lv} model. Although the first one is quite simple (its parameters depends only on time) and it is not completely able to represent the complex dynamics of real markets, we have seen that, under Black's conditions, we are able to derive the closed form solution for the optimal strategy \eqref{optimal_strategy}. Thus we can use the \acrlong{bs} model as a test to control if we have built correctly the \acrlong{rl} algorithm; in other words we will check if the \acrshort{rl} agent will take decisions in agreement with the closed form. On the other hand, the \acrfull{lv} model depends not only on time but also on the spot prices of the equities and thus a closed formula for the optimal strategy is not available; we will try to recover it by our \acrshort{rl} algorithm.
