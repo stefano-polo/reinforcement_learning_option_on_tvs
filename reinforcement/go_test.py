@@ -125,13 +125,13 @@ if __name__ == '__main__':
         do_train=False,
         do_test=True,
         test_seed='114',
-        training_seed='13247',
+        training_seed='45891',
         env='TVS_LV_newreward-v0',
         alg='ppo2',
         num_layers='3',
         num_hidden='5',
         num_env='27',
-        lr='8e-5',
+        lr='3e-5',
         train_timesteps='4e8',
         test_episodes='1e6',
         print_episodes='1',
@@ -141,4 +141,5 @@ if __name__ == '__main__':
         beta='0.7',
         custom_suffix='freefrombaseline_displacedmarket_2assets_monthgrid_maturity2'   #test on one_month 6,10,1e6
         )
+
     main(cur_args)

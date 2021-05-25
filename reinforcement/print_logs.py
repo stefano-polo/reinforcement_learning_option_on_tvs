@@ -9,10 +9,10 @@ strategy = 'free'
 
 LOG_FOLDER = './logs/TVS_LV_newreward-v0/'   #in which folder I find the file to plot
 WHICH_LOGS = [  #("name of the output folder", "legend label")
-('ppo2_9e7_2x8_3e-4_trainingseed20319_beta0.7_copyfreefrombaseline_displacedmarket_2assets_monthgrid_maturity2','RL'),
+('ppo2_4e8_3x5_3e-5_trainingseed45891_beta0.7_copyfreefrombaseline_displacedmarket_2assets_monthgrid_maturity2','RL'),
 ]
 X_AXIS_TIMESTEPS = 0  # otherwise: episodes
-WINDOW = int(3e5)  # measured in episodes  10000
+WINDOW = int(5e5)  # measured in episodes  10000
 join_learning = 0  
 fig, ax = plt.subplots(1, 1, figsize=(8, 5))
 

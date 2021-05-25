@@ -69,6 +69,7 @@ for i in range(len(names)):
 model = LV_model(fixings=observation_grid[1:], local_vol_curve=LV, forward_curve=F, N_grid = N_euler_grid)
 euler_grid = model.time_grid
 discount = D(T)
+print(discount)
 dt_vector = model.dt
 mu_function = Drift(forward_curves=F)
 mean = np.array([])
@@ -105,8 +106,8 @@ for i in range(Nsim):
     I_t = I_0[i]
    # counter = 0
    # counter_tot = 0
-    sigma = simulations_Vola[0]
-    norm_price = dS_S[0]
+    sigma = simulations_Vola[i]
+    norm_price = dS_S[i]
     for j  in range(len(observation_grid[1:])):
         dt = dt_vector[j]
         index_plus = j*N_euler_grid
@@ -143,7 +144,7 @@ for i in range(Nsim):
   #  mean = np.append(mean,counter/counter_tot*100)
    # if i>0 and i%20==0:
     #    print("mean accuracy ",np.mean(mean))
-    simulations_Vola = np.delete(simulations_Vola,0,axis=0)
-    dS_S = np.delete(dS_S,0,axis=0)
+    #simulations_Vola = np.delete(simulations_Vola,0,axis=0)
+    #dS_S = np.delete(dS_S,0,axis=0)
 
 print("EXECUTION TIME",(time.clock()-t0)/3600)
