@@ -260,7 +260,7 @@ journal = {Connection Science},
 doi = {10.1080/09540099108946587}
 }
 
-@article{gae,
+@article{gaeold,
 author = {Schulman, John and Moritz, Philipp and Levine, Sergey and Jordan, Michael and Abbeel, Pieter},
 year = {2015},
 month = {06},
@@ -269,7 +269,24 @@ pages = {},
 title = {High-Dimensional Continuous Control Using Generalized Advantage Estimation},
 }
 
-@article{ppo,
+@inproceedings{gae,
+	author    = {John Schulman and
+	Philipp Moritz and
+	Sergey Levine and
+	Michael I. Jordan and
+	Pieter Abbeel},
+	editor    = {Yoshua Bengio and
+	Yann LeCun},
+	title     = {High-Dimensional Continuous Control Using Generalized Advantage Estimation},
+	booktitle = {4th International Conference on Learning Representations, {ICLR} 2016,
+	San Juan, Puerto Rico, May 2-4, 2016, Conference Track Proceedings},
+	year      = {2016},
+	timestamp = {Thu, 25 Jul 2019 14:25:38 +0200},
+	biburl    = {https://dblp.org/rec/journals/corr/SchulmanMLJA15.bib},
+	bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{ppoold,
   author    = {John Schulman and
                Filip Wolski and
                Prafulla Dhariwal and
@@ -287,8 +304,14 @@ title = {High-Dimensional Continuous Control Using Generalized Advantage Estimat
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
+@misc{ppo,
+	title={Proximal Policy Optimization Algorithms}, 
+	author={John Schulman and Filip Wolski and Prafulla Dhariwal and Alec Radford and Oleg Klimov},
+	year={2017},
+	eprint={1707.06347},
+	archivePrefix={arXiv},
+	primaryClass={cs.LG}
 }
-
 @article{Grasselli,
 author = {Grasselli, Martino and Romo, Jacinto Marabel},
 title = {Stochastic Skew and Target Volatility Options},
@@ -334,6 +357,13 @@ year = {2013},
 month = {04},
 publisher = {Wiley, Chichester},
 title = {Counterparty Credit Risk, Collateral and Funding: With Pricing Cases For All Asset Classes},
+}
+
+@book{StandardTheorems,
+author = {Fleming, Wendell H. and Soner, Halil Mete},
+year={2006},
+publisher={Springer-Verlag New York},
+title={Controlled Markov Processes and Viscosity Solutions},
 }
 
 @TechReport{Krawczyk,
@@ -552,7 +582,6 @@ month	= {05-06},
 volume	= {81},
 issue	= {3},
 page	= {637--654},
-url =       {http://gen.lib.rus.ec/scimag/index.php?s=10.2307/1831029},
 }
 
 @article{Merton,
@@ -1094,7 +1123,21 @@ url={https://openreview.net/forum?id=rkgqN1SYvr}
       primaryClass={cs.LG}
 }
 
-@article{rlintroductionfinance,
+@article {rlintroductionfinance,
+	author = {Kolm, Petter N. and Ritter, Gordon},
+	title = {Dynamic Replication and Hedging: A Reinforcement Learning Approach},
+	volume = {1},
+	number = {1},
+	pages = {159--171},
+	year = {2019},
+	doi = {10.3905/jfds.2019.1.1.159},
+	publisher = {Institutional Investor Journals Umbrella},
+	abstract = {The authors of this article address the problem of how to optimally hedge an options book in a practical setting, where trading decisions are discrete and trading costs can be nonlinear and difficult to model. Based on reinforcement learning (RL), a well-established machine learning technique, the authors propose a model that is flexible, accurate and very promising for real-world applications. A key strength of the RL approach is that it does not make any assumptions about the form of trading cost. RL learns the minimum variance hedge subject to whatever transaction cost function one provides. All that it needs is a good simulator, in which transaction costs and options prices are simulated accurately.},
+	issn = {2640-3943},
+	journal = {The Journal of Financial Data Science}
+}
+
+@article{rlintroductionfinanceold,
 author = {Ritter, Gordon and Kolm, Petter},
 year = {2018},
 month = {01},
@@ -1185,10 +1228,14 @@ abstract = "Recurrent Neural Networks (RNN) receive an important interest from A
   
 @article{rlfinance,
 author = {Halperin, Igor},
-year = {2017},
-month = {12},
-pages = {},
+volume = {28},
+year = {2020},
+pages = {99-122},
+publisher={Pageant Media US},
+ISSN={1074-1240},
 title = {QLBS: Q-Learner in the Black-Scholes(-Merton) Worlds},
-journal = {SSRN Electronic Journal},
-doi = {10.2139/ssrn.3087076}
+journal = {The Journal of Derivatives},
+doi = {10.3905/jod.2020.1.108}
 }
+
+@article{old, title={QLBS: Q-Learner in the Black-Scholes(-Merton) Worlds}, volume={28}, ISSN={1074-1240}, DOI={10.3905/jod.2020.1.108}, journal={The Journal of Derivatives}, publisher={Pageant Media US}, author={Igor Halperin}, year={2020}, pages={99–122} }
