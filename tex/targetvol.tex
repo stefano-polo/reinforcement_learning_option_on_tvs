@@ -19,7 +19,7 @@
 \usepackage{comment}
 \usepackage{bm}
 \usepackage[font=small,labelfont=bf]{caption}
-\graphicspath{{Local_Volatility/}{Black_Scholes}}
+\graphicspath{{Local_Volatility/}{Black_Scholes/}}
 % \setbeamertemplate{bibliography item}[text]
 % \renewcommand*{\bibfont}{\scriptsize}
 
@@ -179,10 +179,10 @@ In the recent years portfolio managers are exposed to very low interest rates an
 
 In literature TVSs are tested to investigate their performances in term of realized returns, see for instance \textcite{Hocquard28} and \textcite{PERCHET}, and the soundness of the volatility targeting algorithm, as described in \textcite{Kim}. Moreover, in pricing literature, derivative contracts on TVS, known as target volatility options (TVOs), are studied, see in particular \textcite{Di_Graziano}, \textcite{Grasselli}, and \textcite{Albeverio}. 
 
-In this contribution we face a new topic never dealt with in the TVS literature: we deal with the funding costs coming from hedging the risky assets underlying the TVS. We consider the point of view of a bank selling a call option to a portfolio manager as protection on the capital invested in a TVS. The portfolio manager has the freedom of changing the relative weights of the risky assets during the life of the TVS. Since the risky assets have different hedging costs, the bank shall adjust the price of the protection to include them in the worst-case scenario, i.e. the most expensive strategy from the financing costs point of view. Hence, the pricing problem becomes a dynamical control problem over the risky portfolio composition. In our contribution we describe the dynamical control problem, and we derive an analytical solution in the simple case of the risky assets driven by a Black-Scholes (BS) model \citep{BlackScholes}. Then, we tackle the problem in the general case of a local volatility (LV) model \citep{Dupire94pricingwith,LVfirst} by using Reinforcement Learning (RL) algorithms, in particular the Proximal Policy Optimization developed in \textcite{ppo}.
+In this contribution we face a new topic never dealt with in the TVS literature: the funding costs coming from hedging the risky assets underlying the TVS. We consider the point of view of a bank selling a call option to a portfolio manager as protection on the capital invested in a TVS. The portfolio manager has the freedom of changing the relative weights of the risky assets during the life of the TVS. Since the risky assets have different hedging costs, the bank shall adjust the price of the protection to include them in the worst-case scenario, i.e. the most expensive strategy from the financing costs point of view. Hence, the pricing problem becomes a dynamical control problem over the risky portfolio composition. In our contribution we describe the dynamical control problem, and we derive an analytical solution in the simple case of the risky assets driven by a Black-Scholes (BS) model \citep{BlackScholes}. Then, we tackle the problem in the general case of a local volatility (LV) model \citep{Dupire94pricingwith,LVfirst} by using Reinforcement Learning (RL) algorithms, in particular the Proximal Policy Optimization developed in \textcite{ppo}.
 \\
 
-The paper is organized ad follows. In \Cref{sec:TVS} we describe the dynamics of a TVS in presence of valuation adjustments. Then, in \Cref{sec:Derivative} we study the case of derivative contracts on TVSs, we describe the dynamical control problem giving the expression of the Hamilton-Jacobi-Bellman equation and we derive the analytical results for plain vanilla options under BS dynamics. In \Cref{sec:RL} we illustrate how we have applied RL to solve the dynamic control problem, giving a deep description of the algorithm we have built. We conclude the paper with \Cref{sec:Numerical_results} where we present the numerical results obtained in this work for the Black and Scholes model and the local volatility (LV) one.
+The paper is organized ad follows. In \Cref{sec:TVS} we describe the dynamics of a TVS in presence of valuation adjustments. Then, in \Cref{sec:Derivative} we study the case of derivative contracts on TVSs, we describe the dynamical control problem giving the expression of the Hamilton-Jacobi-Bellman equation and we derive the analytical results for plain vanilla options under BS dynamics. In \Cref{sec:RL} we illustrate how we have applied RL to solve the dynamic control problem, giving a description of the algorithm we have built. We conclude the paper with \Cref{sec:Numerical_results} where we present the numerical results obtained in this work for the Black and Scholes model and the local volatility (LV) one.
 
 
 \section{Target Volatility Strategy}\label{sec:TVS}
@@ -190,7 +190,7 @@ In a TVS the fund manager selects an allocation strategy aiming at stabilizing t
 \begin{equation}
     A_t \coloneqq \max\{V_t,K\} = V_t + (K-V_t)^+,
 \end{equation}
-where $V_t$ is the price process of the strategy, and $K$ is the guaranteed capital. On the other hand, the fund manager ca n replicate the payoff by means of the put-call parity by investing the capital in a low-risk asset and buying a call on the strategy
+where $V_t$ is the price process of the strategy, and $K$ is the guaranteed capital. On the other hand, the fund manager can replicate the payoff by means of the put-call parity by investing the capital in a low-risk asset and buying a call on the strategy
 \begin{equation}
     A_t = K + (V_t-K)^+.
 \end{equation}
@@ -234,7 +234,7 @@ where $M_t^i$ are martingale under $\mathbb{Q}$. If we substitute this expressio
 \begin{equation}
     dV_t = V_t(r_t-\phi_t)dt + dM_t^V,
 \end{equation}
-with $M_t^V$ martingale under $\mathbb{Q}$. Notice that,as expected from non-arbitrage considerations, the coupons paid by each security appear only in the drift of the security price process, but they do not impact the drift of the strategy. 
+with $M_t^V$ martingale under $\mathbb{Q}$. Notice that, as expected from non-arbitrage considerations, the coupons paid by each security appear only in the drift of the security price process, but they do not impact the drift of the strategy. 
 
 Yet, the strategy priced by $V_t$ cannot be described in the contract between the parties, since \Cref{eq:self_financing} depends via the security gain processes on the valuation adjustment $\psi_t^i$, which is specific of the investor pricing the strategy. Thus, the TVS defined in the contract will be
 \begin{equation}
@@ -337,10 +337,16 @@ so that the optimization problem can be solved looking only at the Markovian pro
 A direct consequence is the following proposition, which is relevant for plain vanilla options on TVS.
 
 \begin{proposition}
-When the underlying securities follow a Black and Scholes (BS) model with deterministic rates, the optimal strategy for a monotone payoff consists in minimizing the local drift function, independently of the current state $I_t$
+When the underlying securities follow a Black and Scholes (BS) model with deterministic rates, the optimal strategy for a non-decreasing European payoff consists in minimizing the local drift function, independently of the current state $I_t$
 \begin{equation}
     \alpha^*(t) \coloneqq \argmin_\alpha \frac{\alpha \cdot \mu(t)}{\|\alpha \cdot \nu(t) \|}.
-\label{eq:BS_optimal_strategy}\end{equation}
+\label{eq:BS_optimal_strategy}
+\end{equation}
+Analogously, the optimal strategy for a non-increasing European payoff consists in maximizing the local drift function:
+\begin{equation}
+    \alpha^*(t) \coloneqq \argmax_\alpha \frac{\alpha \cdot \mu(t)}{\|\alpha \cdot \nu(t) \|}.
+\label{eq:BS_optimal_strategy_put}
+\end{equation}
 \end{proposition}
 The absence of stochastic elements in \Cref{eq:BS_optimal_strategy} makes the optimal strategy known \textit{a priori} with no simulation needed; in fact one can solve the optimization problem once for all $\forall t \in \mathcal{T}$ just looking at the market data $\mu(t)$ and $\nu(t)$ for the securities. Once $\alpha^*$ is known, then one can price the payoff by the following BS formula
 \begin{equation}
@@ -427,7 +433,7 @@ A closed form solution to the minimization of the local drift correction \eqref{
 \end{proof}
 
 \subsection{Hamilton-Jacobi-Bellman Equation for Target Volatility Options}\label{subsec:HJB}
-In this section we want to provide to the reader a formal description of the dynamic problem associated to options on target volatility strategies by writing the Hamilton-Jacobi-Bellman equation for the derivative value. We prove that from this description it is available the same closed formula \eqref{eq:BS_optimal_strategy} for the time-dependent BS model derived from the Gy\"ongy. 
+In this section we want to provide to the reader a formal description of the dynamic problem associated to options on target volatility strategies by writing the Hamilton-Jacobi-Bellman equation for the derivative value. We prove that from this description one can recover the same closed formula \eqref{eq:BS_optimal_strategy} for the time-dependent BS model which was derived above from the Gy\"ongy Lemma. 
 
 In full generality we suppose that the risky securities follows a generic multidimensional diffusive process $X_t$ given by the following SDE
 \begin{equation}
@@ -444,7 +450,7 @@ Given $X := X_t$ and $I := I_t$, we can write the HJB equation for $V := V(t,I,X
 		\left. +\frac{1}{2}\Tr\left(\tr{\Sigma(X)}(H_XV)\Sigma(X)\right)  + (\nabla_{X,I}V) \cdot \Sigma(X) \cdot \left(I\bar{\sigma}\frac{\alpha \cdot \nu_t(X)}{\|\alpha \cdot \nu_t(X)\|}\right)\right\} = 0,
 	\end{aligned}
 \end{equation}
-where $\Tr(A)$ is the trace operator of $A$, $\nabla_X V$ the gradient of $V$ w.r.t. $X$, $H_XV$ the Hessian matrix of $V$ w.r.t. $X$ and $\nabla_{X,I}V $ is the vector defined by:
+where $\Tr(A)$ is the trace operator of $A$, $\nabla_X V$ the gradient of $V$ w.r.t.~$X$, $H_XV$ the Hessian matrix of $V$ w.r.t.~$X$ and $\nabla_{X,I}V$ is the vector defined by:
 \begin{equation}
 	\nabla_{X,I} V= \tr{\left(\frac{\partial^2 V}{\partial X^1 \partial I},\dots, \frac{\partial^2 V}{\partial X^n \partial I} \right)}.
 \end{equation}
@@ -481,8 +487,8 @@ In our work we adopt as learning strategy the proximal policy optimization (PPO)
 \begin{equation}
 	L^{\text{PPO}} = L^\pi - c_1 L^J + c_2 L^{E}
 \end{equation}
-where $L^\pi$ is the policy surrogate, $L^J$ the value function error term and $L^E$ the entropy bonus, while $c_1$ and $c_2$ are hyper-parameters of the algorithm. We refer to \textcite{ppo} for a deeper description of those terms. 
- We use the PPO implementation found in \textsc{OpenAI Baselines} \citep{baselines}, where the parameterization procedure is performed by using artificial neural networks (ANNs), where the set of parameters $\theta$ are the hidden weights of the networks. In the following section we describe the the way we have formalized the TVS problem in the Reinforcement Learning framework.
+where $L^\pi$ is a surrogate of the policy's average reward, $L^J$ the value function error term and $L^E$ the entropy bonus, while $c_1$ and $c_2$ are hyper-parameters of the algorithm. We refer to \textcite{ppo} for a deeper description of those terms. 
+ We use the PPO implementation found in \textsc{OpenAI Baselines} \citep{baselines}, where the parameterization procedure is performed by using artificial neural networks (ANNs), and the set of parameters $\theta$ are the hidden weights of the networks. In the following section we describe  the way we have formalized the TVS problem in the Reinforcement Learning framework.
  
  \subsection{Episode Description: Agent-Environment Interaction}
  We consider an episode $\tau$ of length $m+1$ that takes place on a discrete time-grid of fixing times expressed in year fractions $\mathcal{T}:=\{T_0,...,T_k,...,T_m\}$ with $T_0:=0$ and $T_m=T$ maturity of the option. At a given episodic time $T_k$ the RL agent interacts with the environment: it receives a representation of the environment called state $s_k$ and on the basis of that it selects an action $a_k$ sampling from the current policy $\pi^\theta_k$.
@@ -513,12 +519,12 @@ As discussed before, PPO parameterizes the agent policy by means of an artificia
 \begin{equation}
 	\pi^\theta(s_k) \sim \mathcal{N}(\mu^\theta(s_k),e^{\log\sigma}).
 \end{equation}
-In the \textsc{OpenAI Baselines} implementation of PPO, the parameter $\log\sigma$ is state-independent, but it decreases as the number of PPO update iterations increases. The idea is that the log-standard deviation will be higher at the beginning of the training phase in order to guarantee a good exploration of the action space while it will be lower at the ending phase to avoid too much noise in the proximity of the optimal policy.
+In the \textsc{OpenAI Baselines} implementation of PPO, the parameter $\log\sigma$ is state-independent, but it decreases as the number of PPO update iterations increases. The idea is that the log-standard deviation will be higher at the beginning of the training phase in order to guarantee a good exploration of the action space while it will be lower at the end to avoid too much noise in the proximity of the optimal policy.
 
-Another important topic is how to parameterize the agent action in order to satisfy some specific constraints on the risky asset allocation weights. In fact, if on one hand with free $\alpha$ it is sufficient to set bounds in the action space, on the other hand the presence of constraints on the risky strategy imposes the need to parameterize the output of the ANN.
+Another important topic is how to parameterize the agent action in order to satisfy some specific constraints on the risky asset allocation weights. In fact, if on the one hand with free $\alpha$ it is sufficient to set bounds in the action space, on the other hand the presence of constraints on the risky strategy imposes the need to parameterize the output of the ANN.
 In this work we study the constraint where at time $T_k\in\mathcal{T}$ the agent can invest in the risky market adopting long positions only:
 \begin{equation}
-	\alpha_{T_k} \cdot \mathds{1} = 1 \quad \alpha_{T_k}^i >0 \quad \forall i=1,\dots,n.
+	\alpha_{T_k} \cdot \mathds{1} = 1 \quad \alpha_{T_k}^i \geq 0 \quad \forall i=1,\dots,n.
 \end{equation} 
 We study two different action parameterizations for this kind of constraint.
 \begin{itemize}
@@ -542,30 +548,30 @@ We study two different action parameterizations for this kind of constraint.
 
 \clearpage
 \section{Numerical Investigations}\label{sec:Numerical_results}
-In this section we present the numerical results of our work. In particular we focus our analysis on an European option on the TVS with at-the-money strike considering two different models for the dynamics followed by the risky securities: Black and Scholes and local volatility. In \Cref{subsec:BS_model} we have proved that under the BS dynamics the solution of the control problem is given by \Cref{eq:BS_optimal_strategy}. We want to take advantage of this \textit{a priori} solution as a benchmark to gather evidence on the robustness of our RL approach and to check if our analytical result is correct. Moreover, the availability of this faster solution allows let us to identify the key parameters of the ANN, PPO and the action parameterization, so that to analyze how they impact on the final results and performances.  
-Then we dedicate a full section to the LV case where the dynamical control problem must be solved by the RL agent.
+In this section we present the numerical results of our work. In particular we focus our analysis on an European option on the TVS with at-the-money strike considering two different models for the dynamics followed by the risky securities: Black and Scholes and local volatility. In \Cref{subsec:BS_model} we have proved that under the BS dynamics the solution of the control problem is given by \Cref{eq:BS_optimal_strategy}. We want to take advantage of this \textit{a priori} solution as a benchmark to gather evidence on the robustness of our RL approach and to check if our analytical result is correct. Moreover, the availability of this faster solution allows us to identify the key parameters of the ANN, PPO and the action parameterization, and to analyze how they impact on the final results and performances.  
+Then we dedicate a full section to the LV case where the dynamical control problem cannot be solved without the RL agent.
 
-In our work we keep fixed to the default values of \textsc{OpenAI Baselines} some PPO hyper-parameters that will not be study of our fine tuning tests: the SGA learning rate $\rho=3\times10^{-4}$, the lambda GAE parameter $\lambda=0.95$ and the  $L^\pi$ clip threshold\footnote{We refer to \textcite{ppo} for a more accurate description of $\epsilon$ and to \textcite{gae} for $\lambda$.} $\epsilon=0.2$. In every training phase, PPO builds two FFNNs with same architecture and activation functions to evaluate respectively the actions and the value function at each episode step $k$. The library initialize the hidden weights $\theta$ using an orthogonal initialization with $\sqrt{2}$ scaling factor and  update them after collecting a mini-batch of 2048 episodes. The network biases are set to zero.
+In our work we keep fixed to the default values of \textsc{OpenAI Baselines} some PPO hyper-parameters that will not be subject to our fine tuning tests: the SGA learning rate $\rho=3\times10^{-4}$, the lambda Generalized Advantage Estimation parameter $\lambda=0.95$ and the $L^\pi$ clip threshold\footnote{We refer to \textcite{ppo} for a more accurate description of $\epsilon$ and to \textcite{gae} for $\lambda$.} $\epsilon=0.2$. In every training phase, PPO builds two FFNNs with same architecture and activation functions to evaluate respectively the actions and the value function at each episode step $k$. The library initializes the hidden weights $\theta$ using an orthogonal initialization with $\sqrt{2}$ scaling factor and  updates them after collecting a mini-batch of 2048 episodes. The network biases are set to zero.
 
 The two FFNNs take in input the environment state \eqref{eq:state}. It is well known in literature that ANNs give better performances in the training phase if the input data are well normalized \citep{inputnormalization,normalizationinput}. Thus we modify the state block by replacing $\forall T_k\in\mathcal{T}$ the TVS spot price $I_{T_k}$ with $I_{T_k}/I_0$ and the equity price vector $S_{T_k}$ with:
 	\begin{equation}
 	X_{T_k} \coloneqq \frac{\log\left(S_{T_k}/F(0,T_k)\right)+ \frac{1}{2}\int_{0}^{T_k} (\nu^2(t)\cdot \mathds{1})dt}{\sqrt{\int_{0}^{T_k} (\nu^2(t)\cdot \mathds{1})dt}}, \quad X_{T_k} \in [-2.5,2.5]^n, 
 	\label{eq:input_normalization}\end{equation}
-where $F(t,T)$ is the forward curve vector of the risky assets from $t$ to $T$. With the normalization procedure \eqref{eq:input_normalization}  allows to remap $S_{T_K}$ in a standard Gaussian variable for the BS model, while in a proxy of it in the case of a LV dynamics. We adopt this normalization without loss of generality as the variables involved are observables (forward curve and at-the-money volatilities), as they are values that are always accessible by the fund manager in the market. 
+where $F(t,T)$ is the forward curve vector of the risky assets from $t$ to $T$. The normalization procedure \eqref{eq:input_normalization}  allows to remap $S_{T_K}$ into a standard Gaussian variable for the BS model, while into a proxy of it in the case of a LV dynamics. We adopt this normalization without loss of generality as the variables involved are observables (forward curve and at-the-money volatilities), since they are values that are always accessible by the fund manager in the market. 
 
 All the training experiments required on average 40 CPU cores, 1 NVIDIA Volta V100 GPU and 100 GB RAM to manage the parallel environments generated by \textsc{OpenAI Baselines}; the code is written in Python.
 
 \subsection{Black and Scholes: Hyper-Parameters Fine Tuning}
-We use the BS environment as toy model to understand which parameters of the RL algorithm play key roles in the training and testing phase. We also study which action parameteriziation is most effective in the case of a long only allocation strategy $\alpha$. We consider a target volatility call option with the following contract details between bank and fund manager
+We use the BS environment as toy model to understand which parameters of the RL algorithm play key roles in the training and testing phase. We also study which action parameterization is most effective in the case of a long only allocation strategy $\alpha$. We consider a target volatility call option with the following contract details between bank and fund manager
 \begin{equation}\nonumber
 	K = 1 \, \text{EUR}, \quad T=1 \, \text{yr}, \quad \bar{\sigma} = 5\%.
 \end{equation}
 We test the action parameterizations discussed in \Cref{subsec:policy_action} increasing the number $n$ of equities in the basket; we have evidence that the $(n-1)$-sphere parameterization  \eqref{eq:euler_angles} suffers of labelling problems when $n>2$. In fact if we consider a spherical case ($n=3$), \cref{eq:euler_angles} introduces an asymmetry in the action space (\Cref{fig:n_sphere_parameterization} on the left) that translates into the choice by the agent of sub-optimal policies during the training phase. Because of that we privilege the action parameterization through normalization \eqref{eq:normalized_action}. 
  In \Cref{fig:n_sphere_parameterization} on the right we provide the learning curve of a $5\times8$ ANN\footnote{We use the notation $L\times N$ to describe a FFNN with $L$ hidden layers each made up of $N$ neurons.} with $tanh$ as activation function, $\gamma=1$, $c_1=0.7$ and $c_2=0$. This learning curve, just like all the ones we will show in this work, is the best result in term of reward on the last $10^7$ episodes among four simulations with different initial seed for the weights $\theta$. This is done since the objective function is not convex.
  
- In \Cref{fig:n_sphere_parameterization} we can observe that the average cumulative reward converges as the number of training episode increases to the optimal option value calculated \textit{a priori} with the BS formula \eqref{eq:bs_closed_solution}, proving a successful learning of the optimal BS strategy. This can be observed also by fixing a never-seen MC scenario and interrogating the trained agent on this test path: we see that the ANN takes actions that are according to the closed allocation strategy (\Cref{fig:RL_actions}). 
+ In \Cref{fig:n_sphere_parameterization} we can observe that the average cumulative reward converges as the number of training episode increases to the optimal option value calculated \textit{a priori} with the BS formula \eqref{eq:bs_closed_solution}, proving a successful learning of the optimal BS strategy. This can be observed also by fixing a never-seen MC scenario and interrogating the trained agent on this test path: we see that the ANN takes actions that are close to the analytical allocation strategy (\Cref{fig:RL_actions}). 
  
- We use the above PPO parameters since are the results of our tests of fine tuning (\Cref{fig:fine_tuning}). In particular we train the agent in BS environments with simple market data structures building a grid search on different hyper-parameters: the ANN architecture, the activation function and the value function trade-off $c_1$. We first fix a $2\times3$ ANN and $c_1=0.5$ and study the activation function, where we see that the $\tanh$ outperforms the popular sigmoid and RELU that reaches suboptimal policies. Then we perform a search in the $c_1$ direction, where the optimal value is 0.7. At the end we study the number of layers and neurons in the FFNN; we can see in \Cref{fig:fine_tuning} top-right that adding hidden layers in the ANN architecture gives better results in the learning phase than adding hidden neurons per layer, since deeper ANNs seem less sensitive to get stuck in local optimal strategies. We do not need to turn on the entropy element $c_2$ since in the BS environment the RL agent finds successfully $\pi^*$, and adding an entropy term could deteriorate the learning phase. 
+ We use the above PPO parameters since they are the results of our tests of fine tuning (\Cref{fig:fine_tuning}). In particular we have trained the agent in BS environments with simple market data structures building a grid search on different hyper-parameters: the ANN architecture, the activation function and the value function trade-off $c_1$. We first fix a $2\times3$ ANN and $c_1=0.5$ and study the activation function, where we see that the $\tanh$ outperforms the popular sigmoid and RELU that reaches suboptimal policies. Then we perform a search in the $c_1$ direction, where the optimal value is 0.7. At the end we study the number of layers and neurons in the FFNN; we can see in \Cref{fig:fine_tuning} top-right that adding hidden layers in the ANN architecture gives better results in the learning phase than adding hidden neurons per layer, since deeper ANNs seem less sensitive to get stuck in locally optimal strategies. We do not need to turn on the entropy element $c_2$ since in the BS environment the RL agent finds successfully $\pi^*$, and adding an entropy term could deteriorate the learning phase. 
  
  All those numerical analysis will be useful to study the LV environment. 
  
