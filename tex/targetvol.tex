@@ -155,9 +155,9 @@
 	Stefano Polo\thanks{Intesa Sanpaolo Milan, stefano.polo@intesasanpaolo.com} 
 }
 
-\date{
-	First Version: March 2021. This Version: \today
-}
+%\date{
+%	First Version: March 2021. This Version: \today
+%}
 \begin{document} % goes here
 
 \maketitle
@@ -512,7 +512,7 @@ where $L^\pi$ is a surrogate of the policy's average reward, $L^J$ the value fun
  		(I_T - K)^+ & \text { if } T_{k+1} = T \\
  		0 & \text { otherwise }
  	\end{array}\right.
- \end{equation}
+ \label{eq:reward2}\end{equation}
 Therefore, during the episode, the agent receives a nil reward except at maturity when the reward coincides with the option intrinsic value. This choice may seem too daring because the agent receives a real feedback of its actions only at the end of the whole episode, leading to a slow learning. However, once the agent has learnt the optimal policy $\pi^* = \pi^{\theta^*}$, the average cumulative reward per episodes will coincide to the optimal TVO price.
 The second definition of reward function for this problem we have developed is
  \begin{equation}
@@ -583,7 +583,7 @@ We use the BS environment as toy model to understand which parameters of the RL 
 \begin{equation}\nonumber
 	I_0 = K = 1 \, \text{EUR}, \quad T=1 \, \text{yr}, \quad \bar{\sigma} = 5\%.
 \end{equation}
-We test the action parameterizations discussed in \Cref{subsec:policy_action} increasing the number $n$ of equities in the basket; we have evidence that the $(n-1)$-sphere parameterization  \eqref{eq:euler_angles} suffers of labelling problems when $n>2$. In fact if we consider a spherical case ($n=3$), \cref{eq:euler_angles} introduces an asymmetry in the action space (\Cref{fig:n_sphere_parameterization} on the left) that translates into the choice by the agent of sub-optimal policies during the training phase. Because of that we privilege the action parameterization through normalization \eqref{eq:normalized_action}. 
+The reward function adopted in this environment is that expressed by \Cref{eq:reward2}. We test the action parameterizations discussed in \Cref{subsec:policy_action} increasing the number $n$ of equities in the basket; we have evidence that the $(n-1)$-sphere parameterization  \eqref{eq:euler_angles} suffers of labelling problems when $n>2$. In fact if we consider a spherical case ($n=3$), \cref{eq:euler_angles} introduces an asymmetry in the action space (\Cref{fig:n_sphere_parameterization} on the left) that translates into the choice by the agent of sub-optimal policies during the training phase. Because of that we privilege the action parameterization through normalization \eqref{eq:normalized_action}. 
  In \Cref{fig:n_sphere_parameterization} on the right we provide the learning curve of a $5\times8$ ANN\footnote{We use the notation $L\times N$ to describe a FFNN with $L$ hidden layers each made up of $N$ neurons.} with $\tanh$ as activation function, $\gamma=1$, $c_1=0.7$ and $c_2=0$. This learning curve, just like all the ones we will show in this work, is the best result in term of reward on the last $10^7$ episodes among four simulations with different initial seed for the weights $\theta$. This is done since the objective function is not convex.
  
  In \Cref{fig:n_sphere_parameterization} we can observe that the average cumulative reward converges as the number of training episode increases to the optimal option value calculated \textit{a priori} with the BS formula \eqref{eq:bs_closed_solution}, proving a successful learning of the optimal BS strategy. This can be observed also by fixing a never-seen MC scenario and interrogating the trained agent on this test path: we see that the ANN takes actions that are close to the analytical allocation strategy (\Cref{fig:RL_actions}). 
@@ -617,7 +617,7 @@ We test the action parameterizations discussed in \Cref{subsec:policy_action} in
 \end{figure}  
 \clearpage
 \subsection{Local Volatility Dynamics}
-In this section we study the TVS control problem assuming a local volatility model for the dynamics of the risky assets. Thus in this case we have a diffusive term in \Cref{eq:Equity_process} that is a deterministic function both of time and state, i.e. the spot price, $\nu_t=\nu(t,S_t)$. This additional dependency of volatility makes the problem of finding the optimal strategy non-trivial; in fact if we consider the whole equity smiles then the second order term in the HBJ equation \eqref{eq:HJB_general} is non null and thus a closed formula for $\alpha^*$ is not available anymore. Because of that one must resort on Reinforcement Learning to recover the problem solution. Unlike BS model where the strategy depends only on time, in LV dynamics there are no unnecessary information provided by the state block in \Cref{eq:state} to take the optimal action. 
+In this section we study the TVS control problem assuming a local volatility model for the dynamics of the risky assets. Thus in this case we have a diffusive term in \Cref{eq:Equity_process} that is a deterministic function both of time and state, i.e. the spot price, $\nu_t=\nu(t,S_t)$. This additional dependency of volatility makes the problem of finding the optimal strategy non-trivial; in fact if we consider the whole equity smiles then the second order term in the HBJ equation \eqref{eq:HJB_general} is non null and thus a closed formula for $\alpha^*$ is not available anymore. Because of that one must resort on numerical techniques to recover the problem solution. Unlike BS model where the strategy depends only on time, in LV dynamics there are no unnecessary information provided by the state block in \Cref{eq:state} to take the optimal action. 
 
 We first apply our RL algorithm in the same market data conditions as in the case showed in \Cref{fig:n_sphere_parameterization} on the right, but in the LV dynamics. This choice is done to compare the optimal solution in two well-known financial models. We keep the same ANN architecture as in previous section: a $5\times8$ FFNN with $\tanh$ activation function. This enables us to perform the training using two different initial guesses for the PPO:
 \begin{itemize}
@@ -671,7 +671,7 @@ Therefore, having a completely different smiles curves will make differ the BS s
 
 \section{Conclusion and Further Developments}
 In this paper we described a non-trivial control problem related to derivative contracts on target volatility strategies. We considered a bank selling a call option to a fund manager as protection  on the capital
-invested on the TVS. We showed how the presence of different funding costs coming from hedging the risky assets underlying the TVS, makes the bank solving a stochastic optimal control problem to adjust the price of the protection, since the bank strategy is not self-financing. We derived a closed form solution of the control problem in a Black and Scholes framework in two different ways: first by applying the Gy\"ongy  Lemma and then by writing the Hamilton-Jacobi-Bellman equation. We studied the problem both in the BS world and in the local volatility one where the solution is not available and thus numerical investigation is needed. We tackled the problem by means of the novel Reinforcement Learning techniques, such as the proximal policy optimization. We used the BS model, where the solution is \textit{a priori} known, as benchmark to perform a series of fine-tuning of the RL algorithm hyper-parameters, such as the artificial neural network architecture. Then we investigated the problem under LV dynamics. From our simulations we had evidence that under this model the RL agent learnt as optimal strategy the application path-wise of the BS solution. This topic is still under study since our results for the LV model do not provide a formal demonstration of that the problem solution is the path-wise BS one. For this reason the natural developments of this work is to compare our RL results with other standard techniques like the least-square Monte Carlo. If this comparison is positive, then it will provide robustness of our LV results.
+invested on the TVS. We showed how the presence of different funding costs coming from hedging the risky assets underlying the TVS, makes the bank solving a stochastic optimal control problem to adjust the price of the protection, since the bank strategy is not self-financing. We derived a closed form solution of the control problem in a Black and Scholes framework in two different ways: first by applying the Gy\"ongy  Lemma and then by writing the Hamilton-Jacobi-Bellman equation. We studied the problem both in the BS world and in the local volatility one where the solution is not available and thus numerical investigation is needed. We tackled the problem by means of the novel Reinforcement Learning techniques, such as the proximal policy optimization. We used the BS model, where the solution is \textit{a priori} known, as benchmark to perform a series of fine-tuning of the RL algorithm hyper-parameters, such as the artificial neural network architecture. Then we investigated the problem under LV dynamics. From our simulations we had evidence that under this model the RL agent learnt as optimal strategy the application path-wise of the BS solution. This topic is still under study since our results for the LV model do not provide a formal demonstration of that the problem solution is the path-wise BS one. For this reason the natural developments of this work is to compare our RL results with other standard techniques like the least-square Monte Carlo. If the resulting comparison is positive, then it will provide robustness of our LV results.
 \begin{comment}
 
 
