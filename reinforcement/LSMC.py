@@ -35,6 +35,8 @@ def alpha_dot_nu(alpha_matrix,nu_matrix, N_equity, Nsim):
 def evolve(index_start, I_t, dS_S, Vola, alpha, target_vola, instant_interest_rate, dt, N_euler_grid, N_equity, Nsim, identity_3d, corr_chole):
     s = np.sum(alpha, axis=1)
     I_t_plus_1 = np.ones(dS_S[:,0,0].shape)*I_t
+   # print("Start simulation ",index_start)
+   # print("End simulation ", N_euler_grid+index_start+1)
     for t in range(index_start, N_euler_grid+index_start):
         if t==index_start:
             omega = target_vola
@@ -52,6 +54,7 @@ def plot_regression(states, V_realized, V_alpha, I_t, alpha):
     plt.ylabel("$V_t$")
     plt.legend()
     plt.show()
+
     
 Seed = 11
 N_equity = 2
@@ -61,12 +64,14 @@ I_0 = 1.
 K = I_0     #option strike 
 T = 2.      #option expiry
 Nsim = 1e3  #number of MC paths
-number_I = 25
-number_alpha=25
+N_mc_forward = 1e6
+number_I = 100
+number_alpha=100
 polynomial_basis = lambda x:  np.column_stack((x, x**2, x**3))
 
 
 Nsim = int(Nsim)
+N_mc_forward = int(N_mc_forward)
 shape = (N_equity,N_equity,Nsim)
 ### Array of identity matrices for vectorized calculations
 identity_3d = np.zeros(shape)
@@ -74,8 +79,9 @@ idx = np.arange(shape[0])
 identity_3d[idx, idx, :] = 1
 
 ##Problem grids
-I_grid = np.linspace(0.001,I_0*10,number_I)
+I_grid = np.linspace(0.001*I_0,I_0*10,number_I)
 alpha_grid = np.linspace(-2,2,number_alpha)
+    
 ACT = 365.0
 if frequency == "month":
     month_dates = np.array([31.,28.,31.,30.,31.,30.,31.,31.,30.,31.,30.,31.])
@@ -162,7 +168,32 @@ for t in reversed(t_grid[:-1]):
     k += 1
 
 V_0 = np.diag(interp1d(I_grid, V_t, axis=1)(np.ones(Nsim)*I_0))
-print("Price shape ",V_0.shape)
-print("Mean strategy value ",np.mean(V_0))
+np.save("Price_paths",V_t)
+np.save("Regression_coeff",coeff_matrices)
 
 print("--- Execution time: ", (time.time()-start_time)/60., " min ---")
+I_t = np.ones(N_mc_forward)*I_0
+np_random.seed(Seed+1)
+S, simulations_Vola, dS_S = None, None, None
+S, simulations_Vola = model.simulate(corr_chole = correlation_chole, random_gen = np_random, normalization = 0, Nsim=N_mc_forward)
+S = np.insert(S,0,spot_prices,axis=1)
+dS_S = (S[:,1:,:]-S[:,:-1,:])/S[:,:-1,:]
+
+for i in range(len(t_grid[:-1])):
+    V_max = np.ones(N_mc_forward)*(-np.inf)
+    alpha_chosen = np.zeros(N_mc_forward)
+    coeff_matrices_time = coeff_matrices[:,i,:,:]
+    a_index = 0
+    for a in alpha_grid:
+        coeff_matrices_time_alpha = coeff_matrices_time[:,a_index,:]
+        coefficients = interp1d(I_grid, coeff_matrices_time_alpha, axis=0, fill_value="extrapolate")(I_t) 
+        a_index += 1
+        states = np.log(S[:,state_index[i],0]/spot_prices[0]) #first asset 
+        Y = polynomial_basis(states)
+        Y = sm.add_constant(Y)
+        expected_continuation = np.sum(coefficients * Y, axis=1)
+        alpha_chosen[expected_continuation > V_max] = a
+        V_max = expected_continuation
+    nu = nu_matrix(simulations_Vola[:,state_index[i],:],identity_3d, correlation_chole, N_equity, N_mc_forward)
+    alpha_best =  alpha_vector(alpha_chosen,nu,N_mc_forward)
+    I_t = evolve(state_index[i], I_t, dS_S, simulations_Vola, alpha, target_volatility, r_t, dt_vector[i], N_euler_grid, N_equity, Nsim, identity_3d, correlation_chole)
