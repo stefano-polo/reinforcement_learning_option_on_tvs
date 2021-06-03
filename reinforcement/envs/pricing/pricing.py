@@ -152,7 +152,7 @@ class LocalVolatilityCurve():
         idx = int(self.time_interpolator(t))
         this_money = self.log_moneyness[:,idx]
         this_lv    = self.lv[:,idx]
-        eta =  interp1d(this_money, this_lv, kind='nearest', fill_value='extrapolate')(k)#PchipInterpolator(this_money, this_lv)(k)
+        eta =  PchipInterpolator(this_money, this_lv)(k)
         eta[k<this_money[0]] = this_lv[0]
         eta[k>this_money[-1]] = this_lv[-1]
         return eta
