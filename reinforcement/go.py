@@ -130,7 +130,7 @@ if __name__ == '__main__':
         alg='ppo2',
         num_layers='3',
         num_hidden='5',
-        num_env='27',
+        num_env='2',
         lr='3e-5',
         train_timesteps='4e8',
         test_episodes='1e6',

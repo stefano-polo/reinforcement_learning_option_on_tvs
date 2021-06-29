@@ -29,7 +29,7 @@ class TVS_LV_newreward(gym.Env):
 
         names = ["DJ 50 EURO E","S&P 500 NET EUR"]
         correlation = np.array(([1.,0.],[0.,1.]))
-        folder_name = "FakeSmilesDisplacedDiffusion"
+        folder_name = "FakeSmilesDisplacedDiffusion"#"FakeSmilesDisplacedDiffusion"
         ACT = 365.
         """Time grid creation for the simulation"""
         self.Identity = np.identity(self.N_equity)
@@ -111,7 +111,7 @@ class TVS_LV_newreward(gym.Env):
         self.current_logX = self.logX_t[self.time_index]
         dt = self.dt_vector[self.time_index-1]
         index_plus = (self.time_index-1)*self.N_euler_grid
-
+        #action = np.zeros(self.N_equity)################
         """Simulation of I_t"""
         for i in range(self.N_euler_grid):
             idx = index_plus + i 

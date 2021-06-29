@@ -133,7 +133,7 @@ if __name__ == '__main__':
         num_env='27',
         lr='3e-5',
         train_timesteps='4e8',
-        test_episodes='1e6',
+        test_episodes='3e6',
         print_episodes='1',
         print_period='64',
         save_interval='200',    

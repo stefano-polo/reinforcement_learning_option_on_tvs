@@ -9,7 +9,7 @@ strategy = 'free'
 
 LOG_FOLDER = './logs/TVS_LV_newreward-v0/'   #in which folder I find the file to plot
 WHICH_LOGS = [  #("name of the output folder", "legend label")
-('ppo2_4e8_3x5_3e-5_trainingseed45891_beta0.7_copyfreefrombaseline_displacedmarket_2assets_monthgrid_maturity2','RL'),
+('ddpg_2e8_3x5_None_trainingseed45891_gamma0.98freefrombaseline_displacedmarket_2assets_monthgrid_maturity2','RL'),
 ]
 X_AXIS_TIMESTEPS = 0  # otherwise: episodes
 WINDOW = int(5e5)  # measured in episodes  10000
