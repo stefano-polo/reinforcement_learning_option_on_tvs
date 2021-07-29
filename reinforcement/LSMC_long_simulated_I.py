@@ -1,11 +1,17 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jul 13 14:32:18 2021
+
+@author: u453878
+"""
+
+
 import numpy as np 
 import statsmodels.api as sm
 from scipy.interpolate import interp1d
 import time
 import matplotlib.pyplot as plt
 import math
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn import linear_model
 
 ### personal libraries
 from envs.pricing.pricing import LV_model, Vanilla_PayOff
@@ -79,8 +85,8 @@ def evolve_martingale(S_t, LV, random_gen, t_in, t_fin, cholesky, F, Nsim, N_equ
 
 def compute_alphas(angle, Nsim, N_equity):
      alpha = np.zeros((Nsim, N_equity))   
-     alpha[:,0] = 1. - angle
-     alpha[:,1] = angle
+     alpha[:,0] = angle
+     alpha[:,1] = 1. - angle
      return alpha
 
 Seed = 11
@@ -90,16 +96,16 @@ target_volatility = 5./100
 I_0 = 1.
 K = I_0     #option strike 
 T = 1.      #option expiry
-Nsim = 1e3 #number of Backguard paths
-N_mc_forward = 7e5
+Nsim = 1e3 #number of MC paths
+N_mc_forward = 2e5
 print_logs=True
 save_coeff = True
 load_coeff = False
-Polynomial_grade = 3
 R = 1.
 name = ""
-number_I = 10
+number_I = 100
 number_alpha= 2
+polynomial_basis = lambda x, y:  np.column_stack((x, y, x**2, y**2, x*y))    #, x**3,y**3,y*x**2,x*y**2))
 
 
 Nsim = int(Nsim)
@@ -119,19 +125,19 @@ ACT = 365.0
 if frequency == "month":
     month = 30./365.
     t_grid = np.linspace(month,T,int(T*12))
-    N_euler_grid = 2       
+    N_euler_grid = 60       
     state_index = np.arange(int(12*T)+1)*N_euler_grid
 elif frequency == "day":
     t_grid = np.linspace(1./ACT, T, int(T*ACT))
     N_euler_grid = 2
     state_index = np.arange(int(365*T)+1)*N_euler_grid
 t_grid = np.append(0.,t_grid)
-n_times_minus_1 = len(t_grid[:-1])
+
 
 ##Reading Market Data and building model
 names = ["DJ 50 EURO E","S&P 500 NET EUR"]#["DJ 50 EURO E","S&P 500 NET EUR"]
 correlation = np.array(([1.,0.],[0.,1.]))
-folder_name = "constant_vola_market"   #before_fake_smiles constant_vola_market
+folder_name = "constant_vola_market"   #before_fake_smiles
 D, F, V, LV = LoadFromTxt(names, folder_name)
 
 mean_I = I_0*np.exp(D.R(T)*T)
@@ -144,12 +150,9 @@ if(lower_bound<0):
 I_grid = np.linspace(lower_bound,upper_bound,number_I)         
 
 ATM_idx = find_nearest(I_grid, I_0)
-spot_prices = np.zeros(N_equity)
-
-forwards = np.zeros((len(t_grid[1:]),N_equity))
-for i, forward in enumerate(F):
-    forwards[:,i] = forward(t_grid[:-1])
-    spot_prices[i] = forward.spot
+spot_prices = np.array([])
+for forward in F:
+    spot_prices = np.append(spot_prices,forward.spot)
     
 correlation_chole = np.linalg.cholesky(correlation)
 model = LV_model(fixings=t_grid[1:], local_vol_curve=LV, forward_curve=F, N_grid = N_euler_grid)
@@ -157,13 +160,9 @@ euler_grid = model.time_grid
 r_t = D.r_t(np.append(0.,euler_grid[:-1]))
 dt_vector = model.dt
 np_random = np.random
-
-
-poly = PolynomialFeatures(degree=Polynomial_grade)
-X = np.ones((N_equity,N_equity))
-#X = X[:,np.newaxis]
-X_ = poly.fit_transform(X)
-coeff_matrices = np.zeros((number_I,n_times_minus_1,number_alpha, len(X_.T)))
+Polynomial_grade = len(polynomial_basis(1.,1.).T)
+print("Polynomial grade ",Polynomial_grade)
+coeff_matrices = np.zeros((len(I_grid),len(t_grid[:-1]),number_alpha, Polynomial_grade+1))
     
 start_time = time.time()
 ##MC simulation of the risky assets 
@@ -177,80 +176,50 @@ V_t_plus = np.zeros((Nsim, number_I))
 state_index_rev = list(reversed(state_index[:-1]))
 V_t = np.ones(V_t_plus.shape)*(-np.inf)
 V_realized_matrix = np.zeros((Nsim,number_alpha))
-V_I_save_matrix = np.zeros((Nsim, number_I, number_alpha, n_times_minus_1))
-
-for k, I_T in enumerate(I_grid):
+V_I_save_matrix = np.zeros((Nsim, number_I, number_alpha, len(t_grid[:-1])))
+k = 0
+for I_T in I_grid:
     V_t_plus[:,k] = max(I_T-K,0.)
+    k+=1
 
 k=0
-V_T_FUNCTION = np.zeros((len(t_grid[:-1]),number_I,number_alpha))
-
-for k, t in enumerate(reversed(t_grid[:-1])):
+for t in reversed(t_grid[:-1]):
     start_index = state_index_rev[k]
-    state1 = S[:,start_index,0]#np.log(S[:,start_index,0]/forwards[ len(t_grid[:-1])-k-1,0])  #first asset 
-    state2 = S[:,start_index,1]#np.log(S[:,start_index,1]/forwards[ len(t_grid[:-1])-k-1,1])
-    Y = np.column_stack((state1,state2))
-    Y = poly.fit_transform(Y)
+    index_I_grid = 0
+    state1 =S[:,start_index,0]/spot_prices[0]  #first asset 
+    state2 = S[:,start_index,1]/spot_prices[1]
+    Y = polynomial_basis(state1,state2)
+    Y = np.insert(Y,0,1,axis=1)
     V_realized_interpolator = interp1d(I_grid, V_t_plus, axis=1, fill_value="extrapolate")
-    for index_I_grid, It in enumerate(I_grid):
+    for It in I_grid:
+        angle_index = 0
         V_t[:,index_I_grid] = 0.
         I_t_plus_save = np.zeros((Nsim,number_alpha))
-        V_T_save = np.zeros((Nsim,number_alpha))
-        for angle_index, a in enumerate(angles_grid):
+        for a in angles_grid:
             alpha = compute_alphas(a, Nsim, N_equity)
             I_t_plus_1 = evolve_TVS(start_index, It, dS_S, simulations_Vola, alpha, target_volatility, r_t, dt_vector[0], N_euler_grid, N_equity, Nsim, identity_3d, correlation_chole)
             V_realized = np.diag(V_realized_interpolator(I_t_plus_1))
-           # mask = V_realized < 0
-            print("I_grid ",It)
-            print("mean of I for angle_index ",angle_index," is ",np.mean(I_t_plus_1))
-            print("mean of V for angle_index ",angle_index," is ",np.mean(V_realized))
-          #  if (np.sum(mask)>0):
-               # V_realized[mask] = 0.
-           # I_t_plus_save[:,angle_index] = I_t_plus_1
-            V_realized_matrix[:,angle_index] = V_realized
+            I_t_plus_save[:,angle_index] = V_realized
             ##Regression
-            regressor = linear_model.LinearRegression(fit_intercept=False,normalize=False, positive=True, n_jobs=8)
-            result = regressor.fit(Y,V_realized)
-            coeff_It_t = result.coef_
+            ols = sm.OLS(V_realized,Y)
+            ols_result = ols.fit()
+            coeff_It_t = ols_result.params
             coeff_matrices[index_I_grid, len(t_grid[:-1])-k-1, angle_index, :] = coeff_It_t
             ###Continuation value
-            V_alpha = result.predict(Y)
-            #V_alpha = np.sum(coeff_It_t * Y, axis=1)     ##continuation value
-            print("coeff_matrices", coeff_It_t)
-            #mask = V_alpha < 0
-            #if (np.sum(mask)>0):
-             #   V_alpha[mask] = 0.
-            if print_logs:
-                print("V_alpha", V_alpha[0])
-                plot_regression(state1, V_realized, V_alpha, It, a, t, "1")
-                plot_regression(state2, V_realized, V_alpha, It, a, t, "2")
+            V_alpha = np.sum(coeff_It_t * Y, axis=1)     ##continuation value
+            #V_realized_matrix[:,angle_index] = V_alpha 
             V_I_save_matrix[:,index_I_grid,angle_index,len(t_grid[:-1])-k-1] = V_realized
-            #V_T_FUNCTION[len(t_grid[:-1])-k-1, index_I_grid,angle_index] = V_alpha[6]
-            V_t[:,index_I_grid] = np.maximum(V_t[:,index_I_grid],V_realized)
-            V_T_save[:,angle_index] = V_alpha
-            """if(angle_index == 1):
-                x = np.linspace(-1.,1.,100)
-                y = np.linspace(-1,1,100)
-                b = polynomial_basis(x,y)
-                b = np.insert(b,0,1,axis=1)
-                V_alpha1 = np.sum(coeff_matrices[index_I_grid, len(t_grid[:-1])-k-1, 0, :] * b, axis=1) 
-                V_alpha2 = np.sum(coeff_matrices[index_I_grid, len(t_grid[:-1])-k-1, 1, :] * b, axis=1) 
-                plt.scatter(state1, V_T_save[:,0])
-                plt.plot(x, V_alpha1,label="optimal")
-                plt.plot(x, V_alpha2,label="non optimal")
-                plt.scatter(state1, V_T_save[:,1])
-                plt.title(r"$I_t$ = "+str(round(It,4))+" --- time = "+str(round(t,3)))
-                plt.xlabel("state1")
-                plt.ylabel("V_alpha")
-                plt.legend()
-                plt.show()"""
+            V_t[:,index_I_grid] = np.maximum(V_t[:,index_I_grid],V_alpha)
+            angle_index += 1 
         #V_t[:,index_I_grid] = np.max(V_realized_matrix,axis=1)   #metterlo fuori dal ciclo
+        index_I_grid +=1
         
         if(((It == I_grid[0])  or (It==I_grid[ATM_idx]) or (It == I_grid[-1])) and (print_logs==True)):
             plot_regression3d(state1, state2,V_realized, V_alpha, It, a, t)
             plot_regression(state1, V_realized, V_alpha, It, a, t, "1")
             plot_regression(state2, V_realized, V_alpha, It, a, t, "2")
     
+    k += 1
     V_t_plus = V_t
     V_t = np.ones(V_t_plus.shape)*(-np.inf)
     if print_logs:
@@ -292,18 +261,21 @@ for i in range(len(t_grid[:-1])):
     coeff_matrices_time =  coeff_matrices[:,i,:,:]      #select the regression coefficients for that time
     
     ##polynomial basis
-    state1 = np.log(S_t[:,0]/forwards[ len(t_grid[:-1])-k-1,0]) #first asset 
-    state2 = np.log(S_t[:,1]/forwards[ len(t_grid[:-1])-k-1,1])
-    Y = np.column_stack((state1,state2))
-    Y = poly.fit_transform(Y)
+    state1 = S_t[:,0]/spot_prices[0] #first asset 
+    state2 = S_t[:,1]/spot_prices[1]
+    Y = polynomial_basis(state1,state2)
+    Y = np.insert(Y,0,1,axis=1)   ## add constant to the polynomial basis
+    
     ## loop on the action grid to choose the best action 
-    for angle_index, a in enumerate(angles_grid):
+    angle_index = 0
+    for a in angles_grid:
         coeff_matrices_time_alpha = coeff_matrices_time[:,angle_index,:]   #select the regression coefficients for that action
         coefficients = interp1d(I_grid, coeff_matrices_time_alpha, axis=0, fill_value="extrapolate")(I_t) # find the regression coefficients for the simulated spot prices of the TVS
         expected_continuation = np.sum(coefficients * Y, axis=1)
         mask = expected_continuation > V_max
-        alpha_chosen[mask,:] = np.array([1.0 - a,a])#np.array([np.cos(a)**2,np.sin(a)**2])  #select the optimal action 
+        alpha_chosen[mask,:] = np.array([a,1.0-a])#np.array([np.cos(a)**2,np.sin(a)**2])  #select the optimal action 
         V_max[mask] = expected_continuation[mask]
+        angle_index += 1
     ## Market simulation: risky assets and TVS
     dt = (t_grid[i+1]-t_grid[i])/N_euler_grid
     t_in = t_grid[i] 
@@ -333,9 +305,8 @@ discounted_payoff = Vanilla_PayOff(I_t, K)*D(T)
 x, mean, err = MC_Analisys(discounted_payoff, 100)
 plt.errorbar(x, mean,yerr=err, label="LSMC")
 plt.axhline(y=0.018160594508452997, label="Black optimal price",color="red")
-plt.ylabel("Call option price")
+#plt.axhline(y=0.007890500095994226,label="BS",color="red")
 plt.xlabel("MC throws")
-plt.legend()
 plt.show()
 print("Call option price ", np.mean(discounted_payoff))
 print("error", np.std(discounted_payoff)/np.sqrt(N_mc_forward))
@@ -368,9 +339,3 @@ for t in t_grid[:-1]:
         plt.title("Time "+str(round(t,3)))
         plt.show()
     k += 1
-    
-
-for t in range(len(t_grid[:-1])):
-    plt.plot(I_grid,V_T_FUNCTION[t,:,0]-V_T_FUNCTION[t,:,1], label='sub-optimal')
-    plt.legend()
-    plt.show()
