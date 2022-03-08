@@ -1,41 +1,46 @@
 #! python
-
 from baselines.run import main
 import envs.fe_envs
 
-############################################ MANDATORY PARAMETERS #################################################
-# do_train (boolean) = if you want to train the agent or to do the MC to obtain the price of the strategy
-# do_test (boolean) = if you want to do MC
-# env (string) = enviroment name
-# alg (string) = rl algorithm (usually ppo2)
-# num_layers (string) = number of hidden layers
-# num_hidden (string) = number of neurons for each hidden layer
-# num_env (string) = number for multiprocessing python (parallelism)
-# lr (string) = learning rate (about 3e-4)
-# train_timesteps (string) = how much time it spends to train the agent (approximately how many episodes) (about 1e8)
-# test_episodes (string) = number of episodes for the monte carlo calculation (you need do_test=True)
-# print_episodes (string: 0 or 1) = print some information
-# print_period (string: number) = every how many steps it prints a log about the trainign
-###################################################################################################################
-
-# value_network (string) = "None/shared": creates one NN for policy and value function; "copy": creates two different NN for policy and value function
-# lamb (double) = (default 0.95) parameter that controls the bias and variance of the expected reward estimator (useful for convergence)
-# noise (double) = add noise over the output of the NN (action is not deterministic)
-# beta (double) = importance of value function
-# custom_suffix (string) = add a string of characters at the end of the folder name
-
-
-
-def build_args(do_train,do_test, env, alg, num_layers, num_hidden, num_env, lr,
+def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
                train_timesteps, test_episodes, print_episodes, print_period, activation=None, save_interval=None,
                value_network=None, lam=None, gamma=None, noise=None, beta=None, ent=None, training_seed=None,
                test_seed=None, restart_training=None, initial_guess=None,
                batch=None, custom_options=None, custom_suffix=None):
-    """Utility function for the most common argument configurations."""
-
-    #do_test = not do_train
+    """
+    Utility function for the most common argument configurations.
+    :param do_train (bool): whether to train the agent.
+    :param do_test (bool): whether to test the agent by means of a Monte Carlo simulation. The script uses the saved model built with the same arguments provided in build_args function in the do_train fase.
+    :param env (str): environment name (available: TVS_BS-v0, TVS_LV-v0, TVS_LV-v2, and VanillaOption-v0; see the file fe_envs.py).
+    :param alg (str): Reinforcement Learning algorithm in baselines format name (example : "ppo2").
+    :param num_layers (int in string format): number of hidden layers for the policy neural network (NN).
+    :param num_hidden (int in string format): number of neurons for each hidden layer. Thus the built NN has num_layers layers with num_hidden neurons each.
+    :param num_env (int in string format): number of environments to run in parallel.
+    :param lr (float in string format): (default 3e-4) learning rate.
+    :param train_timesteps (int in string format): number of timesteps (episode_lenght * number_of_training_episodes) to train the agent.
+    :param test_episodes (int in string format): number of episodes to test the agent.
+    :param print_episodes (int in string format): print the results every print_episodes steps.
+    :param print_period (int in string format): print the results every print_period steps.
+    :param activation (str): activation function for the hidden layers of the NN (the output layer has linear activation function).
+    :param save_interval (int in string format): save the model every save_interval steps during the training phase (save_interval is measured in epochs called in baselines as 'nupdates').
+    :param value_network (str): "None/shared": creates one NN for policy and value function; "copy": creates two different NN for policy and value function.
+    :param lam (float in string format): (default 0.95) parameter that controls the bias and variance of the expected reward estimator (useful for convergence). This is a ppo specific hyper-parameter.
+    :param gamma (float in string format): (default 0.99) discount factor of the Reinforcement Learning reward.
+    :param noise (float in string format): value for the log(sigma), where sigma is the noise size over the output of the policy NN (action is not deterministic). The noise parameter is set to 1 during the test phase (deterministic policy).
+    :param beta (float in string format): (default 0.5) importance of value function in the overall loss function. This is a ppo specific hyper-parameter (vf_coef).
+    :param ent (float in string format): (default 0.0) importance of the entropy member in the overall loss function. This is a ppo specific hyper-parameter (ent_coef).
+    :param training_seed (int in string format): seed for the random number generator used during the training phase.
+    :param test_seed (int in string format): seed for the random number generator used during the test phase.
+    :param restart_training (bool): whether to restart the training from a selected saved model (initial_guess).
+    :param initial_guess (str): the saved model to restart the training from. The saved model must be located in the folder trained_agents/environment_name.
+    :param batch (int in string format): (default 2048) batch size for the training phase.
+    :param custom_options (list): custom commands options list (example: '--activation=tf.nn.tanh').
+    :param custom_suffix (str): string of characters to add at the end of the folder name.
+    """
     suffix = "" if custom_suffix is None else custom_suffix
     options = [] if custom_options is None else custom_options
+
+    assert do_train != do_test #"do_train and do_test cannot be both True or False"
 
     if activation is not None:
         suffix = '_' + activation + suffix
@@ -65,7 +70,7 @@ def build_args(do_train,do_test, env, alg, num_layers, num_hidden, num_env, lr,
     if batch is not None:
         suffix = '_batch' + batch + suffix
         options.append('--nsteps=' + batch)
-      
+
     if gamma is not None:
         suffix = '_gamma' + gamma + suffix
         if do_train:
@@ -75,27 +80,27 @@ def build_args(do_train,do_test, env, alg, num_layers, num_hidden, num_env, lr,
         suffix = '_trainingseed' + training_seed + suffix
         if do_train:
             options.append('--seed=' + training_seed)
-       
+
     if save_interval is not None:
         if do_train:
             options.append('--save_interval=' + save_interval)
-    
+
     description = '{}_{}_{}x{}_{}{}'.format(alg, train_timesteps, num_layers, num_hidden, lr, suffix)
-    log_path='./logs/{}/{}'.format(env, description)
-    agent_path='./trained_agents/{}/{}'.format(env, description)  #saving files
+    log_path = './logs/{}/{}'.format(env, description)
+    agent_path = './trained_agents/{}/{}'.format(env, description)  #saving files
 
     if do_train:
         agent_mode='save'
         options.append('--log_path=' + log_path)
         options.append('--lr=' + lr)
         if restart_training:
-            if initial_guess is None: 
+            if initial_guess is None:
                 raise Exception("You have to provide the initial guess where to start the training")
             initial_guess = './trained_agents/'+str(env)+'/'+str(initial_guess)
             options.append('--load_path={}'.format(initial_guess))
     else:
-        train_timesteps='0'
-        agent_mode='load'
+        train_timesteps = '0'
+        agent_mode = 'load'
 
     if do_test:
         options.append('--play_episodes=' + test_episodes)
@@ -124,21 +129,23 @@ if __name__ == '__main__':
     cur_args = build_args(
         do_train=True,
         do_test=False,
-        test_seed='114',
+        restart_training=False,
+        test_seed='112',
         training_seed='45891',
-        env='TVS_LV_newreward-v0',
+        env='VanillaOption-v0',
         alg='ppo2',
-        num_layers='3',
-        num_hidden='5',
-        num_env='2',
-        lr='3e-5',
-        train_timesteps='4e8',
-        test_episodes='1e6',
+        num_layers='5',
+        num_hidden='8',
+        num_env='30',
+        activation='tanh',
+        lr='3e-4',
+        train_timesteps='1e6',
+        test_episodes='1000000',
         print_episodes='1',
         print_period='64',
         save_interval='200',    
         value_network='copy',
         beta='0.7',
-        custom_suffix='freefrombaseline_displacedmarket_2assets_monthgrid_maturity2'   #test on one_month 6,10,1e6
+        custom_suffix='pricing'
         )
     main(cur_args)

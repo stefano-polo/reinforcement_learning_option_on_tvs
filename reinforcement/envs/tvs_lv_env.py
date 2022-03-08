@@ -1,204 +1,246 @@
 import gym
 from gym import spaces
 from gym.utils import seeding
-from numpy import log, sqrt, exp
+from numpy import log, sqrt
 import numpy as np
-from envs.pricing.pricing import EquityForwardCurve, DiscountingCurve, LV_model, ForwardVariance, quad_piecewise
-from envs.pricing.closedforms import European_option_closed_form
-from envs.pricing.targetvol import Drift, Strategy, TVSForwardCurve, CholeskyTDependent, optimization_only_long
-from envs.pricing.fake_market_lv import load_fake_market_lv
-from envs.pricing.loadfromtxt import LoadFromTxt
-from envs.pricing.targetvol import optimization_only_long, Markowitz_solution
-from envs.pricing.n_sphere import sign_renormalization
 
-class TVS_LV(gym.Env):
-    """Target volatility strategy Option environment with a Local volatility model for the assets
+import sys
+sys.path.insert(1, '../pricing')
+
+from pricing import EquityForwardCurve, DiscountingCurve, LV_model, ForwardVariance, quad_piecewise
+from targetvol import Drift, Strategy, TVSForwardCurve, CholeskyTDependent, optimization_only_long
+from read_market import LoadFromTxt
+from targetvol import optimization_only_long, Markowitz_solution
+
+from envs.utils import build_allocation_time_grid, sign_renormalization
+
+
+class TVS_LV_ENV_reward1(gym.Env):
     """
-    def __init__(self, N_equity= 2, frequency = "month", target_volatility=5/100, I_0 = 1., strike_opt=1., 
-    maturity=2., constraint = "free", action_bound=5., sum_long = None, sum_short=None):
-        """Pricing parameters for the option"""
-        self.bang_bang_action = 0
-        self.frombaseline = 0
-        self.fromblack = 0
-        self.constraint = constraint
+    Target volatility strategy Option environment with a Local volatility model for the assets
+    """
+
+    def __init__(self, market_folder: str = "../market_data/FakeSmilesDisplacedDiffusion", asset_names: list = ["DJ 50 EURO E", "S&P 500 NET EUR"],
+                 allocation_frequency: str = "monthly", target_volatility: float = 5 / 100, tvs_spot_value: float = 1.0,
+                 option_strike: float = 1.0, option_maturity: float = 2.0,
+                 neural_network_action_parameterization: str = None, action_constraints: str = None,
+                 action_bound: float = 5.0, overall_long_position: float = None, overall_short_position: float = None,
+                 n_sim_for_cache: int = int(2e3)) -> None:
+        """
+        Target volatility strategy Option RL environment with a Local volatility model for the assets. The environment implements
+        the first reward function experimented in the paper. In this environment the action space and the observation space are
+        continuous. The observation state is a vector of size (n_assets + 2) with the following structure: [stock price, tvs level, time]
+        and the state space is the following block: lower_bound = [-2.5, 0., 0.]; upper_bound = [2.5, 10 * tvs_spot_value, maturity].
+        :param market_folder (str, default="../market_data/FakeSmilesDisplacedDiffusion"): folder where the market data is stored
+        :param asset_names (list or tuple, default=["DJ 50 EURO E", "S&P 500 NET EUR"]): list of asset names to be loaded
+        :param allocation_frequency (str, default="monthly"): allocation frequency (available options: "monthly" and "daily"). The
+        allocation frequency determines the time grid on which the RL agent changes the risky portfolio composition (alpha).
+        :param target_volatility (float, default=5/100): target volatility level of the portfolio.
+        :param tvs_spot_value (float, default=1.0): spot value of the target volatility strategy.
+        :param option_strike (float, default=1.0): strike price of the option.
+        :param option_maturity (float, default=2.0): maturity of the option expressed in yrf (it must be an integer number of years).
+        :param neural_network_action_parameterization (str, default=None): neural network action parameterization (available: None,
+        'baseline_strategy', 'black_strategy'). If None, the action of the RL agent is not parameterized (the NN output is the risky portfolio composition).
+        If 'baseline_strategy', then the NN action is added to the baseline strategy to get the risky portfolio composition (the 'baseline_strategy' consists in
+        solving the Black and Scholes problem path-wise). If 'black_strategy', then the NN action is added to the Black strategy to get the risky portfolio composition
+        (the black strategy consists in the deterministic optimal solution found in the Black and Scholes environment).
+        :param action_constraints (str, default=None): action constraints (available: None, 'long_only', 'long_short_limit'). If None, the risky allocation strategy is not constrained.
+        If 'long_only', then the RL agent can only perform long positions normalized to 1. If 'long_only' is set and neural_network_action_parameterization is None then the action_space
+        is hard coded to a Box([0, 1]). If 'long_short_limit', then the RL agent can perform long and short positions normalized to overall_long_position and overall_short_position respectively
+        (overall_long_position and overall_short_position must be initialized).
+        If 'long_short_limit' is selected, then no neural network action parameterization is allowed (not implemented yet).
+        :param action_bound (float, default=5.0): action bound-> action space = Box([-np.fabs(action_bound), action_bound]). If action_constraints is set to 'long_short_limit',
+        then the action space is set to a Box([0, 1]).
+        :param overall_long_position (float, default=None): overall long position (if action_constraints is set to 'long_short_limit').
+        :param overall_short_position (float, default=None): overall short position (if action_constraints is set to 'long_short_limit').
+        :param n_sim_for_cache (int, default=int(2e3)): number of simulated paths cached in memory (the cache speed-up the computation because it exploits the vectorization provided by numpy).
+        """
+
+        # Store Pricing parameters for the option
+        self.I_0 = tvs_spot_value
+        self.I_t = tvs_spot_value
+        self.strike_opt = option_strike
+        self.T = option_maturity
         self.target_vol = target_volatility
-        self.I_0 = I_0
-        self.I_t = I_0
-        self.strike_opt = strike_opt
-        self.N_equity = N_equity            
-        self.T = maturity
-        names = ["DJ 50 EURO E","S&P 500 NET EUR"]
-        correlation = np.array(([1.,0.6],[0.6,1.]))
-        folder_name = "FakeSmilesDisplacedDiffusion"
-        ACT = 365.
-        """Time grid creation for the simulation"""
-        self.Identity = np.identity(self.N_equity)
-        if frequency == "month":
-            month_dates = np.array([31.,28.,31.,30.,31.,30.,31.,31.,30.,31.,30.,31.])
-            months = month_dates
-            if self.T > 1.:
-                for i in range(int(self.T)-1):
-                    months = np.append(months, month_dates)
-            self.observation_grid = np.cumsum(months)/ACT
-            self.N_euler_grid = 60       
-            self.state_index = np.arange(int(12*self.T)+1)*self.N_euler_grid
-        elif frequency == "day":
-            self.observation_grid = np.linspace(1./ACT, self.T, int(self.T*ACT))
-            self.N_euler_grid = 2
-            self.state_index = np.arange(int(365*self.T)+1)*self.N_euler_grid
-        
-        self.observation_grid = np.append(0.,self.observation_grid)
+
+        # Creation of the time grid describing the episode"""
+        self.observation_grid, self.state_index_grid, self.N_euler_grid = build_allocation_time_grid(self.T, allocation_frequency, day_count_convention="ACT_365")
         self.time_index = 0
-        self.current_time = 0.
-        self.simulation_index = 0
-        self.Nsim = 1e3
-        """Loading market curves"""
-        D, F, V, LV = LoadFromTxt(names, folder_name)
-        self.correlation_chole = np.linalg.cholesky(correlation)
-        self.spot_prices = np.zeros(self.N_equity)
+        self.current_time = self.observation_grid[self.time_index]
+        self.simulation_index = 0  # index to get simulated paths from cache
+        self.Nsim = n_sim_for_cache  # number of genereated paths and cached in memory
+
+        # Loading market curves and elements
+        discounting_curves, forward_curves, variance_curves, local_volatility_curves, correlation = LoadFromTxt(asset_names, market_folder, local_vol_model=True)
+        self.N_equity = len(asset_names)
+        assert len(forward_curves) == len(variance_curves) == len(local_volatility_curves) == len(correlation) == len(correlation.T) == self.N_equity
+        correlation = np.array(([1., 0.], [0., 1.]))
+        self.cholesky_matrix = np.linalg.cholesky(correlation)  # Cholesky decomposition of the correlation matrix
+        self.spot_prices = np.zeros(self.N_equity)  # spot prices of the assets
         for i in range(self.N_equity):
-            self.spot_prices[i] = F[i].spot
-        """Preparing the LV model"""
-        self.model = LV_model(fixings=self.observation_grid[1:], local_vol_curve=LV, forward_curve=F, N_grid = self.N_euler_grid)
-        euler_grid = self.model.time_grid
-        if self.frombaseline or self.fromblack:
-            mu_function = Drift(forward_curves=F)
-            self.mu_values  = mu_function(np.append(0.,euler_grid[:-1]))
-        if self.fromblack:
-            nu_function = CholeskyTDependent(V, self.correlation_chole)
-            alpha = Strategy()
-            if self.constraint == "only_long":
-                alpha.optimization_constrained(mu=mu_function,nu=nu_function,long_limit=25/100,N_trial=500,typo=1)
-            else: 
-                alpha.Mark_strategy(mu=mu_function,nu=nu_function)
-            self.alpha_t = alpha(self.observation_grid[:-1])
-        self.r_t = D.r_t(np.append(0.,euler_grid[:-1]))
-        self.discount = D(self.T)
+            self.spot_prices[i] = forward_curves[i].spot
+
+        # Creation of the LV model
+        self.model = LV_model(fixings=self.observation_grid[1:], forward_curve=forward_curves, local_vol_curve=local_volatility_curves,
+                              n_euler_grid=self.N_euler_grid, correlation_matrix=correlation, sampling="standard",
+                              return_grid_values_for_tvs=True)  # do not insert the reference date in the simulating grid
+        # Save forward values at the observation grid points (not the euler grid)
+        self.forward_values_at_observation_grid = np.insert(self.model.forward_values, 0, self.spot_prices, axis=0)[self.state_index_grid, :]  # shape (len(observation_grid), N_equity)
+        # Collect discout factor at maturity date and the instantaneous interest rate on the euler grid for the TVS simulation
+        euler_time_grid = self.model.euler_time_grid
         self.dt_vector = self.model.dt
-        """Black variance for normalization"""
-        self.integral_variance = np.zeros((N_equity,len(self.observation_grid[1:])))
-        for i in range(self.N_equity):
-            for j in range(len(self.observation_grid[1:])):
-                self.integral_variance[i,j] = quad_piecewise(V[i],V[i].T,0.,self.observation_grid[j+1])
-        self.integral_variance = self.integral_variance.T
-        self.integral_variance = np.insert(self.integral_variance,0,np.zeros(self.N_equity),axis=0)
-        self.integral_variance_sqrt =sqrt(self.integral_variance)
-        self.integral_variance_sqrt[0,:] = 1
-        self.forwards = np.insert(self.model.forward.T,0,self.spot_prices,axis=0)[self.state_index,:]
-        if self.frombaseline and self.fromblack:
-            raise Exception("You can not start from black and baseline")
-        if self.bang_bang_action and self.constraint=="free":
-            raise Exception("You can not use a bang bang strategy with free constraint")
-        if not self.bang_bang_action:
-            if not self.frombaseline and not self.fromblack:
-                if self.constraint == 'long_short_limit' and (sum_long is None or sum_short is None):
-                    raise Exception("You should provide the sum limit for short and long position")
-                if sum_long is not None and sum_short is not None:
-                    self.sum_long = sum_long
-                    self.sum_short = sum_short
-                if self.constraint != "only_long":
-                    low_action = np.ones(self.N_equity)*(-abs(action_bound))-1e-6
-                    high_action = np.ones(self.N_equity)*abs(action_bound)+1e-6
-                else:
-                    low_action = np.ones(self.N_equity)*1e-7
-                    high_action = np.ones(self.N_equity)
+        self.r_t_in_euler_grid = discounting_curves.r_t(np.append(0., euler_time_grid[:-1]))  # shape (N_euler_grid,) insert the referencedate and discard the last euler grid point
+        self.discount_factor_at_maturity = discounting_curves(self.T)
+
+        # Collect action space parameters
+        allowed_action_constraints = ["long_only", "long_short_limit"]
+        if action_constraints is None:  # free allocation strategy
+            self.free_allocation_bounds = True; self.long_only = False; self.long_short_limit = False
+            low_action = np.ones(self.N_equity) * (-abs(np.fabs(action_bound))) - 1e-6  # lower bound of the action space
+            high_action = np.ones(self.N_equity) * abs(np.fabs(action_bound)) + 1e-6  # upper bound of the action space
+        elif action_constraints == allowed_action_constraints[0]:  # long only strategy
+            self.free_allocation_bounds = False; self.long_only = True; self.long_short_limit = False
+            low_action = np.ones(self.N_equity) * 1e-7  # lower bound of the action space
+            high_action = np.ones(self.N_equity)  # upper bound of the action space
+        elif action_constraints == allowed_action_constraints[1]:  # overall position bounded strategy
+            if overall_long_position is None or overall_short_position is None:
+                raise ValueError(f"Please specify the overall long and short positions for the {allowed_action_constraints[1]} constraint")
+            self.free_allocation_bounds = False; self.long_only = False; self.long_short_limit = True
+            low_action = np.ones(self.N_equity) * (-abs(np.fabs(action_bound))) - 1e-6  # lower bound of the action space
+            high_action = np.ones(self.N_equity) * abs(np.fabs(action_bound)) + 1e-6  # upper bound of the action space
+            self.sum_long = overall_long_position
+            self.sum_short = overall_short_position
+        else:
+            raise ValueError(f"Please specify an allowed action constraint: {allowed_action_constraints}")
+
+        # Collect neural network action parameterization
+        allowed_action_parameterizations = ["baseline_strategy", "black_strategy"]
+        if neural_network_action_parameterization is None:  # if no neural network action parameterization then the allocation strategy coincides with the NN output
+            self.parameterized_action = False; self.start_from_baseline = False; self.start_from_black = False;
+        elif neural_network_action_parameterization == allowed_action_parameterizations[0]:
+            self.parameterized_action = True; self.start_from_baseline = True; self.start_from_black = False;
+            mu_function = Drift(forward_curves=forward_curves)
+            self.mu_values_on_euler_grid = mu_function(np.append(0., euler_time_grid[:-1]))
+            low_action = np.ones(self.N_equity) * (-np.fabs(action_bound))  # lower bound of the action space
+            high_action = np.ones(self.N_equity) * np.fabs(action_bound)  # upper bound of the action space
+            if action_constraints is not None and action_constraints != allowed_action_constraints[0]:
+                raise ValueError(f"The {allowed_action_parameterizations[1]} is not implemented for the specified {action_constraints} action constraint")
+        elif neural_network_action_parameterization == allowed_action_parameterizations[1]:
+            self.parameterized_action = True; self.start_from_baseline = False; self.start_from_black = True;
+            low_action = np.ones(self.N_equity) * (-np.fabs(action_bound))  # lower bound of the action space
+            high_action = np.ones(self.N_equity) * np.fabs(action_bound)  # upper bound of the action space
+            mu_function = Drift(forward_curves=forward_curves)
+            nu_function = CholeskyTDependent(variance_curves, self.cholesky_matrix)
+            alpha = Strategy()
+            if action_constraints == allowed_action_constraints[0]:
+                alpha.optimization_constrained(mu=mu_function, nu=nu_function, n_trial=500, typo=1)
+            elif action_constraints is None:
+                alpha.Mark_strategy(mu=mu_function, nu=nu_function)
             else:
-                low_action = np.ones(self.N_equity)*(-1.)
-                high_action = np.ones(self.N_equity)
-            self.action_space = spaces.Box(low = np.float32(low_action), high = np.float32(high_action))
+                raise ValueError(f"The {allowed_action_parameterizations[1]} is not implemented for the specified {action_constraints} action constraint")
+            self.alpha_t = alpha(self.observation_grid[:-1])
         else:
-            self.action_space = spaces.Discrete(2)
-        high = np.ones(N_equity)*2.5
-        low_bound = np.append(-high,0.)
-        high_bound = np.append(high,self.T+1./365)
-        self.observation_space = spaces.Box(low=np.float32(low_bound),high=np.float32(high_bound))
+            raise ValueError(f"Please specify an allowed neural network action parameterization: {allowed_action_parameterizations}")
 
+        # set the bounds of the action space
+        assert len(low_action) == len(high_action)
+        self.action_space = spaces.Box(low=np.float32(low_action), high=np.float32(high_action))
+        # set the bounds of the observation space
+        high = np.ones(self.N_equity) * 2.5
+        low_bound = np.append(-high, 0.)  # append the lower bound for the tvs level
+        low_bound = np.append(low_bound, 0.)  # append the lower bound for the time
+        high_bound = np.append(high, self.I_0 * 10.)  # append the upper bound for the tvs level
+        high_bound = np.append(high_bound, self.T + 1. / 365)  # append the upper bound for the time
+        assert len(low_bound) == len(high_bound)
+        self.observation_space = spaces.Box(low=np.float32(low_bound), high=np.float32(high_bound))
+        # Useful elements for the simulation
+        self.Identity = np.identity(self.N_equity)
 
-#current time start at zero
-    def step(self, action): 
+    def step(self, action: np.ndarray) -> tuple:
+
         assert self.action_space.contains(action)
-        if not self.bang_bang_action:
-            if self.constraint == "only_long" and (self.frombaseline or self.fromblack):
-                action = action/np.sum(action)
-                s = 1.
-            elif self.constraint == "long_short_limit":
-                action = sign_renormalization(action,self.how_long,self.how_short)
-                s = np.sum(action)
-            elif self.constraint == "free" and not (self.frombaseline or self.fromblack):
-                s = np.sum(action)
-        else:
-            action = np.array([action, 1.-action])
-            s = 1.
+        if not self.parameterized_action:
+            if self.free_allocation_bounds:
+                risky_allocation_strategy = action
+                overall_position = np.sum(risky_allocation_strategy)
+            elif self.long_only:
+                risky_allocation_strategy = action / np.sum(action)
+                overall_position = 1.0
+            elif self.long_short_limit:
+                risky_allocation_strategy = sign_renormalization(action, self.sum_long, self.sum_short)
+                overall_position = np.sum(risky_allocation_strategy)
+            else:
+                raise ValueError("Please specify a valid allocation strategy")
+
+        # update the current time and the equity stocks state
         self.time_index = self.time_index + 1
         self.current_time = self.observation_grid[self.time_index]
         self.current_logX = self.logX_t[self.time_index]
-        dt = self.dt_vector[self.time_index-1]
-        index_plus = (self.time_index-1)*self.N_euler_grid
-        """Simulation of I_t"""
+        dt = self.dt_vector[self.time_index - 1]
+        index_euler_for_observation_date = (self.time_index - 1) * self.N_euler_grid
+        # simulate the value of the tvs depending on the chosen risky_allocation_strategy
         for i in range(self.N_euler_grid):
-            idx = index_plus + i 
-            Vola =  self.sigma_t[idx]*self.Identity
-            nu = Vola@self.correlation_chole
-            if i==0:
-                if self.constraint=='only_long' and (self.fromblack or self.frombaseline):
-                    if self.frombaseline:
-                        baseline = np.zeros(self.N_equity) 
-                        baseline[np.argmax(self.sigma_t[idx])] = 1. 
-                    elif self.fromblack:
-                        baseline = self.alpha_t[self.time_index-1]
-                    action = action + baseline
-                    action[action<0] = 0.
-                    is_all_zero = np.all((action==0.))
-                    if is_all_zero:
-                        action = baseline
-                    else:
-                        action = action/np.sum(action)
-                    s = 1.
-                elif self.constraint=="free" and (self.fromblack or self.frombaseline):
-                    if self.frombaseline:
-                        baseline = Markowitz_solution(self.mu_values[idx],nu,-1)        
-                    else:
-                        baseline = self.alpha_t[self.time_index-1]
-                    action = action + baseline
-                    s = np.sum(action)
-            prod = action@nu
-            norm = sqrt(prod@prod)               
-            omega = self.target_vol/norm
-            self.I_t = self.I_t * (1. + omega * action@self.dS_S[idx] + dt * self.r_t[idx]*(1.-omega*s))
+            euler_grid_index = index_euler_for_observation_date + i
+            sigma_matrix = self.instant_volatility[euler_grid_index] * self.Identity
+            nu_matrix = sigma_matrix @ self.cholesky_matrix
+            if i == 0:  # observation time
+                if self.parameterized_action:
+                    if self.long_only:
+                        if self.start_from_baseline:
+                            parameterization = optimization_only_long(self.mu_values_on_euler_grid[euler_grid_index], nu_matrix, n_trial=5)
+                        elif self.start_from_black:
+                            parameterization = self.alpha_t[self.time_index - 1]
+                        risky_allocation_strategy = parameterization + action
+                        risky_allocation_strategy[risky_allocation_strategy < 0.] = 0.  # long only constraint
+                        all_zeros_entries = np.all((risky_allocation_strategy == 0.))
+                        if all_zeros_entries:
+                            risky_allocation_strategy = parameterization
+                        else:
+                            risky_allocation_strategy = risky_allocation_strategy / np.sum(risky_allocation_strategy)
+                        overall_position = 1.0
+                    elif self.free_allocation_bounds:
+                        if self.start_from_baseline:
+                            parameterization = Markowitz_solution(self.mu_values_on_euler_grid[euler_grid_index], nu_matrix, -1)
+                        elif self.start_from_black:
+                            parameterization = self.alpha_t[self.time_index - 1]
+                        risky_allocation_strategy = parameterization + action
+                        overall_position = np.sum(risky_allocation_strategy)
+            product = risky_allocation_strategy @ nu_matrix
+            norm = sqrt(product @ product)
+            omega_coefficient = self.target_vol / norm
+            self.I_t = self.I_t * (1.0 + omega_coefficient * risky_allocation_strategy @ self.dS_S[euler_grid_index]
+                                   + dt * self.r_t_in_euler_grid[euler_grid_index] * (1.0 - omega_coefficient * overall_position))
+        # Check if the episode is ended
         if self.current_time < self.T:
             done = False
             reward = 0.
         else:
             done = True
-            reward = np.maximum(self.I_t-self.strike_opt,0.)*self.discount
-            self.simulation_index = self.simulation_index +1
-
-        state = np.append(self.current_logX, self.current_time)
+            reward = np.maximum(self.I_t - self.strike_opt, 0.) * self.discount_factor_at_maturity
+            self.simulation_index = self.simulation_index + 1
+        state = np.append(self.current_logX, np.array([self.I_t / self.I_0, self.current_time]))
         return state, reward, done, {}
 
-
     def reset(self):
-        if self.simulation_index == 0 or self.simulation_index==self.Nsim:
-            self.simulations_logX = None
-            self.simulations_Vola = None
-            self.dS_S_simulations = None
-            S, self.simulations_Vola = self.model.simulate(corr_chole = self.correlation_chole, random_gen = self.np_random, normalization = 0, Nsim=self.Nsim)
-            S = np.insert(S,0,self.spot_prices,axis=1)
-            self.dS_S_simulations = (S[:,1:,:] - S[:,:-1,:])/S[:,:-1,:]
-            S_sliced = S[:,self.state_index,:]
-            self.simulations_logX = (log(S_sliced/self.forwards)+0.5*self.integral_variance)/self.integral_variance_sqrt
-            S_sliced = None
-            S = None
-            self.simulation_index=0
+        if self.simulation_index == 0 or self.simulation_index == self.Nsim:
+            self.simulations_logX = None  # free memory
+            self.simulations_Vola = None  # free memory
+            self.dS_S_simulations = None  # free memory
+            S_t, self.simulations_Vola = self.model.simulate(random_generator=self.np_random, n_sim=self.Nsim)
+            S_t = np.insert(S_t, 0, self.spot_prices, axis=1)  # insert spot price at the beginning of each row
+            self.dS_S_simulations = (S_t[:, 1:, :] - S_t[:, :-1, :]) / S_t[:, :-1, :]
+            S_sliced = S_t[:, self.state_index_grid, :]
+            self.simulations_logX = log(S_sliced / self.forward_values_at_observation_grid)
+            self.simulation_index = 0
+
         self.current_time = 0.
         self.time_index = 0
         self.I_t = self.I_0
-        self.logX_t = self.simulations_logX[self.simulation_index]
-        self.dS_S = self.dS_S_simulations[self.simulation_index]
-        self.sigma_t = self.simulations_Vola[self.simulation_index]
-        state = np.append(self.logX_t[0], self.current_time)
+        self.logX_t = self.simulations_logX[self.simulation_index]  # read from cache
+        self.dS_S = self.dS_S_simulations[self.simulation_index]  # read from cache
+        self.instant_volatility = self.simulations_Vola[self.simulation_index]  # read from cache
+        state = np.append(self.logX_t[0], np.array([1.0, self.current_time]))  # initial state [stock price, tvs level, time]
         return state
-
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -209,6 +251,5 @@ class TVS_LV(gym.Env):
         print('asset_history = ', self.asset_history)
         print('current time = ', self.current_time)
 
-
     def theoretical_price(self):
-        return 0
+        return None  # there is no closed formulation for the theoretical price

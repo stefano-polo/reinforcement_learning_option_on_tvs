@@ -5,42 +5,23 @@ from gym.envs.registration import register
 # FE agents
 # ----------------------------------------
 register(
-    id='CompoundOption-v0',                    #name of the enviroment
-    entry_point='envs.compound_option:CompoundOption',         #location of the file
+    id='VanillaOption-v0',                                      # name of the environment
+    entry_point='envs.plain_vanilla_env:PlainVanillaOption',    #location of the file
 )
 
 register(
-    id='VanillaOption-v0',
-    entry_point='envs.call_option:PlainVanillaOption',
-)
-
-register(
-    id='TVS_simple-v0',
-    entry_point='envs.tvs_simple_env:TVS_simple',
-)
-
-register(
-    id='TVS-v0',
-    entry_point='envs.tvs_env:TVS_environment',
-)
-
-register(
-    id='TVS_2assets-v0',
-    entry_point='envs.tvs_2market_env:TVS_environment2',
-)
-
-register(
-    id='TVS_3assets-v0',
-    entry_point='envs.tvs_3market_env:TVS_envirnoment3',
+    id="TVS_BS-v0",
+    entry_point='envs.tvs_bs_env:TVS_BS_ENV',
 )
 
 register(
     id='TVS_LV-v0',
-    entry_point='envs.tvs_lv_env:TVS_LV',
+    entry_point='envs.tvs_lv_env:TVS_LV_ENV_reward1',
 
 )
+
 register(
-    id='TVS_LV_newreward-v0',
-    entry_point='envs.tvs_new_reward:TVS_LV_newreward',
+    id='TVS_LV-v2',
+    entry_point='envs.tvs_lv_env_new_reward:TVS_LV_ENV_reward2',
 
 )

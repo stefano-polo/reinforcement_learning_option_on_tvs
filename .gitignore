@@ -15,12 +15,10 @@ Thumbs.db
 *.suo
 *.tlb
 *.tlh
-*.bcf
 *.png
 *.bak
 *.cache
 *.aux
-*.bbl
 *.blg
 *.out
 *.synctex.gz
@@ -34,16 +32,20 @@ Thumbs.db
 *.lib
 *.sbr
 *.prof
-reinforcement/go.py
+*.xml
 obj/
+**/.idea/
+.idea/
 **/.vscode
 **/__pycache__
 **/.ipynb_checkpoints
+*.ipynb
 **/trained_agents
 **/logs
 [Rr]elease*/
 _ReSharper*/
 [Tt]est[Rr]esult*
 .vs/
+**/pyGem
 #Nuget packages folder
 packages/

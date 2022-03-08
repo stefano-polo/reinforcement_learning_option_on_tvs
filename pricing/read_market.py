@@ -1,135 +1,72 @@
-import xml.etree.ElementTree as ET
-from pricing import EquityForwardCurve, DiscountingCurve, ForwardVariance,LocalVolatilityCurve
-from numpy import array, delete, zeros, reshape, append, max
+from pricing import DiscountingCurve, EquityForwardCurve, ForwardVariance, LocalVolatilityCurve
 import numpy as np
-
-class MarketDataReader:
-
-    def __init__(self,filename = None):
-        tree = ET.parse(filename)
-        self.root = tree.getroot()
-
-    def get_stock_number(self):
-        return len(self.root[3][0][1][1][1][0])
-
-    def get_stock_names(self):
-        N_stocks = self.get_stock_number()
-        names = array([])
-        for i in range(N_stocks):
-            names=append(names,self.root[3][0][1][1][1][0][i].text)
-        delete_equity = [0,11,12,13,14,15]
-        names = delete(names,delete_equity)
-        wrong_names = [names[4],names[5],names[6]]
-        names[4] = wrong_names[2]
-        names[5] = wrong_names[0]
-        names[6] = wrong_names[1]
-        return names
-    def get_correlation(self):
-        N_stocks = self.get_stock_number()
-        correlation_matrix = zeros(N_stocks**2)
-        for i in range (N_stocks**2):
-            correlation_matrix[i] = float(self.root[3][0][1][1][0][0][i].text)
-        correlation_matrix = reshape(correlation_matrix, (N_stocks,N_stocks))
-        """Delete cash bank"""
-        delete_equity = [0,11,12,13,14,15]
-        correlation_matrix = delete(correlation_matrix,delete_equity, axis = 0)
-        correlation_matrix = delete(correlation_matrix,delete_equity, axis = 1)
-        return correlation_matrix
-
-    def get_discounts(self):
-        discounts = zeros(len(self.root[3][1][0][0][0][0][0]))
-        discounts_dates = zeros(len(self.root[3][1][0][0][0][0][0]))
-        for i in range(len(self.root[3][1][0][0][0][0][0])):
-            discounts_dates[i] = float(self.root[3][1][0][0][0][0][0][i].text)
-            discounts[i] = float(self.root[3][1][0][0][0][1][0][i].text)
-        return DiscountingCurve(reference=self.get_reference_date(), discounts=discounts, dates=discounts_dates, act="365")
-
-    def get_reference_date(self):
-        return float(self.root[3][1][0][0][2][0].text)
-
-    def get_spot_prices(self):
-        index_equity = [1,2,3,4,5,6,7,8,9,10]
-        spot_prices = zeros(len(index_equity))
-        j = 0
-        for i in index_equity:
-            if i>=6:
-                spot_prices[j] = float(self.root[3][i+3][0][1][0][0].text)
-            else:
-                spot_prices[j] = float(self.root[3][3+i][0][0][1][0].text)
-            j = j+1
-        return spot_prices
-
-    def get_forward_curves(self):
-        discountingcurve = self.get_discounts()
-        index_equity = [1,2,3,4,5,6,7,8,9,10]
-        F = []
-        max_dates = array([])
-        index = 0
-        spot_prices = self.get_spot_prices()
-        reference_date = self.get_reference_date()
-        for i in index_equity:
-            if i>=6:
-                repo_dates = array([reference_date+1, max(max_dates)])
-                repo_rates = zeros(2)
-                F.append(EquityForwardCurve(reference=reference_date, discounting_curve=discountingcurve, repo_dates=repo_dates,repo_rates=repo_rates, spot=spot_prices[index],act="360"))
-            else:
-                repo_dates = zeros(len(self.root[3][3+i][0][0][0][0][0]))
-                repo_rates = zeros(len(self.root[3][3+i][0][0][0][1][0]))
-                for j in range (len(self.root[3][3+i][0][0][0][0][0])):
-                    repo_dates[j] = float(self.root[3][3+i][0][0][0][0][0][j].text)
-                    repo_rates[j] = float(self.root[3][3+i][0][0][0][1][0][j].text)
-                max_dates = append(max_dates,max(repo_dates))
-                F.append(EquityForwardCurve(reference=reference_date, discounting_curve=discountingcurve, repo_dates=repo_dates,repo_rates=repo_rates, spot=spot_prices[index],act="360"))
-            index = index+1
-        return F
-
-    def get_volatilities(self):
-        V = []
-        index = 0
-        forward_curve = self.get_forward_curves()
-        reference_date = self.get_reference_date()
-        index_equity = [1,2,3,4,5,6,7,8,9,10]
-        for i in index_equity:
-            vola_dates = zeros(len(self.root[3][i+3][1][2][0][0]))
-            vola_strikes = zeros(len(self.root[3][i+3][1][2][2][0]))
-            for j in range(len(self.root[3][i+3][1][2][0][0])):
-                vola_dates[j] = float(self.root[3][i+3][1][2][0][0][j].text)
-            for j in range(len(self.root[3][i+3][1][2][2][0])):
-                vola_strikes[j] = float(self.root[3][i+3][1][2][2][0][j].text)
-            spot_volatilities = zeros(len(self.root[3][i+3][1][2][0][0])*len(self.root[3][i+3][1][2][2][0]))
-            for k in range (len(spot_volatilities)):
-                spot_volatilities[k] = float(self.root[3][i+3][1][2][1][0][k].text)
-            spot_volatilities = reshape(spot_volatilities,(len(vola_dates),len(vola_strikes)))
-            V.append(ForwardVariance(reference=reference_date, spot_volatility=spot_volatilities, maturities=vola_dates, strikes=vola_strikes, strike_interp=forward_curve[index],act="365"))
-            index = index+1
-        return V
+import warnings
 
 
-def Market_Local_volatility(filename=None):
-    tree = ET.parse('calibration_output.xml')
-    root = tree.getroot()
-    N_equity = len(root[1][2][1][0])
-    LV_curves = []
-    for j in range(N_equity):
-        name=root[1][2][1][0][j].text
-        expiry_yrf = 5
-        n_expiries = len(root[1][2][2][j][expiry_yrf][0])#.attrib
-        expiries = np.array([])
-        for i in range(n_expiries):
-            expiries = np.append(expiries,float(root[1][2][2][j][expiry_yrf][0][i].text))
-        
-        moneyness = 6
-        moneyness_matrix = np.array([])
-        n_matrix =len(root[1][2][2][j][moneyness][0])
-        n_strikes = int(n_matrix/n_expiries)
-        for i in range(n_matrix):
-            moneyness_matrix = np.append(moneyness_matrix,float(root[1][2][2][j][moneyness][0][i].text))
-        moneyness_matrix = moneyness_matrix.reshape(n_strikes,n_expiries)
-        
-        vola = 7
-        vola_matrix = np.array([])
-        for i in range(n_matrix):
-            vola_matrix = np.append(vola_matrix,float(root[1][2][2][j][vola][0][i].text))
-        vola_matrix = vola_matrix.reshape(n_strikes,n_expiries)
-        LV_curves.append(LocalVolatilityCurve(vola_matrix,moneyness_matrix,expiries,name))
-    return LV_curves
+def LoadFromTxt(asset_names: tuple or list, folder: str = None, strike_interpolation_rule: str = "ATM_SPOT", local_vol_model: bool = False) -> tuple:
+    """
+    Loads discounting, equity forward, correlation matrix and local volatility curves from txt files insider a folder.
+    :param asset_names (tuple[list] or list[str]): list of the assets whose curves are to be loaded.
+    :param folder (optional str): folder where the txt files are located.
+    :param strike_interpolation_rule (str): interpolation rule for market volatilities along strike direction (available: ATM_SPOT and ATM_FWD).
+    :param local_vol_model (bool): if True, local volatility model is loaded.
+    :return (tuple): tuple containing the discounting curve, equity forward curve, correlation matrix and local volatility curve (if local_vol_model is True).
+    """
+
+    if folder is not None:
+        if folder[-1] != '/':
+            folder += '/'
+    else:
+        folder = './'
+
+    dates_discounts, discounts = np.loadtxt(folder+"discount_data.txt")
+    D = DiscountingCurve(reference=0, discounts=discounts, discount_dates=dates_discounts, day_count_convention=None)
+    F, V = [], []
+    if local_vol_model:
+        LV = []
+
+    # Load correlation matrix
+    if len(asset_names) > 1:
+        try:
+            correlation_matrix = np.loadtxt(folder+"correlation_data.txt")
+        except:
+            warnings.warn("Correlation matrix not found. Setting it to identity.")
+            correlation_matrix = np.eye(len(asset_names)) # if no correlation matrix is provided, use the identity matrix
+
+    i = 0
+    for name in asset_names:
+        spot = np.loadtxt(folder+"spot_data"+name+".txt")[0]
+        repo_dates, repo_rates = np.loadtxt(folder+"repo_data_"+str(name)+".txt")
+        F.append(EquityForwardCurve(reference=0, spot=spot, discounting_curve=D, repo_rates=repo_rates,
+                                    repo_dates=repo_dates, asset_name=name, day_count_convention=None))
+        spot_vola = np.loadtxt(folder+"vola_data_"+str(name)+".txt")
+        vola_strikes = np.loadtxt(folder+"strikes_vola_data_"+str(name)+".txt")
+        vola_dates = np.loadtxt(folder+"maturities_vola_data_"+name+".txt")
+        if strike_interpolation_rule == "ATM_SPOT":
+            strike_interpolator = spot
+        elif strike_interpolation_rule == "ATM_FWD":
+            strike_interpolator = F[i]
+        else:
+            raise ValueError("Unknown interpolation rule: available are ATM_SPOT and ATM_FWD")
+        V.append(ForwardVariance(reference=0,  market_volatility_matrix=spot_vola, strikes=vola_strikes, maturity_dates=vola_dates,
+                                 strike_interp=strike_interpolator, day_count_convention=None, asset_name=name))
+        if local_vol_model:
+            try:
+                lv_pars = np.loadtxt(folder+"LV_param_data_"+str(name)+".txt")
+                lv_money = np.loadtxt(folder+"LV_money_vola_data_"+str(name)+".txt")
+                lv_dates = np.loadtxt(folder+"LV_maturities_vola_data_"+name+".txt")
+                LV.append(LocalVolatilityCurve(lv_pars, lv_money, lv_dates, name, log_money_interpolation_rule="kruger"))
+            except:
+                warnings.warn("Local volatility curve not found for asset: "+name)
+                LV.append(None)
+        i += 1
+    if len(asset_names) > 1:
+        if local_vol_model:
+            return D, F, V, LV, correlation_matrix
+        else:
+            return D, F, V, correlation_matrix
+    else:
+        if local_vol_model:
+            return D, F[0], V[0], LV[0]
+        else:
+            return D, F[0], V[0]
