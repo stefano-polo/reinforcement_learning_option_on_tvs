@@ -95,10 +95,16 @@ def unpack_dict_parameters(rl_model_parameters_dict: dict) -> tuple:
         raise KeyError('learning_rate not found in dictionary of parameters.')
 
     try:
+        training_seed = rl_model_parameters_dict['training_seed']
+        assert type(training_seed) == str
+    except KeyError:
+        training_seed = None
+
+    try:
         activation = rl_model_parameters_dict['activation']
         assert type(activation) == str
     except KeyError:
-        activation = 'tanh'
+        activation = None
 
     try:
         value_network = rl_model_parameters_dict['value_network']
@@ -110,13 +116,37 @@ def unpack_dict_parameters(rl_model_parameters_dict: dict) -> tuple:
         beta = rl_model_parameters_dict['beta']
         assert type(beta) == str
     except KeyError:
-        beta = '0.0'
+        beta = None
 
     try:
-        entropy_coeff = rl_model_parameters_dict['entropy_coeff']
+        entropy_coeff = rl_model_parameters_dict['ent']
         assert type(entropy_coeff) == str
     except KeyError:
-        entropy_coeff = '0.0'
+        entropy_coeff = None
+
+    try:
+        lam = rl_model_parameters_dict['lam']
+        assert type(entropy_coeff) == str
+    except KeyError:
+        lam = None
+
+    try:
+        noise = rl_model_parameters_dict['noise']
+        assert type(noise) == str
+    except KeyError:
+        noise = None
+
+    try:
+        gamma = rl_model_parameters_dict['gamma']
+        assert type(gamma) == str
+    except KeyError:
+        gamma = None
+
+    try:
+        batch = rl_model_parameters_dict['batch']
+        assert type(batch) == str
+    except KeyError:
+        batch = None
 
     try:
         custom_suffix = rl_model_parameters_dict['custom_suffix']
@@ -125,18 +155,20 @@ def unpack_dict_parameters(rl_model_parameters_dict: dict) -> tuple:
         custom_suffix = ''
 
     try:
-        seed = rl_model_parameters_dict['seed']
-        assert type(seed) in [str, int]
+        env_seed = rl_model_parameters_dict['env_seed']
+        assert type(env_seed) in [str, int]
     except KeyError:
-        seed = '14'
+        env_seed = '14'
 
     return rl_algo, training_timesteps, number_nn_layers, number_nn_units, \
-           learning_rate, activation, value_network, beta, entropy_coeff, custom_suffix, seed
+           learning_rate, training_seed, activation, value_network, beta, entropy_coeff, lam,\
+           noise, batch, gamma, custom_suffix, env_seed
 
 
-def build_args(env_id: str, alg: str, training_timesteps: str, num_layers: str, num_hidden: str, lr: str,
-               activation: str, value_network: str = None, beta: str = None, ent: str = None,
-               custom_suffix: str = None, seed: int = 14) -> list:
+def test_build_args(env_id: str, alg: str, training_timesteps: str, num_layers: str, num_hidden: str, lr: str,
+               training_seed: str = None, activation: str = None, value_network: str = None, beta: str = None, ent: str = None,
+               custom_suffix: str = None, lam: str = None, noise: str = None, batch: str = None, gamma: str = None,
+                env_seed: int = 14) -> list:
     """
     Utility function for the most common argument configurations.
     :param env_id (str): environment id.
@@ -150,11 +182,42 @@ def build_args(env_id: str, alg: str, training_timesteps: str, num_layers: str, 
     :param beta (float in string format, default=None): (default 0.5) importance of value function in the overall loss function. This is a ppo specific hyper-parameter (vf_coef).
     :param ent (float in string format, default=None): (default 0.0) importance of the entropy member in the overall loss function. This is a ppo specific hyper-parameter (ent_coef).
     :param custom_suffix (str, default=None): custom suffix for the log file name.
-    :param seed (int, default=14): random seed for the environment.
+    :param env_seed (int, default=14): random seed for the environment.
     :return (list): list of arguments for the training script.
     """
 
+    if custom_suffix is not None and custom_suffix != '' and custom_suffix[0] != '_':
+        custom_suffix = '_' + custom_suffix
+
     suffix = "" if custom_suffix is None else custom_suffix
+
+    if activation is not None:
+        suffix = '_' + activation + suffix
+
+    if value_network is not None:
+        suffix = '_' + value_network + suffix
+
+    if lam is not None:
+        suffix = '_lam' + lam + suffix
+
+    if noise is not None:
+        suffix = '_noise' + noise + suffix
+
+    if beta is not None:
+        suffix = '_beta' + beta + suffix
+
+    if ent is not None:
+        suffix = '_ent' + ent + suffix
+
+    if batch is not None:
+        suffix = '_batch' + batch + suffix
+
+    if gamma is not None:
+        suffix = '_gamma' + gamma + suffix
+
+    if training_seed is not None:
+        suffix = '_trainingseed' + training_seed + suffix
+
     description = '{}_{}_{}x{}_{}{}'.format(alg, training_timesteps, num_layers, num_hidden, lr, suffix)
     args = [
         '--env={}'.format(env_id),
@@ -166,7 +229,7 @@ def build_args(env_id: str, alg: str, training_timesteps: str, num_layers: str, 
         '--lr={}'.format(lr),
         '--activation=tf.nn.{}'.format(activation),
         '--load_path=./trained_agents/{}/{}'.format(env_id, description),
-        '--seed={}'.format(seed)
+        '--seed={}'.format(env_seed)
     ]
     if value_network:
         args.append('--value_network={}'.format(value_network))
@@ -185,10 +248,12 @@ def plot_one_episode_actions(env_id: str, rl_model_parameters_dict: dict) -> Non
     :param env_id (str): environment id.
     :param rl_model_parameters_dict (dict): dictionary containing the parameters of the RL model to load.
     """
-    rl_algorithm, training_time_steps, number_nn_layers, number_nn_units, learning_rate, \
-    activation_function, value_network, beta, entropy_coeff, custom_suffix, seed = unpack_dict_parameters(rl_model_parameters_dict)
-    args = build_args(env_id, rl_algorithm, training_time_steps, number_nn_layers, number_nn_units, learning_rate,
-                      activation_function, value_network, beta, entropy_coeff, custom_suffix, seed)
+    rl_algorithm, training_timesteps, number_nn_layers, number_nn_units, learning_rate, \
+    training_seed, activation_function, value_network, beta, entropy_coeff, lam,\
+           noise, batch, gamma, custom_suffix, env_seed = unpack_dict_parameters(rl_model_parameters_dict)
+    args = test_build_args(env_id, rl_algorithm, training_timesteps, number_nn_layers, number_nn_units,
+                           learning_rate, training_seed, activation_function, value_network, beta,
+                           entropy_coeff, custom_suffix, lam, noise, batch, gamma, env_seed)
     arg_parser = common_arg_parser()
     args, unknown_args = arg_parser.parse_known_args(args)
     extra_args = parse_cmdline_kwargs(unknown_args)
@@ -261,11 +326,13 @@ def plot_action_space(env_id: str, rl_model_parameters_dict: dict, plot_value_fu
         raise ValueError("Either 1 or 2 variables can vary in plot()")
 
     # selected code from baselines.run.main()
-    rl_algo, training_timesteps, number_nn_layers, number_nn_units, learning_rate, \
-    activation, value_network, beta, entropy_coeff, custom_suffix, seed = unpack_dict_parameters(rl_model_parameters_dict)
-    args = build_args(env_id, rl_algo, training_timesteps, number_nn_layers, number_nn_units, learning_rate,
-                      activation, value_network,
-                      beta, entropy_coeff, custom_suffix, seed)
+    rl_algorithm, training_timesteps, number_nn_layers, number_nn_units, learning_rate, \
+    training_seed, activation_function, value_network, beta, entropy_coeff, lam, \
+    noise, batch, gamma, custom_suffix, env_seed = unpack_dict_parameters(rl_model_parameters_dict)
+    args = test_build_args(env_id, rl_algorithm, training_timesteps, number_nn_layers, number_nn_units,
+                           learning_rate, training_seed, activation_function, value_network, beta,
+                           entropy_coeff, custom_suffix, lam, noise, batch, gamma, env_seed)
+
     arg_parser = common_arg_parser()
     args, unknown_args = arg_parser.parse_known_args(args)
     extra_args = parse_cmdline_kwargs(unknown_args)
@@ -287,7 +354,11 @@ def plot_action_space(env_id: str, rl_model_parameters_dict: dict, plot_value_fu
 
     z_shape = (variable_points,) * len(variable_indexes)
     if not plot_value_function:
-        z_shape += env.action_space.shape
+        action_space = env.action_space.shape
+        if action_space == ():
+            action_space = (1,)
+        z_shape += action_space
+
     z_axis = np.empty(z_shape)
 
     def get_z(scalar_observation):
@@ -318,7 +389,7 @@ def plot_action_space(env_id: str, rl_model_parameters_dict: dict, plot_value_fu
             surf = ax.plot_surface(x_mesh, y_mesh, z_axis, cmap=cm.coolwarm)
             fig.colorbar(surf, shrink=0.5, aspect=5)
         else:
-            for i in range(env.action_space.shape[0]):
+            for i in range(action_space[0]):
                 surf = ax.plot_surface(x_mesh, y_mesh, z_axis[:, :, i], label="asset {}".format(i + 1))
                 surf._edgecolors2d = surf._edgecolor3d  # elemnts to display the legend
                 surf._facecolors2d = surf._facecolor3d
@@ -336,7 +407,7 @@ def plot_action_space(env_id: str, rl_model_parameters_dict: dict, plot_value_fu
         if plot_value_function:
             plt.plot(x_axis, z_axis)
         else:
-            for i in range(env.action_space.shape[0]):
+            for i in range(action_space[0]):
                 plt.step(x_axis, z_axis[:, i], label="asset {}".format(i + 1), where="post")
             plt.legend(prop={"size": labels_font_size})
         plt.xlabel('state[{}]'.format(variable_indexes[0]), fontsize=labels_font_size)

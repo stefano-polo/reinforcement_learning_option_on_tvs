@@ -37,10 +37,13 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
     :param custom_options (list): custom commands options list (example: '--activation=tf.nn.tanh').
     :param custom_suffix (str): string of characters to add at the end of the folder name.
     """
+    if custom_suffix is not None and custom_suffix != '' and custom_suffix[0] != '_':
+        custom_suffix = '_' + custom_suffix
+
     suffix = "" if custom_suffix is None else custom_suffix
     options = [] if custom_options is None else custom_options
 
-    assert do_train != do_test #"do_train and do_test cannot be both True or False"
+    assert do_train != do_test  # "do_train and do_test cannot be both True or False"
 
     if activation is not None:
         suffix = '_' + activation + suffix
@@ -119,7 +122,6 @@ def build_args(do_train, do_test, env, alg, num_layers, num_hidden, num_env, lr,
         '--{}_path={}'.format(agent_mode, agent_path),
         '--num_timesteps=' + train_timesteps,
     ]
-
     return args + options
 
 
@@ -132,7 +134,7 @@ if __name__ == '__main__':
         restart_training=False,
         test_seed='112',
         training_seed='45891',
-        env='VanillaOption-v0',
+        env='TVS_LV-v0',
         alg='ppo2',
         num_layers='5',
         num_hidden='8',
@@ -146,6 +148,6 @@ if __name__ == '__main__':
         save_interval='200',    
         value_network='copy',
         beta='0.7',
-        custom_suffix='pricing'
+        custom_suffix='pricing_prova'
         )
     main(cur_args)
