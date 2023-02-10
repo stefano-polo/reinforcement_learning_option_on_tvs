@@ -1,0 +1,48 @@
+\documentclass{article}
+\usepackage[english]{babel}
+\usepackage{xcolor}
+
+\usepackage[normalem]{ulem}
+\newcommand\soutpars[1]{\let\helpcmd\sout\parhelp#1\par\relax\relax}
+\long\def\parhelp#1\par#2\relax{%
+  \helpcmd{#1}\ifx\relax#2\else\par\parhelp#2\relax\fi%
+}
+\newcommand{\change}[1]{{\color{red} {#1}}}%{{#1}}
+\newcommand{\remove}[1]{{\color{red} \soutpars{{#1}}}}%{}
+
+\begin{document}
+
+\noindent {\bf ``Reinforcement learning for options on target volatility funds''.\smallskip\\ Response note to referee's report.}\\
+
+\noindent
+We thank the Referee for her interesting comments and all the appreciated suggestions to improve our work. We add few remarks to their comments in the following sections and attach a revised version of the paper. We believe that these extensions address all the points highlighted in the reviews and we hope that they will be considered sufficient to recommend our work for the publication.\\
+
+{\bf $\bullet$ Answers to referee's report}\\
+
+We list here a detailed list of responses Referee's major remarks. We address the minor remarks directly in the text.
+
+\begin{enumerate}
+
+ \item \textit{[Both in Abtract and Introduction, the presentation of the problem to deal with is not well structured. As a matter of fact, first the TVS is briefly introduces, then options and TVO are only hinted, and lastly the problem is shortly described, without all these topics are well linked each other. I suggest the authors to improve this presentation.]}
+
+ ...
+
+ \item \textit{[The Authors address the investigated continuous stochastic control problem through two different approaches: an exact one providing the analytical solution of the problem, and an approximate one based on RL. As for the previous point, even in this one the connections between the two solution approaches are not entirely intelligible. In other terms, it is not entirely clear how the two approaches relate each other. Is the approximate one necessary given that the exact approach provides an analytical solution to the problem? What is the "utility" to use an approximate approach given the applicability of an exact one? I suggest the Authors to clarify this issue.]} 
+ 
+ ...
+ 
+ \item \textit{[In Subsection 3.3, three (so-called intuitive) strategies are introduced, $S_A$, $S_B$ and $S_C$. No rationales are provided concerning their choices. I suggest the Author to give some details about this point.]} 
+ 
+ ...
+ 
+ \item \textit{[In Section 4, the Authors state that ``[t]he first [RL] method is a specific algorithm developed by us to fit the problem [...]''. As know, an important feature of any RL method is its convergence to the (unknown) best policy, if any. The Authors do not spend words about this characteristic of the specific algorithm they developed and applied, so I ask them to give some detail about this topic.]} 
+ 
+ ...
+
+ \item \textit{[In Subsection 5.1, the Author claim that an appropriate choice of the learning rate starting value constitutes ``a good choice in terms of [...] avoiding over-fitting''. As known, when training a FFNN, standard methods for avoiding over-fitting are based on error metrics calculated over validation sets or through $K$-fold validation approaches. So, it is not clear as the Authors can guarantee no over-fitting without exploiting such methods or similar. I suggest the Authors to carefully clarify this issue.]} 
+ 
+ ...
+
+ \end{enumerate}
+
+\end{document}
