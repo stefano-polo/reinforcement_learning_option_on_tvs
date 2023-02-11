@@ -5,6 +5,7 @@
 
 \usepackage[]{latexsym}
 \usepackage{graphicx}
+\usepackage{xcolor}
 
 \usepackage{amssymb,amsmath,latexsym,amscd,dsfont,enumerate,bbm,mathabx,mathtools}
 \DeclareMathOperator*{\argmax}{arg\,max}
@@ -38,7 +39,7 @@
 
 
 
-\title{Reinforcement learning for options\\on target volatility funds\thanks{Supported by ISCRA from Cineca, \email{iscra@cineca.it}.}}
+\title{Reinforcement \change{L}earning for \change{O}ptions\\on \change{T}arget \change{V}olatility \change{F}unds\thanks{Supported by ISCRA from Cineca, \email{iscra@cineca.it}.}}
 
 \titlerunning{Reinforcement learning for options on target volatility funds}
 
@@ -53,9 +54,10 @@ Largo Mattioli 3, 20121 Milan, Italy\\
 \email{\{Roberto.Daluiso, Andrea.Pallavicini\}@intesasanpaolo.com} \and
 Financial Engineering, Marketz S.p.A.,\\
 Corso Europa, 2, 20122 Milan, Italy\\
-\email{Emanuele.Nastasi@marketz.eu} \and Financial Engineering,
+\email{Emanuele.Nastasi@marketz.eu} \and \change{Financial Risk Methodologies, Unicredit S.p.A.,\\ Piazza Gae Aulenti, 3, 20154 Milan, Italy \\ \email{Stefano.Polo@unicredit.eu}}
+\remove{Financial Engineering,
 X-Numeris S.r.l.,\\ Via Turro, 7 , 20127 Milan, Italy\\
-\email{Stefano.Polo@xnumeris.com}}
+\email{Stefano.Polo@xnumeris.com}}}
 
 \maketitle
 
@@ -66,7 +68,7 @@ X-Numeris S.r.l.,\\ Via Turro, 7 , 20127 Milan, Italy\\
 
 
 \begin{abstract}
-We deal with the funding costs rising from hedging the risky securities underlying a target volatility strategy (TVS), a portfolio of risky assets and a risk-free one dynamically rebalanced in order to keep the realized volatility of the portfolio on a certain level. The uncertainty in the TVS risky portfolio composition along with the difference in hedging costs for each component requires to solve a control problem to evaluate the option prices. We derive an analytical solution of the problem in the Black and Scholes (BS) scenario. Then we use Reinforcement Learning (RL) techniques to determine the fund composition leading to the most conservative price under the local volatility (LV) model, for which an {\it a priori} solution is not available. We show how the performances of the RL agents are compatible with those obtained by applying path-wise the BS analytical strategy to the TVS dynamics, which therefore appears competitive also in the LV scenario.
+We deal with the funding costs rising from hedging the risky securities underlying a target volatility strategy (TVS), a portfolio of risky assets and a risk-free one dynamically rebalanced in order to keep the realized volatility of the portfolio on a certain level. The uncertainty in the TVS risky portfolio composition along with the difference in hedging costs \change{of its} \remove{for each} component requires to solve a control problem to evaluate the option prices. We derive an analytical solution of the problem in the Black and Scholes (BS) scenario. Then we use Reinforcement Learning (RL) techniques to determine the fund composition leading to the most conservative price under the local volatility (LV) model, for which an {\it a priori} solution is not available. We show how the performances of the RL agents are compatible with those obtained by applying path-wise the BS analytical strategy to the TVS dynamics, which therefore appears competitive also in the LV scenario.
 
 \smallskip
 
@@ -82,18 +84,18 @@ We deal with the funding costs rising from hedging the risky securities underlyi
 \bigskip
 
 \section{Introduction}
-In the recent years portfolio managers are exposed to very low interest rates and quickly changing market volatilities. An effective solution to control risks under such an environment is given by target volatility strategies (TVSs) (also known as constant volatility targeting) which are able to preserve the portfolio at a predetermined level of volatility. A TVS is a portfolio of risky assets (typically  equities) and a risk-free asset dynamically re-balanced with the aim of maintaining the overall portfolio volatility level closed to some target value. The constant volatility approach can help investors to obtain desired risk exposures over the short and long term and it increases the risk-adjusted performance of the portfolio.
+In the recent years portfolio managers are exposed to very low interest rates and quickly changing market volatilities. An effective solution to control risks under such an environment is given by target volatility strategies (TVSs)\change{,} \remove{(}also known as constant volatility targeting\remove{)}\change{,} which are able to preserve the portfolio at a predetermined level of volatility. A TVS is \change{a strategy for managing} a portfolio of risky assets (typically  equities) and a risk-free \change{one} \remove{asset} dynamically re-balanced with the aim of maintaining the overall portfolio volatility level closed to some target value. The constant volatility approach can help investors to obtain desired risk exposures over the short and long term and \change{possibly} it increases the risk-adjusted performance of the portfolio.
 
-These products were initially offered in the Asian markets, see for instance the reports of \cite{Chew2011} and \cite{Xue2012}, which highlight the pros and cons for investors, to be adopted in the following years in many other markets in North America and Europe as depicted in \cite{Morrison2013}. At the present day we can observe some new market indices based on the mechanism of the target volatility strategy such as Dow Jones Volatility Control Index, and S\&P 500 Risk Control Index.
+These products were initially offered in the Asian markets, see for instance \remove{the reports of} \cite{Chew2011} and \cite{Xue2012}, which highlight the pros and cons for investors, to be adopted in the following years in many other markets in North America and Europe as depicted in \cite{Morrison2013}. At the present day we can observe some new market indices based on the mechanism of the target volatility strategy such as Dow Jones Volatility Control Index, and S\&P 500 Risk Control Index.
 
-In the recent literature TVSs are tested to investigate their performances in term of realized returns, see for instance \cite{Hocquard2013} and \cite{Perchet2016}, and the soundness of the volatility targeting algorithm, as described in \cite{Kim2018}. Moreover, in the present day, in the derivative market new structured financial products that see TVSs as underlying are becoming widely used by practitioners. Those derivative instruments are known as target volatility options (TVOs) and have gained great interest in the derivative pricing literature, see in particular \cite{Albeverio2019}, \cite{DiGraziano2012}, \cite{DiPersio2019}, and \cite{Grasselli2016}. 
+In the recent literature\change{,} \remove{TVSs} \change{TVS-based portfolios} are tested to investigate their performances in term of realized returns, see for instance \cite{Hocquard2013} and \cite{Perchet2016}, and the soundness of the volatility targeting algorithm, as described in \cite{Kim2018}. Moreover, in the present day, in the derivative market new structured financial products that see TVSs as underlying are becoming widely used by practitioners. Those derivative instruments are known as target volatility options (TVOs) and have gained great interest in the derivative pricing literature, see in particular \cite{Albeverio2019}, \cite{DiGraziano2012}, \cite{DiPersio2019}, and \cite{Grasselli2016}. 
 
 This paper is the first attempt, to the best of our knowledge, to study the funding costs coming from hedging the risky assets underlying the target volatility strategy. In particular, we consider the point of view of a bank selling a call option to a portfolio manager as protection on the capital invested in a TVS. The portfolio manager has the freedom of changing the relative weights of the risky assets during the life of the TVS. Since the risky assets have different hedging costs, the bank shall adjust the price of the protection to include them in the worst-case scenario, i.e. the most expensive strategy in term of the financing costs. Hence, the pricing problem becomes a continuous dynamical control problem over the risky portfolio composition. In our work we provide to the reader a formal description of the stochastic control problem and most importantly we derive an analytical solution assuming that the risky asset dynamics underlying the TVS  follow a Black and Scholes (BS) model \cite{BlackScholes1973} and that the derivative contract is a European-style option. 
 
-Although from a theoretical point of view this solution represents a sub-optimal strategy when dealing with generic dynamics for the risky assets, we show that the BS solution provides a strong baseline as price to practitioners when testing it against numerical methods with different levels of sophistication for solving the control problem. More precisely we numerically study the problem in the general case of a local volatility dynamics \cite{Derman1994}, \cite{Dupire1994}  by adopting a Reinforcement Learning approach, in particular an \textit{ad hoc} vanilla direct policy algorithm and the more sophisticated proximal policy optimization technique developed in \cite{Schulman2017}. 
+Although from a theoretical point of view this solution represents a sub-optimal strategy when dealing with generic dynamics for the risky assets, we show that the BS solution provides a strong baseline as price to practitioners when testing it against numerical methods with different levels of sophistication for solving the control problem. More precisely we numerically study the problem in the general case of a local volatility dynamics \cite{Derman1994}, \cite{Dupire1994}  by adopting a Reinforcement Learning approach, in particular an \textit{ad hoc} \remove{vanilla} direct policy \change{search} algorithm and the more sophisticated proximal policy optimization technique developed in \cite{Schulman2017}. 
 \\
 
-The paper is organized as follows. In Section \ref{sec:TVS} we introduce more in detail the manager-bank contract and provide the description of the TVS dynamics in presence of valuation adjustments such as the hedging costs. Then, in Section \ref{sec:Derivative} we introduce the structured class of derivative contracts linked to TVSs, where we describe the arising dynamical control problem for pricing those options. Moreover in this section we derive the BS closed solution for European TVOs in two different ways: one applying the Gy\"ongy Lemma and the other by writing the Hamilton-Jacobi-Bellman equation. In Section \ref{sec:RL} we illustrate how we have applied RL to solve the dynamic control problem, giving a description of the algorithm we have built. We conclude the paper with Section \ref{sec:Numerical_investigations} where we present the numerical results obtained in this work for the Black and Scholes model and the local volatility one.
+The paper is organized as follows. In Section \ref{sec:TVS} we introduce more in detail the manager-bank contract and provide the description of the TVS dynamics in presence of valuation adjustments such as the hedging costs. Then, in Section \ref{sec:Derivative} we introduce the structured class of derivative contracts linked to TVSs, where we describe the arising dynamical control problem for pricing those options. Moreover in this section we derive the BS closed solution for European TVOs in two different ways: one applying the Gy\"ongy Lemma and the other \change{through} \remove{by writing} the Hamilton-Jacobi-Bellman equation. In Section \ref{sec:RL} we illustrate how we have applied RL to solve the dynamic control problem, giving a description of the algorithm we have built. We conclude the paper with Section \ref{sec:Numerical_investigations} where we present the numerical results obtained in this work for the Black and Scholes model and the local volatility one.
 \\
 
 A part of this work has been developed during the Master thesis of one of us (SP), where we had the opportunity to collaborate with Marco Bianchetti and Diego Pierluigi Giovannini from Intesa Sanpaolo Milan, that we thank. Moreover we wish to thank the Italian computing centre Cineca, which approved our ISCRA C project and provided us with the high-computing resources of Marconi100 for the numerical simulations of this contribution.
@@ -101,10 +103,10 @@ A part of this work has been developed during the Master thesis of one of us (SP
 
 The opinions here expressed are solely those of the authors and do not represent in any way those of their employers.
 
-\section{Target volatility strategy}\label{sec:TVS}
-As mentioned before, this work aims to enrich the TVS pricing literature by studying the aspect related to the funding costs coming from hedging the risky assets underlying a target volatility portfolio. Thus we consider the following scenario: a bank selling a protection to a portfolio manager who has his capital invested in a TVS. In our case the fund manager has the freedom of changing the relative weights of the risky asset during the life of the TVS; once the allocation strategy is selected then the volatility targeting algorithm rebalances the risky component of the portfolio with the risk-free one in order to keep the overall portfolio volatility close to a target value. Clients investing in the fund pay a running fee for the service of the fund manager and their capital is protected. 
+\section{Target \change{V}olatility \change{S}trategy}\label{sec:TVS}
+As mentioned before, this work aims to enrich the TVS pricing literature by studying the aspect related to the funding costs coming from hedging the risky assets underlying a target volatility portfolio. Thus we consider the following scenario: a bank selling a protection to a portfolio manager who has his capital invested \change{according to} \remove{in} a TVS. In our case the fund manager has the freedom of changing the relative weights of the risky asset during the life of the TVS; once the allocation strategy is selected then the volatility targeting algorithm rebalances the risky component of the portfolio with the risk-free one in order to keep the overall portfolio volatility close to a target value. Clients investing in the fund pay a running fee for the service of the fund manager and their capital is protected. 
 
-The fund manager usually buys from a bank an option on the TVS to ensure capital protection. For instance, the capital can be protected by buying a put option. In this case, we can write the net asset value (NAV) $A_t$ of the strategy as given by\footnote{Here we neglect discounting factors.}
+The fund manager usually buys from a bank an option on the TVS to ensure capital protection. For instance, the capital can be protected by buying a put option. In this case, we can write the \change{undiscounted} net asset value (NAV) $A_t$ of the strategy as given by\footnote{\remove{Here we neglect discounting factors.}}
 \begin{equation}
     A_t \coloneqq \max\{V_t,K\} = V_t + (K-V_t)^+ \; ,
 \end{equation}
@@ -113,16 +115,16 @@ where $V_t$ is the price process of the strategy, and $K$ is the guaranteed capi
     A_t = K + (V_t-K)^+ \; .
 \end{equation}
 
-In this way, the TVS is only defined in the two contracts client-fund and fund-bank. The fund manager is not implementing the strategy by trading in the market, and he is not subject to additional costs to access the market. On the other way, the bank is paying such costs since she is actively hedging the call option sold to the manager.  The bank trading activity implemented to actively hedge the option requires funding the collateral procedures of the hedging instruments along with any lending/borrowing fee.
+In this way, the TVS is only defined in the two contracts client-fund and fund-bank. The fund manager is not implementing the strategy by trading in the market, and he is not subject to additional costs to access the market. On the other way, the bank is paying such costs since \change{it} \remove{she} is actively hedging the call option sold to the manager.  The bank trading activity implemented to actively hedge the option requires funding the collateral procedures of the hedging instruments along with any lending/borrowing fee.
 We remark that the choices of the manager trading activity are stochastic processes since they will depend on the market evolution. Thus, neither the manager strategy nor the bank financing costs for hedging the option can be written in the fund-bank contract. For this reason, the price of a financial product sold by the bank is adjusted to include any valuation adjustment due to the trading activity.
 
 Our aim is to find the most expensive investing strategy from the point of view of financing costs for the bank that the manager could choose in the market. In other words, we want to determine the worst-case scenario for the bank. In the current section, we proceed by defining the price process of the TVS so that we can highlight the impact of valuation adjustments.
 
 
-\subsection{The strategy Price Process}
-We work on a filtered probability space $\left(\Omega, \mathcal{F}, \{\mathcal{F}_t\}_{t\geq0}, \mathbb{P}  \right)$ satisfying the usual assumptions for a market model, where $\mathbb{P}$ is the physical probability measure representing the actual distribution of supply and demand shocks on equities prices. 
+\subsection{The \change{S}trategy Price Process}
+We work on a filtered probability space $\left(\Omega, \mathcal{F}, \{\mathcal{F}_t\}_{t\geq0}, \mathbb{P}  \right)$ satisfying the usual assumptions for a market model, where $\mathbb{P}$ is the physical probability measure \remove{representing the actual distribution of supply and demand shocks on equities prices}. 
 
-We consider a fund trading a basket of $n$ risky securities with price process $S_t = (S_t^i, \, i=1,\dots,n)$ funded with a cash account $B_t$ accruing at $r_t$. Any dividend paid by the securities is re-invested in the fund. Here, we assume that the TVS is implemented in continuous time, even if in the practice we can implement the strategy only on a discrete set of dates. We introduce the deflated gain process $\Bar{G}_t^i$ associated with the risky securities as given by
+We consider a fund trading a basket of $n$ risky securities with price process \change{$S_t = \{S_t^i, \, i=1,\dots,n\}$} \remove{$S_t = (S_t^i, \, i=1,\dots,n)$} funded with a cash account $B_t$ accruing at $r_t$. Any dividend paid by the securities is re-invested in the fund. Here, we assume that the TVS is implemented in continuous time, even if in the practice we can implement the strategy only on a discrete set of dates. We introduce the deflated gain process $\Bar{G}_t^i$ associated with the risky securities as given by
 \begin{equation}
     \Bar{G}_t^i \coloneqq \Bar{S}_t^i + \Bar{D}_t^i \; ,
 \end{equation}
@@ -147,11 +149,11 @@ where $\phi_t$ are the running fees earned by the fund manager for his activity.
 \label{eq:self_financing}\end{equation}
 where $q_t^i$ is the quantity invested in the $i$-th security.\footnote{In all formulae we use dot notation for scalar product between vectors, i.e. $a \cdot b = \sum_i a_i b_i$, or between matrix and vector, i.e. $A \cdot b = \sum_j a_{ij}b_j$ or $b \cdot A = \sum_i b_i a_{ij}$.}
 
-Now, in order to prevent arbitrages, we assume the existence of a risk-neutral measure $\mathbb{Q}$ equivalent to $\mathbb{P}$ under which the deflated gain processes of all traded securities are martingales. Under this assumption, we are able to derive the drift conditions on the security price processes, and in turn on the strategy price process.
+Now, in order to prevent arbitrages, we assume the existence of a risk-neutral measure $\mathbb{Q}$ equivalent to $\mathbb{P}$ under which the deflated gain processes of all traded securities are martingales. Under this assumption, we are able to derive the drift conditions on the security price processes, and in turn on the strategy price process\change{, that is}
 \begin{equation}
     \forall u >t \quad \bar{G}_t^i = \mathbb{E}_t \left[\bar{G}_u^i\right] \quad\Longrightarrow \quad dS_t^i = r_tS_t^idt-d\pi_t^i-d\psi_t^i + dM_t^i \; ,
 \label{eq:risk_neutral}\end{equation}
-where $M_t^i$ are martingale under $\mathbb{Q}$. If we substitute this expression for the security dynamics into the definition of the strategy we can check that the price process of the strategy is accruing at a cash account rate $r_t$ compensated for the fund manager fees
+where $M_t^i$ are martingale under $\mathbb{Q}$. If we substitute this expression for the security dynamics into the definition of the strategy we can check that the price process of the strategy is accruing at \change{the following} \remove{a} cash account rate $r_t$ compensated for the fund manager fees
 \begin{equation}
     dV_t = V_t(r_t-\phi_t)dt + dM_t^V \; ,
 \end{equation}
@@ -173,7 +175,7 @@ where we can see the dependency on the cost of carry $\mu_t$ and on the allocati
 
 
 \subsection{The Volatility Targeting Constraint}
-In a typical TVS, the fund manager selects a risky-asset portfolio with a specific time-dependent allocation strategy expressed by means of the vector of relative weights $\alpha_t$, along with a risk-free asset, which we can identify with the bank account $B_t$. In the following, for sake of simplicity in exposition, we consider only total-return securities, namely we set $\pi_t=0$. Thus we can write Equation~\eqref{eq:TVS_first} as given by
+In a typical TVS, the fund manager selects a risky-asset portfolio with a specific time-dependent allocation strategy expressed by means of the vector of relative weights $\alpha_t$, along with a risk-free asset, which we can identify with the bank account $B_t$. In the following, for sake of simplicity in exposition, we consider only total-return securities, namely we set $\pi_t=0$ \change{since no dividends are paid}. Thus we can write Equation~\eqref{eq:TVS_first} as given by
 \begin{equation}
     \frac{dI_t}{I_t}= \omega_t \alpha_t \cdot \frac{dS_t}{S_t} + \left(1-\omega_t  \alpha_t \cdot \mathds{1} \right)\frac{dB_t}{B_t}- \phi_t dt \; ,
 \label{eq:TVS_elegant}\end{equation}
@@ -182,13 +184,13 @@ where $\mathds{1}$ is a $n$-dimensional vector of ones and $\omega_t\in[0,1]$ is
         \omega_t: \quad \mathrm{Var}_t[dI_t] = \bar{\sigma}^2I_t^2dt \; ,
 \end{equation}
 where $\Bar{\sigma}$ is the target volatility value.
-In practice, this means that the fund manager will select a risky-portfolio choosing $\alpha_t$ equities from the universe where he can trade and after that, his choices will be scaled by the automatic target volatility algorithm $\omega_t$.\footnote{We recall that the universe of assets where the manager can trade and the value of $\bar{\sigma}$ are written in the contract.}
+In practice, this means that the fund manager will select a risky-portfolio choosing $\alpha_t$ equities from the universe where \change{s}he can trade and after that, \change{her} \remove{his} choices will be scaled by the automatic target volatility algorithm $\omega_t$.\footnote{We recall that the universe of assets where the manager can trade and the value of $\bar{\sigma}$ are written in the contract.}
 
-To derive the expression for $\omega_t$ we need to assume a generic continuous semi-martingales dynamics under the risk-neutral measure for the underlying securities, so that we can write Equation~\eqref{eq:risk_neutral} as 
+\remove{To derive the expression for $\omega_t$ we need to assume} \change{It is possible to derive the expression for $\omega_t$ assuming} a generic continuous semi-martingales dynamics under the risk-neutral measure for the underlying securities, so that \remove{we can write} Equation~\eqref{eq:risk_neutral} \change{can be written} as 
 \begin{equation}
     \frac{dS_t^i}{S_t^i} = \left(r_t - \mu_t^i \right)dt + \nu_t^i \cdot dW_t \; ,
 \label{eq:Equity_process}\end{equation}
-where $\nu_t$ is an adapted matrix process ensuring the existence of a solution for the stochastic differential equation (SDE) and $W_t$ is a $n$-dimensional vector of Brownian motions under $\mathbb{Q}$. Under these assumptions we can derive an expression for $\omega_t$, and we get\footnote{In all formulae the norm for a vector $a$ is defined as $\|a\|\coloneqq\sqrt{a\cdot a}$.}
+where $\nu_t$ is an adapted matrix process ensuring the existence of a solution for the stochastic differential equation \remove{(SDE)} and $W_t$ is a $n$-dimensional vector of Brownian motions under $\mathbb{Q}$. Under these assumptions we can derive an expression for $\omega_t$, and we get\footnote{In all formulae the norm for a vector $a$ is defined as $\|a\|\coloneqq\sqrt{a\cdot a}$.}
 \begin{equation}
     \omega_t = \frac{\Bar{\sigma}}{\norm{ \alpha_t\cdot \nu_t }} \; .
 \end{equation}
@@ -213,7 +215,7 @@ where $D(0,T;\zeta_t)$ is the discount factor with rate $\zeta_t$, inclusive of 
 
 
 \subsection{European Options}
-If the derivative contract depends only on the marginal distribution of $I_T$ at maturity (a European payoff), we are able to calculate an optimal strategy. We consider the following pricing problem
+If the derivative contract depends only on the marginal distribution of $I_T$ at maturity (\change{i.e.,} a European payoff), we are able to calculate an optimal strategy. We consider the following pricing problem
 \begin{equation}
     V_0 \coloneqq \sup_\alpha \mathbb{E}_0\left[D(0,T;\zeta)\Phi(I_T(\alpha))\right] \; ,
 \end{equation}
@@ -263,7 +265,7 @@ while the iteration starts from maturity date where the boundary condition is se
 \end{equation}
 
 
-\subsection{Black and Scholes model}\label{subsec:BS_model}
+\subsection{Black and Scholes \change{Scenario}}\label{subsec:BS_model}
 In the time-dependent Black and Scholes model with deterministic rates, we can work with empty $X_t$, since in this case the portfolio dynamics \eqref{eq:TVS_last} is Markovian, leading to an optimal strategy $\alpha_t^*$ which depends in principle only on $I_t$. As a consequence, the local drift defined in Equation~\eqref{eq:local_drift} can be written as
 \begin{equation}
      \ell_\alpha \left(t,K\right) = \bar{\sigma}   \frac{\mu\left(t\right) \cdot \alpha\left(t,K\right)}{\norm{\alpha\left(t,K\right) \cdot \nu\left(t\right)}} \; ,  
@@ -273,7 +275,7 @@ so that the optimization problem can be solved by looking only at the Markovian 
 A direct consequence is the following proposition, which is relevant for plain vanilla options on TVS.
 
 \begin{proposition}
-When the underlying securities follow a Black and Scholes model with deterministic rates, the optimal strategy for a non-decreasing European payoff consists in minimizing the local drift function, independently of the current state $I_t$
+When the underlying securities follow a Black and Scholes \change{QUA IO LASCEREI MODEL (REFEREE PROPONE SCENARIO)} model with deterministic rates, the optimal strategy for a non-decreasing European payoff consists in minimizing the local drift function, independently of the current state $I_t$
 \begin{equation}
     \alpha^*(t) \coloneqq \argmin_\alpha \frac{\alpha \cdot \mu(t)}{\|\alpha \cdot \nu(t) \|} \; .
 \label{eq:BS_optimal_strategy}
@@ -294,7 +296,7 @@ where $F^{\text{TVS}}(t,T;\alpha)$ is the TVS forward curve defined by
 \label{eq:tvs_forward}\end{equation}
 while $BS(F,K,T,\sigma,D)$ is the standard BS formula for a European option with forward curve $F$, strike $K$, time to maturity $T$, volatility $\sigma$ and discount factor $D$. 
 
-In Figure~\ref{fig:strategy_price_comparison} we provide a comparison among the option price obtained with the optimal strategy (BS$^*$) of Equation~\eqref{eq:BS_optimal_strategy} and those with other intuitive strategies (S$_A$, S$_B$, S$_C$). Here we consider the case of an at-the-money call option with spot $I_0 = 1\, \text{EUR}$, maturity $T=5 \, \text{yr}$, target volatility $\bar{\sigma}=5\%$, and a nonnegative constraint on $\alpha$. The intuitive strategies are
+In Figure~\ref{fig:strategy_price_comparison} we provide a comparison among the option price obtained with the optimal strategy (BS$^*$) of Equation~\eqref{eq:BS_optimal_strategy} and those with \change{the below} \remove{other} intuitive strategies (S$_A$, S$_B$, S$_C$). Here we consider the case of an at-the-money call option with spot $I_0 = 1\, \text{EUR}$, maturity $T=5 \, \text{yr}$, target volatility $\bar{\sigma}=5\%$, and a nonnegative constraint on $\alpha$. The intuitive strategies are
 \begin{itemize}
 \item S$_A$: invest all in the asset with the maximum forward curve at maturity;
 \item S$_B$: for each market pillar before maturity invest all in the asset with minimum $\mu(t)$; 
@@ -313,7 +315,7 @@ As the reader can observe, our strategy outperforms any other intuitive one a pr
 \subsubsection{Unconstrained Allocation Strategy: Closed Form Solution}
 In absence of constraints on the allocation strategy, we are able to derive a closed form solution to the BS problem \eqref{eq:BS_optimal_strategy}.
 \begin{lemma}
-	Let be $\mu, \alpha \in \mathbb{R}^n$, $\nu \in \mathbb{R}^{n\times n}$ be a full rank matrix and $\Sigma\coloneqq \nu \tr{\nu}$. Then the closed solution of the optimization problem \eqref{eq:BS_optimal_strategy} is 
+	Let \remove{be} $\mu, \alpha \in \mathbb{R}^n$, $\nu \in \mathbb{R}^{n\times n}$ be a full rank matrix and $\Sigma\coloneqq \nu \tr{\nu}$. Then the closed solution of the optimization problem \eqref{eq:BS_optimal_strategy} is 
 	\begin{equation}
 			\alpha^* = - \frac{\Sigma^{-1} \cdot \mu}{\norm{(\Sigma^{-1} \cdot \mu)\cdot \nu}} \; .
 	\end{equation}
@@ -344,7 +346,7 @@ We take the minus sign to get the minimum value of the TVS local drift while the
 \end{proof}
 
 \subsubsection{Active Asset (or Bang Bang) Solution}
-A closed form solution to the minimization of the local drift correction \eqref{eq:BS_optimal_strategy} can also be derived in the common case that all costs of carry are nonnegative and the only constraint on portfolio weights is nonnegativity, which would mean a long-only strategy by the fund manager.
+A closed form solution to the minimization of the local drift correction \eqref{eq:BS_optimal_strategy} can also be derived in the common case that all costs of carry \change{$\mu$} are nonnegative and the only constraint on portfolio weights is nonnegativity, which would mean a long-only strategy by the fund manager.
 
 \begin{lemma}
 	Let $\mu \in \mathbb{R}^n$ be a vector with nonnegative components, $\nu \in \mathbb{R}^{n\times n}$ be a full rank matrix, and $\Sigma = \nu \tr{\nu}$. Then
@@ -387,8 +389,8 @@ A closed form solution to the minimization of the local drift correction \eqref{
 \end{proof}
 
 
-\subsection{Hamilton-Jacobi-Bellman equation for target volatility options}\label{subsec:HJB}
-In this section, we want to provide to the reader a formal description of the dynamic problem associated with options on target volatility strategies by writing the Hamilton-Jacobi-Bellman (HJB) equation for the derivative price. We prove that from this equation we can recover the same closed formula \eqref{eq:BS_optimal_strategy} derived above from the Gy\"ongy Lemma for the time-dependent BS model. 
+\subsection{Hamilton-Jacobi-Bellman \change{E}quation for \change{T}arget \change{V}olatility \change{O}ptions}\label{subsec:HJB}
+In this section, we \remove{want to} provide to the reader a formal description of the dynamic problem associated with options on target volatility strategies by writing the Hamilton-Jacobi-Bellman (HJB) equation for the derivative price. We prove that from this equation we can recover the same closed formula \eqref{eq:BS_optimal_strategy} derived above from the Gy\"ongy Lemma for the time-dependent BS model. 
 
 In full generality, we assume that the time evolution of the Markovian factors governing the problem dynamics is given by  a stochastic multidimensional process in $\mathbb{R}^n$, $X_t$, which is the unique strong solution to the following It$\hat{\text{o}}$ SDE 
 \begin{equation}
@@ -426,13 +428,13 @@ We take out from the maximum operator all the elements that do not depend on the
 		(\nabla_{X,I}V) \cdot \Sigma(X) \cdot \left(\frac{\alpha \cdot \nu(X)}{\norm{\alpha \cdot \nu(X)}}\right)\right\} = 0 \; .
 		\end{aligned}
 \label{eq:HJB_general}\end{equation}
-Equation~\eqref{eq:HJB_general} is the Hamilton-Jacobi-Bellman equation describing the TVS dynamic problem for a generic dynamics of the risky securities underlying the portfolio.
+Equation~\eqref{eq:HJB_general} is the \change{HJB} \remove{Hamilton-Jacobi-Bellman}     equation describing the TVS dynamic problem for a generic dynamics of the risky securities underlying the portfolio.
 
 If we assume a time-dependent BS dynamics for the risky equities ($\mu_t$, $r_t$ and $\nu_t$ deterministic), then $V = V(t,I)$ and all the derivatives w.r.t. $X$ are zero. Therefore the reduced HJB equation is
 \begin{equation}
 	\frac{\partial V}{\partial t} +  r(t) I \frac{\partial V}{\partial I}  + \frac{1}{2}\bar{\sigma}^2I^2\frac{\partial^2V}{\partial I^2} + \bar{\sigma}I\max_\alpha \left\{ -\frac{\partial V}{\partial I}   \frac{\alpha \cdot \mu(t)}{\norm{\alpha \cdot \nu(t)}}\right\} = 0 \; ;
 \end{equation}
-if the payoff is non-decreasing in $I$ by homogeneity of the SDE we get that $V$ is non-decreasing; thus the solution is given by
+if the payoff is non-decreasing in $I$ by homogeneity of the SDE we get that $V$ is non-decreasing\change{.}\remove{; t}\change{T}hus the solution is given by
 \begin{equation}
  \alpha^*(t) = \argmin_\alpha \frac{\alpha \cdot \mu(t)}{\|\alpha \cdot \nu(t)\|} \; ,
 	\end{equation}
@@ -440,13 +442,13 @@ which is the same result expressed in Equation~\eqref{eq:BS_optimal_strategy}. O
 
 Conversely, if we deal with a dynamic model for which the derivative contract $V$ depends on $X$ then the volatility versor term, namely the second one, in the $\max$ operator of Equation~\eqref{eq:HJB_general} is no longer zero and thus one must solve the entire control problem numerically. 
 
-In this work we tackle the non-trivial case of a local volatility (LV) model for the $S_t$-dynamics, such that $\nu_t = \nu(t,S_t)$. We have chosen the LV model since it is well known in financial literature and among practitioners.
+In this work we tackle the non-trivial case of a local volatility (LV) model for the $S_t$-dynamics, such that $\nu_t = \nu(t,S_t)$. We have chosen the LV model since it is well known in financial literature and among practitioners \change{\cite{Gatheral2006}}.
 
 
-\section{Reinforcement learning}\label{sec:RL}
+\section{Reinforcement \change{L}earning}\label{sec:RL}
 As we have discussed in the previous sections, one must resort to numerical approaches to solve the stochastic control problem related to the TVS in the case of general payoffs or risky securities dynamics. The standard approach could be to use classical techniques based on backwards recursion \eqref{eq:recursion}-\eqref{eq:recursion2} such as American Monte Carlo \cite{Longstaff2001}. However, their performances degrade exponentially as the dimension $n$ of the problem increases, making prohibitively costly finding the solution to the problem. In our contribution, we adopt a novel technique which is free from the curse of dimensionality and is gaining popularity in many scientific branches for solving stochastic optimal control problems: Reinforcement Learning (RL) \cite{Sutton2018}. 
 
-Reinforcement Learning is a branch of Machine Learning which allows an artificial agent to interact with an environment through actions and observations in order to maximize some notion of cumulative reward. In RL the agent is not told which actions to take but instead, it must discover by trial and error which are the behaviours  yielding the highest reward. This is obtained by updating the agent policy $\pi$ which is a mapping from the environment states to the set of actions. Thus RL is independent of pre-collected data as opposed to other Machine Learning techniques. Because of its nature, RL has been successful in quantitative finance for solving control problems; among the most important RL applications in this field, we refer to \cite{Deng2017} as the pioneers in studying self-taught reinforcement trading problems, while to \cite{Halperin2020} and \cite{Kolm2019} for hedging derivatives with RL under market frictions.
+\remove{Reinforcement Learning} \change{RL} is a branch of Machine Learning which allows an artificial agent to interact with an environment through actions and observations in order to maximize some notion of cumulative reward \change{called value function}. In RL\change{,} the agent is not told which actions to take but instead, it \remove{must} \change{has to} discover by trial and error which are the behaviours  yielding the highest reward. This is obtained by updating the agent policy $\pi$ which is a mapping from the environment states to the set of actions. Thus RL is independent of pre-collected data as opposed to other Machine Learning techniques. Because of its nature, RL has been successful in quantitative finance for solving control problems; among the most important RL applications in this field, we refer to \cite{Deng2017} as the pioneers in studying self-taught reinforcement trading problems, while to \cite{Halperin2020} and \cite{Kolm2019} for hedging derivatives with RL under market frictions.
 
 In our work we adopt two learning strategies to compare their performances in terms of overall reward: an \textit{ad hoc} direct policy algorithm and the state of the art proximal policy optimization (PPO) developed in \cite{Schulman2017} and \cite{Schulman2016}. 
 
@@ -457,7 +459,7 @@ On the other hand, the PPO is a high-level actor-critic algorithm well-suited fo
 In the following sections, we describe the way we have formalized the TVS problem in the Reinforcement Learning framework.
 
 
-\subsection{Direct policy approach}\label{sec:direct_policy}
+\subsection{Direct \change{P}olicy \change{A}pproach}\label{sec:direct_policy}
 We consider an episode $\tau$ of length $m+1$ that takes place on a discrete time-grid of fixing times expressed in year fractions $\mathcal{T}\coloneqq \{T_0,...,T_k,...,T_m\}$ with $T_0\coloneqq 0$ and $T_m \coloneqq T$ maturity of the option. At a given episodic time $T_k$ the RL agent interacts with the environment: it receives a representation of the environment called state $s_k$ and on the basis of that it selects an action $a_k$ sampling from the current policy $\pi^{\theta_j}$. Here with $\theta_j$ we refer to the set of parameters through which we parameterize the agent policy at the $j$-th algorithm iteration. In our case of study the agent can choose the composition of the risky asset portfolio, so that the policy is the allocation strategy $\alpha$ introduced in Equation~\eqref{eq:TVS_elegant}:
 \begin{equation}
  	a_k = \alpha_{T_k} \quad \forall T_k \in \mathcal{T} \; , \quad a_k \in \mathcal{A}\subset \mathbb{R}^n \; .
@@ -478,7 +480,7 @@ where the expectation $\hat{\mathbb{E}}[\dots]$ indicates the empirical average 
 Once the training phase is ended and the agent has selected the optimal policy, we can run a Monte Carlo (MC) simulation with never seen scenarios to price the optimal target volatility option and test if the algorithm has not overfitted the data.
 
 
-\subsection{Proximal policy optimization approach}
+\subsection{Proximal \change{P}olicy \change{O}ptimization \change{A}pproach}
 As for the direct policy approach, we model the pricing problem considering an episode that takes place on the time-grid $\mathcal{T}\coloneqq \{T_0,...,T_k,...,T_m\}$ with $T_0\coloneqq 0$ and $T_m \coloneqq T$. Again we choose as observation state the block defined in Equation~\eqref{eq:state} and the agent policy coincides with the risky allocation strategy $\alpha$ \eqref{eq:action}. An important difference from the previous method is that: once the agent has selected the action $a_k$ sampled from the current policy, it receives at the next time $T_{k+1}$ a reward $r_{k+1}$ generated by the environment. 
 
 In our work, we have defined two different reward functions with the purpose to analyze which could help the agent to learn more efficiently the optimal policy $\pi^* = \pi^{\theta^*}$. 
@@ -502,7 +504,7 @@ where $\gamma \in[0,1]$ is an hyper-parameter of the PPO, while $V_{\text{BS}}(T
 	V_{\text{BS}}(T_0)&=0 \; , 
 \end{aligned}
 \end{equation} 
-with $\alpha^*_{BS}$ the BS optimal strategy \eqref{eq:BS_optimal_strategy} evaluated at the state $s_k$. In this form the agent actions are hidden inside the term $I_t$ used to compute the TVS forward curve $F^{\text{TVS}}$ defined by Equation~\eqref{eq:tvs_forward}. In this case, the reward function does not suffer of nil values for $0<T_k<T$: the RL agent always gets a feedback from the environment for its choices.  The hyper-parameter $\gamma$ plays the role of a discount factor in the sense that, as $\gamma$ approaches to zero, the RL agent will tend to maximize immediate rewards while neglecting possible larger rewards in the future.
+with $\alpha^*_{BS}$ the BS optimal strategy \eqref{eq:BS_optimal_strategy} evaluated at the state $s_k$. In this form the agent actions are hidden inside the term $I_t$ used to compute the TVS forward curve $F^{\text{TVS}}$ defined by Equation~\eqref{eq:tvs_forward}. In this case, the reward function does not suffer of nil values for $0<T_k<T$: the RL agent always gets a feedback from the environment for its choices.  \remove{The} \change{Note that the} hyper-parameter $\gamma$ plays the role of a discount factor in the sense that, as $\gamma$ approaches to zero, the RL agent will tend to maximize immediate rewards while neglecting possible larger rewards in the future.
 If we take the cumulative reward per episode and set the PPO parameters\footnote{We refer to \cite{Schulman2016} for a more detailed description for the generalized advantage estimation parameter $\lambda$.} $\gamma =\lambda =1$ we obtain
 \begin{equation}
 	R(\tau) = \sum_{k=0}^{m-1} r_{k+1} \underset{\gamma=\lambda =1}{=} \sum_{k=0}^{m-1}[V_{\text{BS}}(T_{k+1})-V_\text{\text{BS}}(T_k)] = V_{BS}(T) = (I_T-K)^+ \; ,
@@ -521,25 +523,26 @@ As one can observe, $\log\sigma$ is state-independent, but it is reduced as the 
 The fact that the PPO implementation exploits a stochastic policy ensures us a better exploration of the action space than with the previous approach. Moreover, the algorithm tries to learn an approximator of the on-policy value function as control variate for the training phase. This approximator is an FFNN with the same architecture as the one for the policy.
 
 
-\section{Numerical investigations}\label{sec:Numerical_investigations}
+\section{Numerical \change{I}nvestigations}\label{sec:Numerical_investigations}
 Here we present the numerical results obtained with our proposed methods. We focus our analysis on a European call option on a TVS with the following product details
 \begin{equation}\nonumber
-	I_0 = K = 1 \, \text{EUR} \; , \quad T=2 \, \text{yr} \; , \quad \bar{\sigma} = 5\% \; .
+	I_0 = K = 1 \, \text{EUR} \; , \quad T=2 \, \text{yr} \; , \quad \bar{\sigma} = 5\% \; \change{,}
 \end{equation}
-Moreover without loss of generality we consider the case of a completely free allocation strategy $\alpha$. The extension to the constrained case is easy.
+\change{where $I_0$ is the starting value of the TVS-based portfolio.}
+Moreover without loss of generality we consider the case of a\change{n unconstrained} \remove{completely free} allocation strategy $\alpha$. The extension to the constrained case is easy.
 
 It is our aim to investigate the control problem under non-trivial dynamics like the local volatility model where the volatility of the risky asset is also a function of the state. By looking at the HJB equation \eqref{eq:HJB_general}, we expect that the volatility versor will play a role in finding the optimal solution, giving rise to a non-trivial strategy.
 
-Although in Section~\ref{subsec:BS_model} we have proved that under the Black and Scholes model the Equation~\eqref{eq:BS_optimal_strategy} solves the control problem, we want to take advantage of this \textit{a priori} solution as a benchmark to gather evidence on the robustness of our Reinforcement Learning approach and to check if our analytical result is correct. Moreover, we use the BS model as numerical laboratory to perform fine-tuning tests for the RL algorithms hyper-parameters and analyze how they impact the final results and performances.
+Although in Section~\ref{subsec:BS_model} we have proved that under the Black and Scholes model the Equation~\eqref{eq:BS_optimal_strategy} solves the control problem, we want to take advantage of this \textit{a priori} solution as a benchmark to gather evidence on the robustness of our \remove{Reinforcement Learning} \change{RL} approach and to check if our analytical result is correct. Moreover, we use the BS model as numerical laboratory to perform fine-tuning tests for the RL algorithms hyper-parameters and analyze how they impact the final results and performances.
 
-We recall that in both the algorithms we parameterize the agent policy with an FFNN; thus this is completely characterized by the following hyper-parameters: number of hidden layers, number of neurons per hidden layer, activation function per hidden layer. This is due to the fact that in this Reinforcement Learning problem the number of the input neurons is equal to the state space dimension \eqref{eq:state}, while the number of the output ones coincides with the action space dimension \eqref{eq:action}. It is well known in the literature that neural networks give better performances in the training phase if the input data are well normalized \cite{Puheim2014}, \cite{Sola1997} . Thus we choose as state $s_k$ the following normalized block  
+We recall that in both the algorithms we parameterize the agent policy with an FFNN; thus this is completely characterized by the following hyper-parameters: number of hidden layers, number of neurons per hidden layer, activation function per hidden layer. This is due to the fact that in this \remove{Reinforcement Learning} \change{RL} problem the number of the input neurons is equal to the state space dimension \eqref{eq:state}, while the number of the output ones coincides with the action space dimension \eqref{eq:action}. It is well known in the literature that neural networks give better performances in the training phase if the input data are well normalized \cite{Puheim2014}, \cite{Sola1997} . Thus we choose as state $s_k$ the following normalized block  
 \begin{equation}
 	[\log(S_{T_k}/F(0,T_k)), I_{T_k}/I_0, T_k ] \quad \forall T_k\in\mathcal{T} \; ,
 \label{eq:input_state}\end{equation}
 where $F(t,T)$ is the forward curve vector of the risky assets from $t$ to $T$. In Equation~\eqref{eq:input_state} we have chosen as Markovian state $X_{T_k}$ the martingale term of the securities dynamics. In this way we have that in the input block the variables have the same order of magnitude.
 
 
-\subsection{Black and Scholes: hyper-parameters fine tuning}
+\subsection{Black and Scholes: \change{H}yper-parameters \change{F}ine \change{T}uning}
 We use the BS environment as toy model to understand which parameters of the RL algorithm play key roles in the training and testing phase. 
 Our first approach has been the direct policy one since it represents a natural way to tackle the problem: since our goal is to find the allocation 
 strategy that maximizes the option price, we update the FFNN weights following the gradient direction of the loss function defined in Equation~\eqref{eq:direct_policy_loss}. 
@@ -549,18 +552,18 @@ We try to investigate the following hyper-parameters: the FFNN architecture, in 
 	\centering
 	\includegraphics[width=3.4in]{BS_fine_tuning_Nadam_tanh_grey.eps}
 	\includegraphics[width=3.4in]{BS_fine_tuning_Nadam_elu_grey.eps}
-	\caption{Learning curves of the direct policy algorithm applied to the Black and Scholes model. The solid lines are the loss functions defined in Equation~\eqref{eq:direct_policy_loss} in function of the number of training epochs. Each continuous line represents a different neural network architecture with tanh activation function (top) and elu activation function (bottom). The optimizer adopted is the Nadam with a learning rate of $10^{-3}$. The horizontal grey-dashed line is the conservative option price obtained by maximizing the TVS drift through Equation~\eqref{eq:analytical_solution_free_strategy}}
+	\caption{Learning curves of the direct policy algorithm applied to the Black and Scholes \change{scenario}. The solid lines are the loss functions defined in Equation~\eqref{eq:direct_policy_loss} in function of the number of training epochs. Each continuous line represents a different neural network architecture with tanh activation function (top) and elu activation function (bottom). The optimizer adopted is the Nadam with a learning rate of $10^{-3}$. The horizontal grey-dashed line is the conservative option price obtained by maximizing the TVS drift through Equation~\eqref{eq:analytical_solution_free_strategy}}
 	\label{fig:result_bs_nadam}
 \end{figure}  
  \begin{figure}[h!]
 	\centering
 	\includegraphics[width=3.4in]{BS_fine_tuning_RMSprop_tanh_grey.eps}
 	\includegraphics[width=3.4in]{BS_fine_tuning_RMSprop_elu_grey.eps}
-	\caption{Learning curves of the direct policy algorithm applied to the Black and Scholes model. The solid lines are the loss values defined in Equation~\eqref{eq:direct_policy_loss} in function of the number of training epochs. Each continuous line represents a different neural network architecture with tanh activation function (top) and elu activation function (bottom). The optimizer adopted is the RMSprop with a learning rate of $10^{-3}$. The horizontal grey-dashed line is the conservative option price obtained by maximizing the TVS drift through Equation~\eqref{eq:analytical_solution_free_strategy}}
+	\caption{Learning curves of the direct policy algorithm applied to the Black and Scholes \change{scenario}. The solid lines are the loss values defined in Equation~\eqref{eq:direct_policy_loss} in function of the number of training epochs. Each continuous line represents a different neural network architecture with tanh activation function (top) and elu activation function (bottom). The optimizer adopted is the RMSprop with a learning rate of $10^{-3}$. The horizontal grey-dashed line is the conservative option price obtained by maximizing the TVS drift through Equation~\eqref{eq:analytical_solution_free_strategy}}
 	\label{fig:result_bs_rmsprop}
 \end{figure}  
 
-In Figures~\ref{fig:result_bs_nadam} and \ref{fig:result_bs_rmsprop} we present the learning curves of our fine-tuning tests for RMSProp and Nadam respectively. The three lines of each plot display the learning curves for different FFNN architectures: a one hidden layer network with 50 neurons, a 2 hidden layers with 30 and 20 neurons respectively, and a deeper one with three layers with 20, 15, and 5 neurons. Each learning curve is compared with the optimal option price (grey-dashed line) that we have computed with the closed form solution we have derived for the BS model in Section~\ref{subsec:BS_model}. We can see that all the learning curves converge to our expected price, providing a numerical demonstration of our theoretical result. More deeply, from the plots we observe that the RMSprop optimizer outperforms the Nadam. Moreover, the tanh activation function seems to be more preferable than the non-vanishing elu. However, more importantly, we have evidence that a deeper architecture of the neural network outperforms the shallow one. All the learning curves we have presented are the best-in-sample results, in terms of performance, of four runs with different random starting guesses for the hidden weights $\theta$. This procedure is necessary since the objective function is not convex.
+In Figures~\ref{fig:result_bs_nadam} and \ref{fig:result_bs_rmsprop} we present the learning curves of our fine-tuning tests for RMSProp and Nadam respectively. The three lines of each plot display the learning curves for different FFNN architectures: a one hidden layer network with 50 neurons, a 2 hidden layers with 30 and 20 neurons respectively, and a deeper one with three layers with 20, 15, and 5 neurons. Each learning curve is compared with the optimal option price (grey-dashed line) that we have computed with the closed form solution we have derived for the BS model in Section~\ref{subsec:BS_model}. We can see that all the learning curves converge to our expected price, providing a numerical \remove{demonstration} \change{finding} of our theoretical result. More deeply, from the plots we observe that the RMSprop optimizer outperforms the Nadam. Moreover, the tanh activation function seems to be more preferable than the non-vanishing elu. However, more importantly, we have evidence that a deeper architecture of the neural network outperforms the shallow one. All the learning curves we have presented are the best-in-sample results, in terms of performance, of four runs with different random starting guesses for the hidden weights $\theta$. This procedure is necessary since the objective function is not convex.
 
 We take the $20\times 15 \times 5$ network with tanh from RMSprop as the best optimized network, and we run a Monte Carlo simulation with $10^6$ never-seen scenarios to check if the agent overfits the new data. 
 \begin{table}
@@ -585,7 +588,7 @@ We report the results in Table~\ref{tab:mc_results_bs}: the RL price is compatib
 We will take advantage of those fine-tuning results to tackle the local volatility problem.
 
 
-\subsection{Local volatility dynamics}
+\subsection{Local \change{V}olatility \change{D}ynamics}
 In this section, we study the TVS control problem assuming a local volatility model for the dynamics of the risky assets. Thus in this case we have a diffusive term in Equation~\eqref{eq:Equity_process} that is a deterministic function both of time and state, i.e. the spot price, $\nu_t=\nu(t,S_t)$. This additional dependency of volatility makes the problem of finding the optimal strategy non-trivial; in fact if we consider the whole securities smiles then the second-order term in the HJB equation \eqref{eq:HJB_general} is not zero and thus a closed formula for $\alpha^*$ is not available anymore. Because of that, one must resort to numerical techniques to recover the problem solution. Unlike the BS model where the strategy depends only on time, in LV dynamics there is no unnecessary information provided by the state block in Equation~\eqref{eq:state} to take the optimal action. Here we consider the same market data ($r_t$, $\mu_t$ and $\nu_t$) as in the Black and Scholes environment to study how the optimal solution changes with the dynamics model. 
 
 \begin{figure}[h!]
@@ -605,7 +608,7 @@ We have trained a 5 layer FFNN with 8 neurons each with the PPO algorithm in two
 	\includegraphics[width=3.4in]{LV_PPO_reward_b_learning_curve.eps}
 	\caption{Learning curves of the PPO algorithm applied to the local volatility model. On the horizontal axis the number of training episodes. The solid lines are the moving average of the realized rewards on the last $10^5$ episodes. The shadows represent the $98\%$ confidence intervals. The label {\it reward} ({\it a}) indicates that the RL agent is trained in an environment where the reward function is defined by Equation~\eqref{eq:reward1}, while {\it reward} ({\it b}) refers to the reward function in Equation~\eqref{eq:reward2}. The solid black lines are the learning curves of an agent with free actions, while the grey solid ones are the learning curves of an agent whose actions are parameterized with the maximum drift strategy. In both plots, the agents are parameterized by an FFNN with 5 hidden layers with 5 neurons each with tanh activation function. The horizontal grey-dashed lines delimit the 99\% confidence interval of the MC price obtained by maximizing path-wise the TVS drift through Equation~\eqref{eq:analytical_solution_free_strategy}}\label{fig:PPO_results}
 \end{figure}
-We report in Figure~\ref{fig:PPO_results} the results of the learning curves. In all the PPO cases, the trained agents seem to be stuck in the sub-optimal maximum drift strategy policy. For the case of the immediate reward function (Figure~\ref{fig:PPO_results} on the right), we have that the learning curves converge to a saturation value that is not compatible with the baseline price; this is due to the fact that with $\lambda,\gamma \neq 1$ we introduce a bias in the problem. Because of that, we need to run a test MC simulation with freezed agents and $\lambda=\gamma=1$ to obtain a result to compare with the baseline price. We report the results in Table~\ref{tab:mc_results_lv}. The Reinforcement Learning agents we have trained with PPO give all prices compatible with the baseline one.
+We report in Figure~\ref{fig:PPO_results} the results of the learning curves. In all the PPO cases, the trained agents seem to be stuck in the sub-optimal maximum drift strategy policy. For the case of the immediate reward function (Figure~\ref{fig:PPO_results} on the right), we have that the learning curves converge to a saturation value that is not compatible with the baseline price; this is due to the fact that with $\lambda,\gamma \neq 1$ we introduce a bias in the problem. Because of that, we need to run a test MC simulation with freezed agents and $\lambda=\gamma=1$ to obtain a result to compare with the baseline price. We report the results in Table~\ref{tab:mc_results_lv}. The \remove{Reinforcement Learning} \change{RL} agents we have trained with PPO give all prices compatible with the baseline one.
 \begin{table}
 \begin{center}
 \caption{Comparison of TVO prices under local volatility model. The baseline price is obtained by applying path-wise the maximum drift strategy \eqref{eq:analytical_solution_free_strategy}. The RL free agent implements the policy defined by Equation~\eqref{eq:action}, while the parameterized agent chooses its actions in terms of the baseline strategy. We label with letter (a) the agents trained in environments with the reward function \eqref{eq:reward1}, while with (b) the reward function \eqref{eq:reward2}. The option parameters are: $I_0=K=1\,[\text{EUR}]$, $T=2\,[\text{yr}]$ and $\bar{\sigma}=5\%$}
@@ -628,8 +631,8 @@ RL parameterized (b) & $(4.135 \pm 0.005) \times 10^{-2}$ \\
 \setlength{\tabcolsep}{1.4pt}
 
 
-\section{Conclusion and further developments}
-In this paper, we described a non-trivial control problem related to derivative contracts on target volatility strategies. In particular, we have considered a bank selling a call option to a fund manager as protection on the capital invested on the TVS. We showed how the presence of different funding costs coming from hedging the risky assets underlying the TVS, obliges the bank to solve a stochastic optimal control problem to price the protection. This is due to the fact that the bank strategy is not self-financing. This kind of control problem is hard to solve because here the control process affects both drift and diffusive coefficients of the controlled process. Despite its complexity, our first contribution is the derivation of a closed form solution of the control problem in a Black and Scholes framework, which could represent a useful tool for practitioners since it outperforms intuitive trading strategies. We have derived this solution in two different ways: first by applying the Gy\"ongy  Lemma and then by writing the Hamilton-Jacobi-Bellman equation.  We numerically studied the problem in the more general local volatility model where the solution is not available and thus a numerical investigation is needed. We tackled the problem by means of the novel Reinforcement Learning techniques, by both the direct policy learning and the proximal policy optimization one. We used the BS model, where the solution is \textit{a priori} known, as benchmark to perform a series of fine-tuning of the RL algorithm hyper-parameters, such as the artificial neural network architecture. We have tested in the LV model the two RL approaches and from our simulations, we have evidence that nor the simple direct policy learning strategy nor the sophisticated PPO are able to outperform our analytical solution applied path-wise. Thus our analytical result for the Black and Scholes model seems to be a good proxy solution also for the local volatility one.
+\section{Conclusion and \change{F}urther \change{D}evelopments}
+In this paper, we described a non-trivial control problem related to derivative contracts on target volatility strategies. In particular, we have considered a bank selling a call option to a fund manager as protection on the capital invested on the TVS. We showed how the presence of different funding costs coming from hedging the risky assets underlying the TVS, obliges the bank to solve a stochastic optimal control problem to price the protection. This is due to the fact that the bank strategy is not self-financing. This kind of control problem is hard to solve because here the control process affects both drift and diffusive coefficients of the controlled process. Despite its complexity, our first contribution is the derivation of a closed form solution of the control problem in a Black and Scholes framework, which could represent a useful tool for practitioners since it outperforms intuitive trading strategies. We have derived this solution in two different ways: first by applying the Gy\"ongy  Lemma and then by writing the \remove{Hamilton-Jacobi-Bellman} \change{HJB} equation.  We numerically studied the problem in the more general local volatility model where the solution is not available and thus a numerical investigation is needed. We tackled the problem by means of the novel \remove{Reinforcement Learning} \change{RL} techniques, by both the direct policy learning and the proximal policy optimization one. We used the BS model, where the solution is \textit{a priori} known, as benchmark to perform a series of fine-tuning of the RL algorithm hyper-parameters, such as the artificial neural network architecture. We have tested in the LV model the two RL approaches and from our simulations, we have evidence that nor the simple direct policy learning strategy nor the sophisticated PPO are able to outperform our analytical solution applied path-wise. Thus our analytical result for the Black and Scholes model seems to be a good proxy solution also for the local volatility one.
 
  This result seems to be a local optimum from the HJB equation of the problem, since in the LV model the volatility versor term should influence the RL agent actions. Thus natural development of this work could be to solve the HJB numerically in low dimension in order to check why such sophisticated algorithms are not able to find the global optimum of the problem, or to understand which are the key elements of the problem, such as market data or the payoff function, that can give rise to a solution far from the intuitive one. 
 
@@ -667,6 +670,9 @@ Dupire, B.: Pricing with a smile. Risk magazine {\bf 7-1} (1994) 18-20
 %
 \bibitem{Gabrielli2020}
 Gabrielli, S., Pallavicini, A., and Scoleri, S.: Funding adjustments in equity linear products. Risk (2020)
+%
+\bibitem{Gatheral2006}
+Gatheral, J.: The volatility surface: a practitioner's guide. Wiley Finance (2006)
 %
 \bibitem{Grasselli2016}
 Grasselli, M., and Romo, J.M.: Stochastic skew and target volatility options. Journal of Futures Markets {\bf 36-2} (2016) 174-193
