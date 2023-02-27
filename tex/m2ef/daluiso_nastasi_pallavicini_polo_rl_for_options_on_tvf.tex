@@ -307,9 +307,9 @@ In Figure~\ref{fig:strategy_price_comparison} we provide a comparison among the 
 \begin{itemize}
 \item S$_A$: invest all in the asset with the maximum forward curve at maturity; \change{this strategy constists of selecting a static portfolio that is never rebalanced, such that the TVO moneyness is maximized;}
 \item S$_B$: \remove{for each market pillar before maturity} \change{$\forall t \in \mathcal{T}$} invest all in the asset with minimum $\mu(t)$; \change{in this case we consider a fund manager who rebalances the weights $\alpha(t)$ over the life of the portfolio by selecting the asset with the highest expected return at a given point in time;} 
-\item S$_C$: \remove{for each market pillar before maturity} \change{$\forall t \in \mathcal{T}$} invest all in the asset with minimum $\mu(t)/\|\nu(t)\|$\remove{.}\change{; the strategy is similar to S$_B$, except in this case, the manager maximizes the expected return weighted for the target volatility mechanism.}
+\item S$_C$: \remove{for each market pillar before maturity} \change{$\forall t \in \mathcal{T}$} invest all in the asset with minimum $\mu(t)/\|\nu(t)\|$\remove{.}\change{; the strategy is akin to S$_B$, with the exception being that the manager endeavors to maximize the expected return that has been adjusted to account for the target volatility mechanism..}
 \end{itemize}
-As the reader can observe, our strategy outperforms any other intuitive one a practitioner might adopt.
+As the reader can observe, our strategy outperforms any other \remove{intuitive} \change{expert-based} one a practitioner might adopt \change{to face the control problem}.
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=4in]{strategy_price_comparison_grey.eps}
