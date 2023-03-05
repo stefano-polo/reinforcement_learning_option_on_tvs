@@ -29,6 +29,8 @@
 \newcommand{\removeeq}[1]{{\color{red} \sout{{#1}}}}%{}
 \newcommand{\changeB}[1]{{\color{blue} {#1}}}%{{#1}}
 \newcommand{\removeB}[1]{{\color{blue} \soutpars{{#1}}}}%{}
+\newcommand{\changeE}[1]{{\color{purple} {#1}}}%{{#1}}
+\newcommand{\removeE}[1]{{\color{purple} \soutpars{{#1}}}}%{}
 \newcommand\hcancel[2][red]{\setbox0=\hbox{$#2$}%
 \rlap{\raisebox{.45\ht0}{\textcolor{#1}{\rule{\wd0}{1pt}}}}#2}
 
@@ -55,9 +57,9 @@ Andrea Pallavicini\inst{1} \and Stefano Polo\inst{3}}
 \institute{Financial Engineering, Intesa Sanpaolo Group,\\
 Largo Mattioli 3, 20121 Milan, Italy\\
 \email{\{Roberto.Daluiso, Andrea.Pallavicini\}@intesasanpaolo.com} \and
-Financial Engineering, Marketz S.p.A.,\\
-Corso Europa, 2, 20122 Milan, Italy\\
-\email{Emanuele.Nastasi@marketz.eu} \and \change{Financial Risk Methodologies, Unicredit S.p.A.,\\ Piazza Gae Aulenti, 3, 20154 Milan, Italy \\ \email{Stefano.Polo@unicredit.eu}}
+\changeE{Digital Development Sales \& Trading Milan, Unicredit Bank AG Milano,}\\
+\changeE{Piazza Gae Aulenti, 4, 20154 Milan, Italy}\\
+\email{\changeE{Emanuele.Nastasi@unicredit.eu}} \and \change{Financial Risk Methodologies, Unicredit S.p.A.,\\ Piazza Gae Aulenti, 3, 20154 Milan, Italy \\ \email{Stefano.Polo@unicredit.eu}}
 }
 
 \maketitle
@@ -256,9 +258,8 @@ Therefore we can apply the dynamic programming principle to express the optimal 
 \begin{equation}
     \alpha_{T_{k-1}}\coloneqq \argmax_{\alpha} \left\{\mathbb{E}_{T_{k-1}}\left[D\left(T_{k-1},T_{k} \right) V_{T_{k}}\left(X_{T_{k}}, I_{T_{k}}(\alpha)\right) \mid X_{T_{k-1}}, I_{T_{k-1}}\right]\right\} \; ,
 \label{eq:recursion}\end{equation}
-where $V_{T_k}$ is the option value at time $T_k$ and $X$ is any Markovian state such that the drift and the diffusion coefficient of $I_t$ are a function of $\left(X_t,I_t,\alpha_t\right)$. We calculate $I_{T_k}\left(\alpha_{T_{k-1}}\right)$ for any given strategy $\alpha_{T_{k-1}}$ by a suitable discretization of \eqref{eq:TVS_last} starting from $X_{T_{k-1}}$ and $I_{T_{k-1}}$.
-
-Thus the derivative price is given by:
+where $V_{T_k}$ is the option value at time $T_k$ and $X$ is any Markovian state such that the drift and the diffusion coefficient of $I_t$ are a function of $\left(X_t,I_t,\alpha_t\right)$ \changeE{and we indicated with $I_{T_k}\left(\alpha\right)$ the value of the strategy on the point $T_{k}$ for a given choice of the weights $\alpha$ at the previous step on the time grid.} We calculate \changeE{the strategy value for the optimal weights $\alpha_{T_{k-1}}$, namely} $I_{T_k}\left(\alpha_{T_{k-1}}\right)$ \removeE{for any given strategy $\alpha_{T_{k-1}}$} by a suitable discretization of \eqref{eq:TVS_last} starting from $X_{T_{k-1}}$ and $I_{T_{k-1}}$\removeE{.} \changeE{and}
+\removeE{Thus} \changeE{thus} the derivative price is given by:
 \begin{equation}
 \begin{aligned}
 	    V_{T_{k-1}}\left(X_{T_{k-1}}, I_{T_{k-1}}\right)= \\ 
