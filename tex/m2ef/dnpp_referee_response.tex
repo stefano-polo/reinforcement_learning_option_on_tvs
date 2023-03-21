@@ -20,29 +20,29 @@ We thank the Referee for her interesting comments and all the appreciated sugges
 
 {\bf $\bullet$ Answers to referee's report}\\
 
-We list here a detailed list of responses Referee's major remarks. We address the minor remarks directly in the text.
+We list here a detailed list of responses to Referee's major remarks. We address the minor remarks directly in the text.
 
 \begin{enumerate}
 
  \item \textit{[Both in Abtract and Introduction, the presentation of the problem to deal with is not well structured. As a matter of fact, first the TVS is briefly introduces, then options and TVO are only hinted, and lastly the problem is shortly described, without all these topics are well linked each other. I suggest the authors to improve this presentation.]}
 
- We have conducted a comprehensive review of the crucial components of the Abstract and Introduction sections to ensure that the reader is presented with a lucid and concise overview of the problem being addressed. In the Introduction, our focus was primarily on establishing a stronger connection between TVSs and the derivatives market, which are based on these underlying assets. Furthermore, we have improved the description of the problem addressed in this paper, with a particular emphasis on the methods employed and the resultant findings. It is hoped that this will enable the reader to contextualize our work more effectively within the pertinent literature.
+ In the revised manuscript, we conduct a comprehensive review of the crucial components of the Abstract and Introduction sections to ensure that the reader is presented with a lucid and concise overview of the problem being addressed. In the Introduction, our focus is primarily on establishing a stronger connection between TVSs and the derivatives market, which are based on these underlying assets. Furthermore, we improve the description of the problem addressed in this paper, with a particular emphasis on the methods employed and the results. We also welcome the referee's suggestion in the minor remarks to improve the title of the manuscript and the related Keywords. We hope that this will enable the reader to contextualize our work more effectively within the pertinent literature.
 
  \item \textit{[The Authors address the investigated continuous stochastic control problem through two different approaches: an exact one providing the analytical solution of the problem, and an approximate one based on RL. As for the previous point, even in this one the connections between the two solution approaches are not entirely intelligible. In other terms, it is not entirely clear how the two approaches relate each other. Is the approximate one necessary given that the exact approach provides an analytical solution to the problem? What is the "utility" to use an approximate approach given the applicability of an exact one? I suggest the Authors to clarify this issue.]} 
  
-The analytical solution applies only for a specific choice of the model for the dynamics of the underlying  assets and under suitable hypotheses on the payoff. We added equation (52) and a sentence in the first paragraph of Section 4 to stress this point. Furthermore, we have enhanced the clarity of this point in the Introduction section where we discuss the contribution of this work.
+The analytical solution applies only for a specific choice of the model for the dynamics of the underlying  assets and under suitable hypotheses on the payoff. We add equation (52) and a sentence in the first paragraph of Section 4 to stress this point. Furthermore, we enhance the clarity of this point in the Introduction section where we discuss the contribution of this work.
 
  \item \textit{[In Subsection 3.3, three (so-called intuitive) strategies are introduced, $S_A$, $S_B$ and $S_C$. No rationales are provided concerning their choices. I suggest the Author to give some details about this point.]}
 
- The three \quotations{intuitive strategies} presented in this paper represent plausible expert-based approaches that a practitioner may choose to adopt when addressing the control problem. We have provided further elucidation on this matter in Subsection 3.3, where we have also incorporated the financial implications of these strategies.
+ The three \quotations{intuitive strategies} presented in this paper represent plausible expert-based approaches that a practitioner may choose to adopt when addressing the control problem. We provide further elucidation on this matter in Subsection 3.3, where we also incorporate the financial implications of these strategies.
  
  \item \textit{[In Section 4, the Authors state that ``[t]he first [RL] method is a specific algorithm developed by us to fit the problem [...]''. As know, an important feature of any RL method is its convergence to the (unknown) best policy, if any. The Authors do not spend words about this characteristic of the specific algorithm they developed and applied, so I ask them to give some detail about this topic.]} 
- 
- The intention behind the sentence was to apprise the reader that the first algorithm was developed by the authors themselves to tackle the problem at hand. In formal terms, it can be classified as a direct policy search algorithm that relies on gradient-based optimization of the Monte Carlo outcome obtained from numerical simulations. This kind of algorithms is well-known in the Reinforcement Learning literature. We have revised this statement to ensure that its meaning is conveyed with greater clarity. 
+
+ We rephrase the given sentence to clarify that we adopt an existing algorithm well-known in the Reinforcement Learning literature to tackle the problem at hand. In formal terms, it can be classified as a direct policy search algorithm that relies on gradient-based optimization of the Monte Carlo outcome obtained from numerical simulations.
 
  \item \textit{[In Subsection 5.1, the Author claim that an appropriate choice of the learning rate starting value constitutes ``a good choice in terms of [...] avoiding over-fitting''. As known, when training a FFNN, standard methods for avoiding over-fitting are based on error metrics calculated over validation sets or through $K$-fold validation approaches. So, it is not clear as the Authors can guarantee no over-fitting without exploiting such methods or similar. I suggest the Authors to carefully clarify this issue.]} 
  
-We added to the second paragraph of Section 5.1 a sentence which explains that over-fitting is detected on a generated validation set.
+We add to the second paragraph of Section 5.1 a sentence which explains that over-fitting is detected on a generated validation set.
 
  \end{enumerate}
 
