@@ -30,7 +30,9 @@ def MC_Data_Blocking(mc_paths: np.ndarray or np.array, n_blocks: int) -> tuple:
     return f(mc_paths, n_blocks)
 
 
-def MC_Analisys_matrix(mc_paths: np.ndarray, n_blocks: int) -> tuple:  # method to check convergence of the MC result
+def MC_Analisys_matrix(
+    mc_paths: np.ndarray, n_blocks: int
+) -> tuple:  # method to check convergence of the MC result
     """
     Data blocking method for a matrix
     :param mc_paths (np.ndarray[float]): Monte Carlo simulation paths in matrix format. The mean is performed on each column.
@@ -41,7 +43,9 @@ def MC_Analisys_matrix(mc_paths: np.ndarray, n_blocks: int) -> tuple:  # method 
     assert mc_paths.ndim == 2, "The input must be a matrix"
     n_paths = len(mc_paths)
     n_dims = len(mc_paths.T)
-    n_path_per_blocks = int(n_paths / n_blocks)  # Number of throws in each block, please use for n_paths a multiple of n_blocks
+    n_path_per_blocks = int(
+        n_paths / n_blocks
+    )  # Number of throws in each block, please use for n_paths a multiple of n_blocks
     ave = np.zeros((n_blocks, n_dims))
     av2 = np.zeros((n_blocks, n_dims))
     sum_prog = np.zeros((n_blocks, n_dims))
@@ -63,13 +67,15 @@ def MC_Analisys_matrix(mc_paths: np.ndarray, n_blocks: int) -> tuple:  # method 
             for j in range(i + 1):
                 sum_prog[i, m] += ave[j, m]
                 sum2_prog[i, m] += av2[j, m]
-            sum_prog[i, m] /= (i + 1)  # Cumulative average
-            sum2_prog[i, m] /= (i + 1)  # Cumulative square average
+            sum_prog[i, m] /= i + 1  # Cumulative average
+            sum2_prog[i, m] /= i + 1  # Cumulative square average
             err_prog[i, m] = error(sum_prog, sum2_prog, i, m)  # Statistical uncertainty
     return x, sum_prog, err_prog
 
 
-def MC_Analisys_vector(mc_paths: np.ndarray, n_blocks: int) -> tuple:  # method to check convergence of the MC result
+def MC_Analisys_vector(
+    mc_paths: np.ndarray, n_blocks: int
+) -> tuple:  # method to check convergence of the MC result
     """
     Data blocking method for a vector.
     :param mc_paths (np.ndarray[float]): Monte Carlo simulation paths in vector format.
@@ -79,7 +85,9 @@ def MC_Analisys_vector(mc_paths: np.ndarray, n_blocks: int) -> tuple:  # method 
     """
     assert mc_paths.ndim == 1, "The input must be a vector"
     n_paths = len(mc_paths)
-    n_path_per_blocks = int(n_paths / n_blocks)  # Number of throws in each block, please use for n_paths a multiple of n_blocks
+    n_path_per_blocks = int(
+        n_paths / n_blocks
+    )  # Number of throws in each block, please use for n_paths a multiple of n_blocks
     ave = np.zeros(n_blocks)
     av2 = np.zeros(n_blocks)
     sum_prog = np.zeros(n_blocks)
@@ -99,13 +107,15 @@ def MC_Analisys_vector(mc_paths: np.ndarray, n_blocks: int) -> tuple:  # method 
         for j in range(i + 1):
             sum_prog[i] += ave[j]
             sum2_prog[i] += av2[j]
-        sum_prog[i] /= (i + 1)  # Cumulative average
-        sum2_prog[i] /= (i + 1)  # Cumulative square average
+        sum_prog[i] /= i + 1  # Cumulative average
+        sum2_prog[i] /= i + 1  # Cumulative square average
         err_prog[i] = error_vector(sum_prog, sum2_prog, i)  # Statistical uncertainty
     return x, sum_prog, err_prog
 
 
-def error(AV: np.ndarray, AV2: np.ndarray, n: int, m: int):  # Function for statistical uncertainty estimation
+def error(
+    AV: np.ndarray, AV2: np.ndarray, n: int, m: int
+):  # Function for statistical uncertainty estimation
     """
     Error Function for matrix
     """
@@ -115,7 +125,9 @@ def error(AV: np.ndarray, AV2: np.ndarray, n: int, m: int):  # Function for stat
         return np.sqrt((AV2[n, m] - AV[n, m] ** 2) / n)
 
 
-def error_vector(AV: np.ndarray, AV2: np.ndarray, n: int):  # Function for statistical uncertainty estimation
+def error_vector(
+    AV: np.ndarray, AV2: np.ndarray, n: int
+):  # Function for statistical uncertainty estimation
     """
     Error Function for vector
     """

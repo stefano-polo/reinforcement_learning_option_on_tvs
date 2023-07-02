@@ -1,8 +1,13 @@
 import numpy as np
 
 
-def quad_piecewise(piece_wise_function, time_grid_of_piece_wise_function: np.ndarray, lower_int: float,
-                   upper_int: float or np.ndarray, vectorized: bool = False) -> float or np.ndarray:
+def quad_piecewise(
+    piece_wise_function,
+    time_grid_of_piece_wise_function: np.ndarray,
+    lower_int: float,
+    upper_int: float or np.ndarray,
+    vectorized: bool = False,
+) -> float or np.ndarray:
     """
     Function that integrates a piecewise constant function (right open).
     :param piece_wise_function: function to be integrated
@@ -54,14 +59,20 @@ def get_euler_grid(fixings: np.ndarray, n_intervals: int) -> tuple:
     for i in range(len(fixings)):
         if i == 0:
             dt = np.array([fixings[i] / n_intervals])
-            time_grid = np.append(time_grid, np.linspace(dt[i], fixings[i], n_intervals))
+            time_grid = np.append(
+                time_grid, np.linspace(dt[i], fixings[i], n_intervals)
+            )
         else:
             dt = np.append(dt, (fixings[i] - fixings[i - 1]) / n_intervals)
-            time_grid = np.append(time_grid, np.linspace(fixings[i - 1] + dt[i], fixings[i], n_intervals))
+            time_grid = np.append(
+                time_grid, np.linspace(fixings[i - 1] + dt[i], fixings[i], n_intervals)
+            )
     return time_grid, dt
 
 
-def DayCountConversion(reference_date: int, date: np.ndarray or int, convention: str) -> np.ndarray or int:
+def DayCountConversion(
+    reference_date: int, date: np.ndarray or int, convention: str
+) -> np.ndarray or int:
     """
     Function that takes a reference_date (expressed in days int) and an array of dates (expressed in days int)
     and returns them expressed in year fractions (float) according to the convention (available ACT_365, ACT_360, and None).
@@ -71,14 +82,16 @@ def DayCountConversion(reference_date: int, date: np.ndarray or int, convention:
     :param convention (str): convention to be used (ACT_365, ACT_360, None)
     :return: date expressed in year fractions (float or np.ndarray[float]) according to the convention
     """
-    if convention == 'ACT_365':
+    if convention == "ACT_365":
         return ACT_365(reference_date, date)
-    elif convention == 'ACT_360':
+    elif convention == "ACT_360":
         return ACT_360(reference_date, date)
     elif convention is None:
         return np.fabs(date - reference_date)
     else:
-        raise ValueError('The selected convention is not available (available ACT_365, ACT_360, None)')
+        raise ValueError(
+            "The selected convention is not available (available ACT_365, ACT_360, None)"
+        )
 
 
 def ACT_365(reference_date: int, date: np.ndarray or int) -> np.ndarray or int:
@@ -92,7 +105,9 @@ def ACT_365(reference_date: int, date: np.ndarray or int) -> np.ndarray or int:
     return np.abs(date - reference_date) / 365.0
 
 
-def ACT_360(reference_date: np.array or float, date: np.array or float) -> np.array or float:
+def ACT_360(
+    reference_date: np.array or float, date: np.array or float
+) -> np.array or float:
     """
     Function that takes a reference_date (expressed in days int) and one or an array of dates (expressed in days int)
     and returns them expressed in year fractions (float) according to the ACT/360 convention.
@@ -101,4 +116,3 @@ def ACT_360(reference_date: np.array or float, date: np.array or float) -> np.ar
     :return: date expressed in year fractions (float or np.ndarray[float]) according to the ACT/360 convention
     """
     return np.abs(date - reference_date) / 360.0
-

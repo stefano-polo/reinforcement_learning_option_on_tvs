@@ -1,9 +1,21 @@
-from pricing import DiscountingCurve, EquityForwardCurve, ForwardVariance, LocalVolatilityCurve
-import numpy as np
 import warnings
 
+import numpy as np
 
-def LoadFromTxt(asset_names: tuple or list, folder: str = None, strike_interpolation_rule: str = "ATM_SPOT", local_vol_model: bool = False) -> tuple:
+from pricing import (
+    DiscountingCurve,
+    EquityForwardCurve,
+    ForwardVariance,
+    LocalVolatilityCurve,
+)
+
+
+def LoadFromTxt(
+    asset_names: tuple or list,
+    folder: str = None,
+    strike_interpolation_rule: str = "ATM_SPOT",
+    local_vol_model: bool = False,
+) -> tuple:
     """
     Loads discounting, equity forward, correlation matrix and local volatility curves from txt files insider a folder.
     :param asset_names (tuple[list] or list[str]): list of the assets whose curves are to be loaded.
@@ -14,13 +26,18 @@ def LoadFromTxt(asset_names: tuple or list, folder: str = None, strike_interpola
     """
 
     if folder is not None:
-        if folder[-1] != '/':
-            folder += '/'
+        if folder[-1] != "/":
+            folder += "/"
     else:
-        folder = './'
+        folder = "./"
 
-    dates_discounts, discounts = np.loadtxt(folder+"discount_data.txt")
-    D = DiscountingCurve(reference=0, discounts=discounts, discount_dates=dates_discounts, day_count_convention=None)
+    dates_discounts, discounts = np.loadtxt(folder + "discount_data.txt")
+    D = DiscountingCurve(
+        reference=0,
+        discounts=discounts,
+        discount_dates=dates_discounts,
+        day_count_convention=None,
+    )
     F, V = [], []
     if local_vol_model:
         LV = []
@@ -28,36 +45,70 @@ def LoadFromTxt(asset_names: tuple or list, folder: str = None, strike_interpola
     # Load correlation matrix
     if len(asset_names) > 1:
         try:
-            correlation_matrix = np.loadtxt(folder+"correlation_data.txt")
+            correlation_matrix = np.loadtxt(folder + "correlation_data.txt")
         except:
             warnings.warn("Correlation matrix not found. Setting it to identity.")
-            correlation_matrix = np.eye(len(asset_names)) # if no correlation matrix is provided, use the identity matrix
+            correlation_matrix = np.eye(
+                len(asset_names)
+            )  # if no correlation matrix is provided, use the identity matrix
 
     i = 0
     for name in asset_names:
-        spot = np.loadtxt(folder+"spot_data"+name+".txt")[0]
-        repo_dates, repo_rates = np.loadtxt(folder+"repo_data_"+str(name)+".txt")
-        F.append(EquityForwardCurve(reference=0, spot=spot, discounting_curve=D, repo_rates=repo_rates,
-                                    repo_dates=repo_dates, asset_name=name, day_count_convention=None))
-        spot_vola = np.loadtxt(folder+"vola_data_"+str(name)+".txt")
-        vola_strikes = np.loadtxt(folder+"strikes_vola_data_"+str(name)+".txt")
-        vola_dates = np.loadtxt(folder+"maturities_vola_data_"+name+".txt")
+        spot = np.loadtxt(folder + "spot_data" + name + ".txt")[0]
+        repo_dates, repo_rates = np.loadtxt(folder + "repo_data_" + str(name) + ".txt")
+        F.append(
+            EquityForwardCurve(
+                reference=0,
+                spot=spot,
+                discounting_curve=D,
+                repo_rates=repo_rates,
+                repo_dates=repo_dates,
+                asset_name=name,
+                day_count_convention=None,
+            )
+        )
+        spot_vola = np.loadtxt(folder + "vola_data_" + str(name) + ".txt")
+        vola_strikes = np.loadtxt(folder + "strikes_vola_data_" + str(name) + ".txt")
+        vola_dates = np.loadtxt(folder + "maturities_vola_data_" + name + ".txt")
         if strike_interpolation_rule == "ATM_SPOT":
             strike_interpolator = spot
         elif strike_interpolation_rule == "ATM_FWD":
             strike_interpolator = F[i]
         else:
-            raise ValueError("Unknown interpolation rule: available are ATM_SPOT and ATM_FWD")
-        V.append(ForwardVariance(reference=0,  market_volatility_matrix=spot_vola, strikes=vola_strikes, maturity_dates=vola_dates,
-                                 strike_interp=strike_interpolator, day_count_convention=None, asset_name=name))
+            raise ValueError(
+                "Unknown interpolation rule: available are ATM_SPOT and ATM_FWD"
+            )
+        V.append(
+            ForwardVariance(
+                reference=0,
+                market_volatility_matrix=spot_vola,
+                strikes=vola_strikes,
+                maturity_dates=vola_dates,
+                strike_interp=strike_interpolator,
+                day_count_convention=None,
+                asset_name=name,
+            )
+        )
         if local_vol_model:
             try:
-                lv_pars = np.loadtxt(folder+"LV_param_data_"+str(name)+".txt")
-                lv_money = np.loadtxt(folder+"LV_money_vola_data_"+str(name)+".txt")
-                lv_dates = np.loadtxt(folder+"LV_maturities_vola_data_"+name+".txt")
-                LV.append(LocalVolatilityCurve(lv_pars, lv_money, lv_dates, name, log_money_interpolation_rule="kruger"))
+                lv_pars = np.loadtxt(folder + "LV_param_data_" + str(name) + ".txt")
+                lv_money = np.loadtxt(
+                    folder + "LV_money_vola_data_" + str(name) + ".txt"
+                )
+                lv_dates = np.loadtxt(
+                    folder + "LV_maturities_vola_data_" + name + ".txt"
+                )
+                LV.append(
+                    LocalVolatilityCurve(
+                        lv_pars,
+                        lv_money,
+                        lv_dates,
+                        name,
+                        log_money_interpolation_rule="kruger",
+                    )
+                )
             except:
-                warnings.warn("Local volatility curve not found for asset: "+name)
+                warnings.warn("Local volatility curve not found for asset: " + name)
                 LV.append(None)
         i += 1
     if len(asset_names) > 1:

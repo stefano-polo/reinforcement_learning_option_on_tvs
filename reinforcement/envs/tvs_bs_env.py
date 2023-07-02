@@ -1,26 +1,43 @@
+import sys
+
 import gym
+import numpy as np
 from gym import spaces
 from gym.utils import seeding
-import numpy as np
 
-import sys
-sys.path.insert(1, '../pricing')
-from pricing import EquityForwardCurve, DiscountingCurve, Black, ForwardVariance
+sys.path.insert(1, "../pricing")
 from closedforms import BS_European_option_closed_form
-from read_market import LoadFromTxt
-from targetvol import Drift, CholeskyTDependent, Strategy, TVSForwardCurve, TargetVolatilityStrategy
-
 from envs.utils import build_allocation_time_grid, sign_renormalization
+from read_market import LoadFromTxt
+from targetvol import (
+    CholeskyTDependent,
+    Drift,
+    Strategy,
+    TargetVolatilityStrategy,
+    TVSForwardCurve,
+)
+
+from pricing import Black, DiscountingCurve, EquityForwardCurve, ForwardVariance
+
 
 class TVS_BS_ENV(gym.Env):
     """Target volatility strategy Option environment for the Black-Scholes model."""
 
-    def __init__(self, market_folder: str = "../market_data/FakeSmilesDisplacedDiffusion",
-                 asset_names: list = ["DJ 50 EURO E", "S&P 500 NET EUR"],
-                 allocation_frequency: str = "monthly", target_volatility: float = 5 / 100, tvs_spot_value: float = 1.0,
-                 option_strike: float = 1.0, option_maturity: float = 2.0, action_constraints: str = None,
-                 action_bound: float = 5.0, overall_long_position: float = None, overall_short_position: float = None,
-                 n_sim_for_cache: int = int(2e3)) -> None:
+    def __init__(
+        self,
+        market_folder: str = "../market_data/FakeSmilesDisplacedDiffusion",
+        asset_names: list = ["DJ 50 EURO E", "S&P 500 NET EUR"],
+        allocation_frequency: str = "monthly",
+        target_volatility: float = 5 / 100,
+        tvs_spot_value: float = 1.0,
+        option_strike: float = 1.0,
+        option_maturity: float = 2.0,
+        action_constraints: str = None,
+        action_bound: float = 5.0,
+        overall_long_position: float = None,
+        overall_short_position: float = None,
+        n_sim_for_cache: int = int(2e3),
+    ) -> None:
         """
         Target volatility strategy Option RL environment with a Black and Scholes model for the assets. In this environment the action space and the observation
         space are continuous. The observation state is a vector of size (n_assets + 2) with the following structure: [stock price, tvs level, time]
@@ -50,64 +67,112 @@ class TVS_BS_ENV(gym.Env):
         self.target_vol = target_volatility
 
         # Creation of the time grid describing the episode"""
-        self.observation_grid, _, _ = build_allocation_time_grid(self.T, allocation_frequency, day_count_convention="ACT_365")
+        self.observation_grid, _, _ = build_allocation_time_grid(
+            self.T, allocation_frequency, day_count_convention="ACT_365"
+        )
         self.time_index = 0
         self.current_time = self.observation_grid[self.time_index]
-        self.simulation_index = 0  # index of the simulation in the Monte Carlo simulation
+        self.simulation_index = (
+            0  # index of the simulation in the Monte Carlo simulation
+        )
         self.Nsim = n_sim_for_cache  # number of genereated paths and cached in memory
 
         # Loading market curves and elements
-        self.discounting_curve, forward_curves, variance_curves, correlation = LoadFromTxt(asset_names, market_folder, local_vol_model=False)
+        (
+            self.discounting_curve,
+            forward_curves,
+            variance_curves,
+            correlation,
+        ) = LoadFromTxt(asset_names, market_folder, local_vol_model=False)
         self.N_equity = len(asset_names)
         assert len(forward_curves) == len(variance_curves) == self.N_equity
-        correlation = np.array(([1., 0.], [0., 1.]))
-        self.cholesky_matrix = np.linalg.cholesky(correlation)  # Cholesky decomposition of the correlation matrix
+        correlation = np.array(([1.0, 0.0], [0.0, 1.0]))
+        self.cholesky_matrix = np.linalg.cholesky(
+            correlation
+        )  # Cholesky decomposition of the correlation matrix
         self.spot_prices = np.zeros(self.N_equity)  # spot prices of the assets
         self.discount_at_maturity = self.discounting_curve(self.T)
         for i in range(self.N_equity):
             self.spot_prices[i] = forward_curves[i].spot
 
         # Creation of the BS model
-        self.model = Black(fixings=self.observation_grid[1:], forward_curve=forward_curves,
-                           variance_curve=variance_curves, correlation_matrix=correlation, sampling="standard")
+        self.model = Black(
+            fixings=self.observation_grid[1:],
+            forward_curve=forward_curves,
+            variance_curve=variance_curves,
+            correlation_matrix=correlation,
+            sampling="standard",
+        )
         # Set target volatility strategy classes
         self.mu_function = Drift(forward_curves)
-        self.nu_function = CholeskyTDependent(variance_curves, np.linalg.cholesky(correlation))
-        self.TVSF = TVSForwardCurve(reference=0, vola_target=self.target_vol, spot_price=self.I_0,
-                                    mu=self.mu_function, nu=self.nu_function, discounting_curve=self.discounting_curve,
-                                    strategy=None)
+        self.nu_function = CholeskyTDependent(
+            variance_curves, np.linalg.cholesky(correlation)
+        )
+        self.TVSF = TVSForwardCurve(
+            reference=0,
+            vola_target=self.target_vol,
+            spot_price=self.I_0,
+            mu=self.mu_function,
+            nu=self.nu_function,
+            discounting_curve=self.discounting_curve,
+            strategy=None,
+        )
 
         # Collect action space parameters
         allowed_action_constraints = ["long_only", "long_short_limit"]
         if action_constraints is None:  # free allocation strategy
-            self.free_allocation_bounds = True; self.long_only = False; self.long_short_limit = False
-            low_action = np.ones(self.N_equity) * (-abs(action_bound)) - 1e-6  # lower bound of the action space
-            high_action = np.ones(self.N_equity) * abs(action_bound) + 1e-6  # upper bound of the action space
-        elif action_constraints == allowed_action_constraints[0]:  # long only strategy
-            self.free_allocation_bounds = False;
-            self.long_only = True;
+            self.free_allocation_bounds = True
+            self.long_only = False
             self.long_short_limit = False
-            low_action = np.ones(self.N_equity) * 1e-7  # lower bound of the action space
+            low_action = (
+                np.ones(self.N_equity) * (-abs(action_bound)) - 1e-6
+            )  # lower bound of the action space
+            high_action = (
+                np.ones(self.N_equity) * abs(action_bound) + 1e-6
+            )  # upper bound of the action space
+        elif action_constraints == allowed_action_constraints[0]:  # long only strategy
+            self.free_allocation_bounds = False
+            self.long_only = True
+            self.long_short_limit = False
+            low_action = (
+                np.ones(self.N_equity) * 1e-7
+            )  # lower bound of the action space
             high_action = np.ones(self.N_equity)  # upper bound of the action space
-        elif action_constraints == allowed_action_constraints[1]:  # overall position bounded strategy
+        elif (
+            action_constraints == allowed_action_constraints[1]
+        ):  # overall position bounded strategy
             if overall_long_position is None or overall_short_position is None:
-                raise ValueError(f"Please specify the overall long and short positions for the "
-                                 f"{allowed_action_constraints[1]} constraint")
-            self.free_allocation_bounds = False; self.long_only = False; self.long_short_limit = True
-            low_action = np.ones(self.N_equity) * (-abs(action_bound)) - 1e-6  # lower bound of the action space
-            high_action = np.ones(self.N_equity) * abs(action_bound) + 1e-6  # upper bound of the action space
+                raise ValueError(
+                    f"Please specify the overall long and short positions for the "
+                    f"{allowed_action_constraints[1]} constraint"
+                )
+            self.free_allocation_bounds = False
+            self.long_only = False
+            self.long_short_limit = True
+            low_action = (
+                np.ones(self.N_equity) * (-abs(action_bound)) - 1e-6
+            )  # lower bound of the action space
+            high_action = (
+                np.ones(self.N_equity) * abs(action_bound) + 1e-6
+            )  # upper bound of the action space
             self.sum_long = overall_long_position
             self.sum_short = overall_short_position
         else:
-            raise ValueError(f"Please specify an allowed action constraint: {allowed_action_constraints}")
+            raise ValueError(
+                f"Please specify an allowed action constraint: {allowed_action_constraints}"
+            )
         # set the bounds of the action space
-        self.action_space = spaces.Box(low=np.float32(low_action), high=np.float32(high_action))
+        self.action_space = spaces.Box(
+            low=np.float32(low_action), high=np.float32(high_action)
+        )
 
         # Set state space
         high = np.ones(self.N_equity) * 2.5
-        low_bound = np.append(-high, 0.)
-        high_bound = np.append(high, self.T + 1./365)
-        self.observation_space = spaces.Box(low=np.float32(low_bound), high=np.float32(high_bound))
+        low_bound = np.append(-high, 0.0)
+        high_bound = np.append(high, self.T + 1.0 / 365)
+        self.observation_space = spaces.Box(
+            low=np.float32(low_bound), high=np.float32(high_bound)
+        )
 
     def step(self, action):
         assert self.action_space.contains(action)
@@ -117,7 +182,9 @@ class TVS_BS_ENV(gym.Env):
         elif self.long_only:
             risky_allocation_strategy = action / np.sum(action)
         elif self.long_short_limit:
-            risky_allocation_strategy = sign_renormalization(action, self.sum_long, self.sum_short)
+            risky_allocation_strategy = sign_renormalization(
+                action, self.sum_long, self.sum_short
+            )
         else:
             raise ValueError("Please specify a valid allocation strategy")
 
@@ -137,22 +204,29 @@ class TVS_BS_ENV(gym.Env):
             done = True
             alpha = Strategy(strategy=self.alpha_t, dates=self.observation_grid[:-1])
             self.TVSF.set_strategy(alpha)
-            TVS = TargetVolatilityStrategy(fixings=np.array([self.T]), forward_curve=self.TVSF, sampling="standard")
+            TVS = TargetVolatilityStrategy(
+                fixings=np.array([self.T]), forward_curve=self.TVSF, sampling="standard"
+            )
             I_t = TVS.simulate(random_generator=self.np_random)[0, 0]
-            reward = np.maximum(I_t - self.strike_opt, 0.) * self.discount_at_maturity
+            reward = np.maximum(I_t - self.strike_opt, 0.0) * self.discount_at_maturity
             self.simulation_index = self.simulation_index + 1
 
         state = np.append(self.current_asset, self.current_time)
         return state, reward, done, {}
 
     def reset(self):
-        if self.simulation_index == 0 or self.simulation_index==self.Nsim:
+        if self.simulation_index == 0 or self.simulation_index == self.Nsim:
             self.simulations = None  # clear memory
-            self.simulations = self.model.simulate(random_generator=self.np_random, n_sim=self.Nsim,
-                                                   return_log_martingale=True)
-            self.simulations = np.insert(self.simulations, 0, np.zeros(self.N_equity), axis=1)  # add initial asset price
+            self.simulations = self.model.simulate(
+                random_generator=self.np_random,
+                n_sim=self.Nsim,
+                return_log_martingale=True,
+            )
+            self.simulations = np.insert(
+                self.simulations, 0, np.zeros(self.N_equity), axis=1
+            )  # add initial asset price
             self.simulation_index = 0
-        self.current_time = 0.
+        self.current_time = 0.0
         self.time_index = 0
         self.S_t = self.simulations[self.simulation_index]
         self.alpha_t = np.array([])
@@ -163,15 +237,28 @@ class TVS_BS_ENV(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def render(self, mode='human'):
+    def render(self, mode="human"):
         print()
-        print('asset_history = ', self.asset_history)
-        print('current time = ', self.current_time)
+        print("asset_history = ", self.asset_history)
+        print("current time = ", self.current_time)
 
     def theoretical_price(self):
         optimal_strategy = Strategy()
-        optimal_strategy.Mark_strategy(mu = self.mu, nu = self.nu)
-        TVSF = TVSForwardCurve(reference=0., vola_target=self.target_vol, spot_price=self.I_0, mu=self.mu, nu=self.nu,
-                               discounting_curve=self.discounting_curve, strategy=optimal_strategy)
-        return BS_European_option_closed_form(TVSF(self.T), self.strike_option, self.T, self.discounting_curve(self.T),
-                                              self.target_vol, 1.0)
+        optimal_strategy.Mark_strategy(mu=self.mu, nu=self.nu)
+        TVSF = TVSForwardCurve(
+            reference=0.0,
+            vola_target=self.target_vol,
+            spot_price=self.I_0,
+            mu=self.mu,
+            nu=self.nu,
+            discounting_curve=self.discounting_curve,
+            strategy=optimal_strategy,
+        )
+        return BS_European_option_closed_form(
+            TVSF(self.T),
+            self.strike_option,
+            self.T,
+            self.discounting_curve(self.T),
+            self.target_vol,
+            1.0,
+        )

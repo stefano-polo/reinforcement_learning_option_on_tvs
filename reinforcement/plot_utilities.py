@@ -1,14 +1,21 @@
-from baselines.common import plot_util as pu
-from baselines.common.cmd_util import common_arg_parser
-from baselines.run import parse_cmdline_kwargs, train, remove_train_noise
+from math import sqrt
+
+import envs.fe_envs
 import matplotlib.pyplot as plt
 import numpy as np
-from math import sqrt
 import pandas as pd
-import envs.fe_envs
+from baselines.common import plot_util as pu
+from baselines.common.cmd_util import common_arg_parser
+from baselines.run import parse_cmdline_kwargs, remove_train_noise, train
 
 
-def plot_rolling(x: pd.Series, y: pd.Series, window: int, title: str = 'reward', std_mul: float = 2.33) -> None:
+def plot_rolling(
+    x: pd.Series,
+    y: pd.Series,
+    window: int,
+    title: str = "reward",
+    std_mul: float = 2.33,
+) -> None:
     """
     Plot moving average with error bands of a pandas Series.
     :param x (pd.Series): x-axis values.
@@ -39,7 +46,9 @@ def join_curves(LOG_FOLDER: str, WHICH_LOGS: tuple, X_AXIS_TIMESTEPS: bool) -> t
     for log, title in WHICH_LOGS:
         results = pu.load_results(LOG_FOLDER + log)
         r = results[0]
-        steps = np.cumsum(r.monitor.l) if X_AXIS_TIMESTEPS else np.array(r.monitor.l.index)
+        steps = (
+            np.cumsum(r.monitor.l) if X_AXIS_TIMESTEPS else np.array(r.monitor.l.index)
+        )
         rewards = r.monitor.r
         if i == 0:
             if X_AXIS_TIMESTEPS:
@@ -48,10 +57,12 @@ def join_curves(LOG_FOLDER: str, WHICH_LOGS: tuple, X_AXIS_TIMESTEPS: bool) -> t
                 steps_joined = steps
             rewards_joined = rewards
         else:
-            rewards.index = rewards.index+len(rewards_joined)
+            rewards.index = rewards.index + len(rewards_joined)
             rewards_joined = pd.concat([rewards_joined, rewards])
             if X_AXIS_TIMESTEPS:
-                steps_joined = np.concatenate((steps_joined, steps.values + steps_joined[-1]))
+                steps_joined = np.concatenate(
+                    (steps_joined, steps.values + steps_joined[-1])
+                )
             else:
                 steps_joined = np.concatenate((steps_joined, steps + steps_joined[-1]))
         i += 1
@@ -65,110 +76,140 @@ def unpack_dict_parameters(rl_model_parameters_dict: dict) -> tuple:
     :return (tuple): tuple containing the parameters.
     """
     try:
-        rl_algo = rl_model_parameters_dict['rl_algo']
+        rl_algo = rl_model_parameters_dict["rl_algo"]
         assert type(rl_algo) == str
     except KeyError:
         rl_algo = "ppo2"
 
     try:
-        training_timesteps = rl_model_parameters_dict['training_timesteps']
+        training_timesteps = rl_model_parameters_dict["training_timesteps"]
         assert type(training_timesteps) == str
     except KeyError:
-        raise KeyError('training_timesteps not found in dictionary of parameters.')
+        raise KeyError("training_timesteps not found in dictionary of parameters.")
 
     try:
-        number_nn_layers = rl_model_parameters_dict['num_layers']
+        number_nn_layers = rl_model_parameters_dict["num_layers"]
         assert type(number_nn_layers) == str
     except KeyError:
-        raise KeyError('num_layers not found in dictionary of parameters.')
+        raise KeyError("num_layers not found in dictionary of parameters.")
 
     try:
-        number_nn_units = rl_model_parameters_dict['num_hidden']
+        number_nn_units = rl_model_parameters_dict["num_hidden"]
         assert type(number_nn_units) == str
     except KeyError:
-        raise KeyError('num_hidden not found in dictionary of parameters.')
+        raise KeyError("num_hidden not found in dictionary of parameters.")
 
     try:
-        learning_rate = rl_model_parameters_dict['learning_rate']
+        learning_rate = rl_model_parameters_dict["learning_rate"]
         assert type(learning_rate) == str
     except KeyError:
-        raise KeyError('learning_rate not found in dictionary of parameters.')
+        raise KeyError("learning_rate not found in dictionary of parameters.")
 
     try:
-        training_seed = rl_model_parameters_dict['training_seed']
+        training_seed = rl_model_parameters_dict["training_seed"]
         assert type(training_seed) == str
     except KeyError:
         training_seed = None
 
     try:
-        activation = rl_model_parameters_dict['activation']
+        activation = rl_model_parameters_dict["activation"]
         assert type(activation) == str
     except KeyError:
         activation = None
 
     try:
-        value_network = rl_model_parameters_dict['value_network']
+        value_network = rl_model_parameters_dict["value_network"]
         assert type(value_network) == str or value_network == None
     except KeyError:
         value_network = None
 
     try:
-        beta = rl_model_parameters_dict['beta']
+        beta = rl_model_parameters_dict["beta"]
         assert type(beta) == str
     except KeyError:
         beta = None
 
     try:
-        entropy_coeff = rl_model_parameters_dict['ent']
+        entropy_coeff = rl_model_parameters_dict["ent"]
         assert type(entropy_coeff) == str
     except KeyError:
         entropy_coeff = None
 
     try:
-        lam = rl_model_parameters_dict['lam']
+        lam = rl_model_parameters_dict["lam"]
         assert type(entropy_coeff) == str
     except KeyError:
         lam = None
 
     try:
-        noise = rl_model_parameters_dict['noise']
+        noise = rl_model_parameters_dict["noise"]
         assert type(noise) == str
     except KeyError:
         noise = None
 
     try:
-        gamma = rl_model_parameters_dict['gamma']
+        gamma = rl_model_parameters_dict["gamma"]
         assert type(gamma) == str
     except KeyError:
         gamma = None
 
     try:
-        batch = rl_model_parameters_dict['batch']
+        batch = rl_model_parameters_dict["batch"]
         assert type(batch) == str
     except KeyError:
         batch = None
 
     try:
-        custom_suffix = rl_model_parameters_dict['custom_suffix']
+        custom_suffix = rl_model_parameters_dict["custom_suffix"]
         assert type(custom_suffix) == str
     except KeyError:
-        custom_suffix = ''
+        custom_suffix = ""
 
     try:
-        env_seed = rl_model_parameters_dict['env_seed']
+        env_seed = rl_model_parameters_dict["env_seed"]
         assert type(env_seed) in [str, int]
     except KeyError:
-        env_seed = '14'
+        env_seed = "14"
 
-    return rl_algo, training_timesteps, number_nn_layers, number_nn_units, \
-           learning_rate, training_seed, activation, value_network, beta, entropy_coeff, lam,\
-           noise, batch, gamma, custom_suffix, env_seed
+    return (
+        rl_algo,
+        training_timesteps,
+        number_nn_layers,
+        number_nn_units,
+        learning_rate,
+        training_seed,
+        activation,
+        value_network,
+        beta,
+        entropy_coeff,
+        lam,
+        noise,
+        batch,
+        gamma,
+        custom_suffix,
+        env_seed,
+    )
 
 
-def test_build_args(env_id: str, alg: str, training_timesteps: str, num_layers: str, num_hidden: str, lr: str,
-               training_seed: str = None, activation: str = None, value_network: str = None, beta: str = None, ent: str = None,
-               custom_suffix: str = None, lam: str = None, noise: str = None, batch: str = None, gamma: str = None,
-                env_seed: int = 14) -> list:
+def test_build_args(
+    env_id: str,
+    alg: str,
+    training_timesteps: str,
+    num_layers: str,
+    num_hidden: str,
+    lr: str,
+    training_seed: str = None,
+    activation: str = None,
+    value_network: str = None,
+    beta: str = None,
+    ent: str = None,
+    custom_suffix: str = None,
+    lam: str = None,
+    noise: str = None,
+    batch: str = None,
+    gamma: str = None,
+    env_seed: int = 14,
+) -> list:
     """
     Utility function for the most common argument configurations.
     :param env_id (str): environment id.
@@ -186,58 +227,60 @@ def test_build_args(env_id: str, alg: str, training_timesteps: str, num_layers: 
     :return (list): list of arguments for the training script.
     """
 
-    if custom_suffix is not None and custom_suffix != '' and custom_suffix[0] != '_':
-        custom_suffix = '_' + custom_suffix
+    if custom_suffix is not None and custom_suffix != "" and custom_suffix[0] != "_":
+        custom_suffix = "_" + custom_suffix
 
     suffix = "" if custom_suffix is None else custom_suffix
 
     if activation is not None:
-        suffix = '_' + activation + suffix
+        suffix = "_" + activation + suffix
 
     if value_network is not None:
-        suffix = '_' + value_network + suffix
+        suffix = "_" + value_network + suffix
 
     if lam is not None:
-        suffix = '_lam' + lam + suffix
+        suffix = "_lam" + lam + suffix
 
     if noise is not None:
-        suffix = '_noise' + noise + suffix
+        suffix = "_noise" + noise + suffix
 
     if beta is not None:
-        suffix = '_beta' + beta + suffix
+        suffix = "_beta" + beta + suffix
 
     if ent is not None:
-        suffix = '_ent' + ent + suffix
+        suffix = "_ent" + ent + suffix
 
     if batch is not None:
-        suffix = '_batch' + batch + suffix
+        suffix = "_batch" + batch + suffix
 
     if gamma is not None:
-        suffix = '_gamma' + gamma + suffix
+        suffix = "_gamma" + gamma + suffix
 
     if training_seed is not None:
-        suffix = '_trainingseed' + training_seed + suffix
+        suffix = "_trainingseed" + training_seed + suffix
 
-    description = '{}_{}_{}x{}_{}{}'.format(alg, training_timesteps, num_layers, num_hidden, lr, suffix)
+    description = "{}_{}_{}x{}_{}{}".format(
+        alg, training_timesteps, num_layers, num_hidden, lr, suffix
+    )
     args = [
-        '--env={}'.format(env_id),
-        '--num_env=1',
-        '--num_timesteps=1',
-        '--num_layers={}'.format(num_layers),
-        '--num_hidden={}'.format(num_hidden),
-        '--alg={}'.format(alg),
-        '--lr={}'.format(lr),
-        '--activation=tf.nn.{}'.format(activation),
-        '--load_path=./trained_agents/{}/{}'.format(env_id, description),
-        '--seed={}'.format(env_seed)
+        "--env={}".format(env_id),
+        "--num_env=1",
+        "--num_timesteps=1",
+        "--num_layers={}".format(num_layers),
+        "--num_hidden={}".format(num_hidden),
+        "--alg={}".format(alg),
+        "--lr={}".format(lr),
+        "--activation=tf.nn.{}".format(activation),
+        "--load_path=./trained_agents/{}/{}".format(env_id, description),
+        "--seed={}".format(env_seed),
     ]
     if value_network:
-        args.append('--value_network={}'.format(value_network))
+        args.append("--value_network={}".format(value_network))
 
     if beta:
-        args.append('--vf_coef={}'.format(beta))
+        args.append("--vf_coef={}".format(beta))
     if ent:
-        args.append('--ent_coef={}'.format(ent))
+        args.append("--ent_coef={}".format(ent))
 
     return args
 
@@ -248,12 +291,43 @@ def plot_one_episode_actions(env_id: str, rl_model_parameters_dict: dict) -> Non
     :param env_id (str): environment id.
     :param rl_model_parameters_dict (dict): dictionary containing the parameters of the RL model to load.
     """
-    rl_algorithm, training_timesteps, number_nn_layers, number_nn_units, learning_rate, \
-    training_seed, activation_function, value_network, beta, entropy_coeff, lam,\
-           noise, batch, gamma, custom_suffix, env_seed = unpack_dict_parameters(rl_model_parameters_dict)
-    args = test_build_args(env_id, rl_algorithm, training_timesteps, number_nn_layers, number_nn_units,
-                           learning_rate, training_seed, activation_function, value_network, beta,
-                           entropy_coeff, custom_suffix, lam, noise, batch, gamma, env_seed)
+    (
+        rl_algorithm,
+        training_timesteps,
+        number_nn_layers,
+        number_nn_units,
+        learning_rate,
+        training_seed,
+        activation_function,
+        value_network,
+        beta,
+        entropy_coeff,
+        lam,
+        noise,
+        batch,
+        gamma,
+        custom_suffix,
+        env_seed,
+    ) = unpack_dict_parameters(rl_model_parameters_dict)
+    args = test_build_args(
+        env_id,
+        rl_algorithm,
+        training_timesteps,
+        number_nn_layers,
+        number_nn_units,
+        learning_rate,
+        training_seed,
+        activation_function,
+        value_network,
+        beta,
+        entropy_coeff,
+        custom_suffix,
+        lam,
+        noise,
+        batch,
+        gamma,
+        env_seed,
+    )
     arg_parser = common_arg_parser()
     args, unknown_args = arg_parser.parse_known_args(args)
     extra_args = parse_cmdline_kwargs(unknown_args)
@@ -282,7 +356,9 @@ def plot_one_episode_actions(env_id: str, rl_model_parameters_dict: dict) -> Non
     labels_font_size = 13
     fig, ax = plt.subplots(1, 1, figsize=(15, 8))
     for i in range(n_assets):
-        plt.step(time_grid, action_history[:, i], label="Asset "+str(i+1), where="post")
+        plt.step(
+            time_grid, action_history[:, i], label="Asset " + str(i + 1), where="post"
+        )
     plt.legend(prop={"size": labels_font_size})
     plt.xlabel("Time [yr]", fontsize=labels_font_size)
     plt.ylabel("Action", fontsize=labels_font_size)
@@ -290,8 +366,16 @@ def plot_one_episode_actions(env_id: str, rl_model_parameters_dict: dict) -> Non
     plt.show()
 
 
-def plot_action_space(env_id: str, rl_model_parameters_dict: dict, plot_value_function: bool, reference_state: np.ndarray, variable_indexes: list or tuple,
-                      variable_points: int, x_max=np.infty, y_max=np.infty):
+def plot_action_space(
+    env_id: str,
+    rl_model_parameters_dict: dict,
+    plot_value_function: bool,
+    reference_state: np.ndarray,
+    variable_indexes: list or tuple,
+    variable_points: int,
+    x_max=np.infty,
+    y_max=np.infty,
+):
     """
     Function to plot a section of the action space or the value function of the RL agent (2d or 3d plot).
     :param env_id (str): environment id.
@@ -304,16 +388,20 @@ def plot_action_space(env_id: str, rl_model_parameters_dict: dict, plot_value_fu
     :param y_max (float, default=np.infty): maximum value of the y variable.
     """
 
-    from matplotlib import cm
     from gym import spaces
+    from matplotlib import cm
 
     # Set-up the title of the plot
-    state_space_description = r'$[log(S/F(0,T))\; , I_t/I_0\; , t]$'
+    state_space_description = r"$[log(S/F(0,T))\; , I_t/I_0\; , t]$"
     reference_str = list(map(str, reference_state))
     for ivar in variable_indexes:
-        reference_str[ivar] = ':'
-    z_name = 'Value function' if plot_value_function else 'Actions'
-    title_plot = '{} at {} = ['.format(z_name, state_space_description) + ', '.join(reference_str) + ']'
+        reference_str[ivar] = ":"
+    z_name = "Value function" if plot_value_function else "Actions"
+    title_plot = (
+        "{} at {} = [".format(z_name, state_space_description)
+        + ", ".join(reference_str)
+        + "]"
+    )
 
     labels_font_size = 15  # font-size for the plot
     # fundamental switch
@@ -326,12 +414,43 @@ def plot_action_space(env_id: str, rl_model_parameters_dict: dict, plot_value_fu
         raise ValueError("Either 1 or 2 variables can vary in plot()")
 
     # selected code from baselines.run.main()
-    rl_algorithm, training_timesteps, number_nn_layers, number_nn_units, learning_rate, \
-    training_seed, activation_function, value_network, beta, entropy_coeff, lam, \
-    noise, batch, gamma, custom_suffix, env_seed = unpack_dict_parameters(rl_model_parameters_dict)
-    args = test_build_args(env_id, rl_algorithm, training_timesteps, number_nn_layers, number_nn_units,
-                           learning_rate, training_seed, activation_function, value_network, beta,
-                           entropy_coeff, custom_suffix, lam, noise, batch, gamma, env_seed)
+    (
+        rl_algorithm,
+        training_timesteps,
+        number_nn_layers,
+        number_nn_units,
+        learning_rate,
+        training_seed,
+        activation_function,
+        value_network,
+        beta,
+        entropy_coeff,
+        lam,
+        noise,
+        batch,
+        gamma,
+        custom_suffix,
+        env_seed,
+    ) = unpack_dict_parameters(rl_model_parameters_dict)
+    args = test_build_args(
+        env_id,
+        rl_algorithm,
+        training_timesteps,
+        number_nn_layers,
+        number_nn_units,
+        learning_rate,
+        training_seed,
+        activation_function,
+        value_network,
+        beta,
+        entropy_coeff,
+        custom_suffix,
+        lam,
+        noise,
+        batch,
+        gamma,
+        env_seed,
+    )
 
     arg_parser = common_arg_parser()
     args, unknown_args = arg_parser.parse_known_args(args)
@@ -384,19 +503,33 @@ def plot_action_space(env_id: str, rl_model_parameters_dict: dict, plot_value_fu
                     z_axis[i, j, :] = get_z(obs)
         # plot
         fig = plt.figure(figsize=(15, 8))
-        ax = plt.axes(projection='3d')
+        ax = plt.axes(projection="3d")
         if plot_value_function:
             surf = ax.plot_surface(x_mesh, y_mesh, z_axis, cmap=cm.coolwarm)
             fig.colorbar(surf, shrink=0.5, aspect=5)
         else:
             for i in range(action_space[0]):
-                surf = ax.plot_surface(x_mesh, y_mesh, z_axis[:, :, i], label="asset {}".format(i + 1))
+                surf = ax.plot_surface(
+                    x_mesh, y_mesh, z_axis[:, :, i], label="asset {}".format(i + 1)
+                )
                 surf._edgecolors2d = surf._edgecolor3d  # elemnts to display the legend
                 surf._facecolors2d = surf._facecolor3d
             ax.legend(prop={"size": labels_font_size})
-        ax.set_xlabel('state[{}]'.format(variable_indexes[0]), fontsize=labels_font_size, labelpad=labels_font_size - 3)
-        ax.set_ylabel('state[{}]'.format(variable_indexes[1]), fontsize=labels_font_size, labelpad=labels_font_size - 3)
-        ax.set_zlabel('value' if plot_value_function else 'action', fontsize=labels_font_size, labelpad=labels_font_size - 3)
+        ax.set_xlabel(
+            "state[{}]".format(variable_indexes[0]),
+            fontsize=labels_font_size,
+            labelpad=labels_font_size - 3,
+        )
+        ax.set_ylabel(
+            "state[{}]".format(variable_indexes[1]),
+            fontsize=labels_font_size,
+            labelpad=labels_font_size - 3,
+        )
+        ax.set_zlabel(
+            "value" if plot_value_function else "action",
+            fontsize=labels_font_size,
+            labelpad=labels_font_size - 3,
+        )
     else:  # plot 1d graph
         fig, ax = plt.subplots(1, 1, figsize=(10, 8))
         # compute actions or values
@@ -408,13 +541,16 @@ def plot_action_space(env_id: str, rl_model_parameters_dict: dict, plot_value_fu
             plt.plot(x_axis, z_axis)
         else:
             for i in range(action_space[0]):
-                plt.step(x_axis, z_axis[:, i], label="asset {}".format(i + 1), where="post")
+                plt.step(
+                    x_axis, z_axis[:, i], label="asset {}".format(i + 1), where="post"
+                )
             plt.legend(prop={"size": labels_font_size})
-        plt.xlabel('state[{}]'.format(variable_indexes[0]), fontsize=labels_font_size)
-        plt.ylabel('value' if plot_value_function else 'action', fontsize=labels_font_size)
+        plt.xlabel("state[{}]".format(variable_indexes[0]), fontsize=labels_font_size)
+        plt.ylabel(
+            "value" if plot_value_function else "action", fontsize=labels_font_size
+        )
 
-    ax.tick_params(axis='both', which='major', labelsize=labels_font_size - 2)
-    ax.tick_params(axis='both', which='minor', labelsize=labels_font_size - 2)
+    ax.tick_params(axis="both", which="major", labelsize=labels_font_size - 2)
+    ax.tick_params(axis="both", which="minor", labelsize=labels_font_size - 2)
     plt.title(title_plot, fontsize=labels_font_size)
     plt.show()
-

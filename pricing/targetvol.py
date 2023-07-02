@@ -1,15 +1,17 @@
 import numpy as np
 from numpy import exp, sqrt
-from pricing import Curve, ForwardVariance, EquityForwardCurve, DiscountingCurve
-from pricing_utility import quad_piecewise
 from numpy.linalg import cholesky
+from pricing_utility import quad_piecewise
 from scipy.interpolate import interp1d
-from scipy.optimize import minimize, LinearConstraint, Bounds
+from scipy.optimize import Bounds, LinearConstraint, minimize
+
+from pricing import Curve, DiscountingCurve, EquityForwardCurve, ForwardVariance
 
 """
 Black and Scholes model for target volatility pricing.
 The notation is based on the paper in the tex directory
 """
+
 
 class Drift(Curve):
     """Time dependent repo rates curve"""
@@ -22,7 +24,9 @@ class Drift(Curve):
         of the time-grid definition must be 0.0).
         :param forward_curves [list[EquityCurve]]: list of equity curves in the basket.
         """
-        assert type(forward_curves) == list and all(isinstance(x, EquityForwardCurve) for x in forward_curves)
+        assert type(forward_curves) == list and all(
+            isinstance(x, EquityForwardCurve) for x in forward_curves
+        )
         assert len(forward_curves) > 1
         # time grid of the piecewise constant function defined as union of the time grids of the equity curves in the basket
         self.T = time_grid_union(curve_array_list=forward_curves)
@@ -31,8 +35,17 @@ class Drift(Curve):
         self.mu = np.stack((self.mu, forward_curves[1].q(self.T)), axis=1)
         """Calculating the instant repo rates"""
         for i in range(2, n_dim):
-            self.mu = np.insert(self.mu, len(self.mu.T), forward_curves[i].q(self.T), axis=1)
-        self.m = interp1d(self.T, self.mu, axis=0, kind='previous', fill_value="extrapolate", assume_sorted=False)
+            self.mu = np.insert(
+                self.mu, len(self.mu.T), forward_curves[i].q(self.T), axis=1
+            )
+        self.m = interp1d(
+            self.T,
+            self.mu,
+            axis=0,
+            kind="previous",
+            fill_value="extrapolate",
+            assume_sorted=False,
+        )
 
     def curve(self, date: float or np.ndarray) -> np.ndarray:
         """
@@ -47,7 +60,9 @@ class Drift(Curve):
 class CholeskyTDependent(Curve):
     """Time dependent cholesky variance-covariance matrix"""
 
-    def __init__(self, variance_curves: list, correlation_chole: np.ndarray = None) -> None:
+    def __init__(
+        self, variance_curves: list, correlation_chole: np.ndarray = None
+    ) -> None:
         """
         Cholesky Time Dependent Curve. This function builds the cholesky matrix presented in the paper with nu notation.
         The nu matrix is the cholesky matrix of the covariance matrix of the basket at a given time.
@@ -56,9 +71,13 @@ class CholeskyTDependent(Curve):
         :param correlation_chole (np.ndarray[float], default=None): choleksy decomposition of the correlation matrix of the basket.
         If None, the assets are assumed to be independent.
         """
-        assert type(variance_curves) == list and all(isinstance(x, ForwardVariance) for x in variance_curves)
+        assert type(variance_curves) == list and all(
+            isinstance(x, ForwardVariance) for x in variance_curves
+        )
         assert len(variance_curves) > 1
-        if correlation_chole is None:  # if the correlation is not provided then assume non-correlated assets
+        if (
+            correlation_chole is None
+        ):  # if the correlation is not provided then assume non-correlated assets
             correlation_chole = np.eye(len(correlation_chole))
         # time grid of the piecewise constant function defined as union of the time grids of the equity curves in the basket
         self.T = time_grid_union(curve_array_list=variance_curves)
@@ -72,7 +91,14 @@ class CholeskyTDependent(Curve):
                 vol[j] = sqrt(variance_curves[j](self.T[i]))
             vol = identity_matrix * vol
             self.nu[:, :, i] = vol @ correlation_chole
-        self.n = interp1d(self.T, self.nu, axis=2, kind='previous', fill_value="extrapolate", assume_sorted=False)
+        self.n = interp1d(
+            self.T,
+            self.nu,
+            axis=2,
+            kind="previous",
+            fill_value="extrapolate",
+            assume_sorted=False,
+        )
 
     def curve(self, date: float or np.ndarray) -> np.ndarray:
         """
@@ -99,12 +125,23 @@ class Strategy:
         if self.alpha_t is not None and self.T is not None:
             if self.T[0] != 0.0:
                 raise ValueError("The first date should be 0.0")
-            assert len(self.T) == len(self.alpha_t), "The time grid of strategy and dates should have the same length"
-            self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous', fill_value="extrapolate", assume_sorted=False)
+            assert len(self.T) == len(
+                self.alpha_t
+            ), "The time grid of strategy and dates should have the same length"
+            self.a_t = interp1d(
+                self.T,
+                self.alpha_t,
+                axis=0,
+                kind="previous",
+                fill_value="extrapolate",
+                assume_sorted=False,
+            )
         elif self.alpha_t is None and self.T is None:
             self.a_t = None
         else:
-            raise ValueError("The strategy and dates should be both provided or both not provided")
+            raise ValueError(
+                "The strategy and dates should be both provided or both not provided"
+            )
 
     def Mark_strategy(self, mu: Drift, nu: CholeskyTDependent) -> None:
         """
@@ -118,17 +155,39 @@ class Strategy:
         assert isinstance(nu, CholeskyTDependent)
         n_dim = len(mu(0))
         self.T = np.union1d(mu.T, nu.T)
-        self.alpha_t = np.zeros((len(self.T), n_dim))   # time dependent allocation strategy
+        self.alpha_t = np.zeros(
+            (len(self.T), n_dim)
+        )  # time dependent allocation strategy
         for i in range(len(self.T)):
-            a_plus = Markowitz_solution(mu(self.T[i]), nu(self.T[i]), 1)  # compute the optimal allocation for the portfolio through the closed formula
-            a_minus = - a_plus
-            if loss_function(a_plus, mu(self.T[i]), nu(self.T[i])) > loss_function(a_minus, mu(self.T[i]), nu(self.T[i])):
+            a_plus = Markowitz_solution(
+                mu(self.T[i]), nu(self.T[i]), 1
+            )  # compute the optimal allocation for the portfolio through the closed formula
+            a_minus = -a_plus
+            if loss_function(a_plus, mu(self.T[i]), nu(self.T[i])) > loss_function(
+                a_minus, mu(self.T[i]), nu(self.T[i])
+            ):
                 self.alpha_t[i] = a_minus
             else:
                 self.alpha_t[i] = a_plus
-        self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous', fill_value="extrapolate", assume_sorted=False)
+        self.a_t = interp1d(
+            self.T,
+            self.alpha_t,
+            axis=0,
+            kind="previous",
+            fill_value="extrapolate",
+            assume_sorted=False,
+        )
 
-    def optimization_constrained(self, mu: Drift, nu: CholeskyTDependent, long_limit=25/100, short_limit=25/100, n_trial=20, seed=13, constraint_strategy=1) -> None:
+    def optimization_constrained(
+        self,
+        mu: Drift,
+        nu: CholeskyTDependent,
+        long_limit=25 / 100,
+        short_limit=25 / 100,
+        n_trial=20,
+        seed=13,
+        constraint_strategy=1,
+    ) -> None:
         """
         Computes the optimal allocation strategy for the Black and Scholes model, assuming some constraints on the allocation strategy.
         :param mu (Drift): drift of the portfolio.
@@ -149,32 +208,67 @@ class Strategy:
         assert isinstance(nu, CholeskyTDependent)
         n_dim = len(mu(0))
         self.T = np.union1d(mu.T, nu.T)
-        if np.max(mu.T) > np.max(nu.T):    # check control to avoid denominator divergence
+        if np.max(mu.T) > np.max(nu.T):  # check control to avoid denominator divergence
             self.T = self.T[np.where(self.T <= np.max(nu.T))[0]]
-        self.alpha_t = np.zeros((len(self.T), n_dim))   # time dependent allocation strategy
+        self.alpha_t = np.zeros(
+            (len(self.T), n_dim)
+        )  # time dependent allocation strategy
         for i in range(len(self.T)):
             if constraint_strategy == 1:
-                result = optimization_only_long(mu(self.T[i]), nu(self.T[i]),  n_trial=n_trial, seed=seed, guess=None)
+                result = optimization_only_long(
+                    mu(self.T[i]), nu(self.T[i]), n_trial=n_trial, seed=seed, guess=None
+                )
             elif constraint_strategy == 2:
-                result = optimization_limit_position(mu(self.T[i]), nu(self.T[i]), limit_position=long_limit, n_trial=n_trial, seed=seed)
+                result = optimization_limit_position(
+                    mu(self.T[i]),
+                    nu(self.T[i]),
+                    limit_position=long_limit,
+                    n_trial=n_trial,
+                    seed=seed,
+                )
             else:
-                result = optimization_long_short_position(mu(self.T[i]), nu(self.T[i]), long_limit=long_limit, short_limit=short_limit, n_trial=n_trial, seed=seed)
+                result = optimization_long_short_position(
+                    mu(self.T[i]),
+                    nu(self.T[i]),
+                    long_limit=long_limit,
+                    short_limit=short_limit,
+                    n_trial=n_trial,
+                    seed=seed,
+                )
             self.alpha_t[i] = result
-        self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous', fill_value="extrapolate", assume_sorted=False)
+        self.a_t = interp1d(
+            self.T,
+            self.alpha_t,
+            axis=0,
+            kind="previous",
+            fill_value="extrapolate",
+            assume_sorted=False,
+        )
 
-    def Intuitive_strategy1(self, forward_curves_list: list, maturity_date: float) -> None:
+    def Intuitive_strategy1(
+        self, forward_curves_list: list, maturity_date: float
+    ) -> None:
         """
         Intuitive strategy that consists on investing all on the asset with maximum growth at maturity.
         :param forward_curves_list (list): list of forward curves of the assets in the basket
         :param maturity_date (float): maturity date in yrf
         """
-        assert type(forward_curves_list) == list and all(isinstance(x, EquityForwardCurve) for x in forward_curves_list)
+        assert type(forward_curves_list) == list and all(
+            isinstance(x, EquityForwardCurve) for x in forward_curves_list
+        )
         assert len(forward_curves_list) > 1
         asset_index = Max_forward_maturity(forward_curves_list, maturity_date)
         self.T = np.array([0, maturity_date])
         self.alpha_t = np.zeros((2, len(forward_curves_list)))
         self.alpha_t[:, asset_index] = 1
-        self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous', fill_value="extrapolate", assume_sorted=False)
+        self.a_t = interp1d(
+            self.T,
+            self.alpha_t,
+            axis=0,
+            kind="previous",
+            fill_value="extrapolate",
+            assume_sorted=False,
+        )
 
     def Intuitive_strategy2(self, mu: Drift) -> None:
         """
@@ -184,10 +278,17 @@ class Strategy:
         assert isinstance(mu, Drift)
         asset_index = Min_mu_each_time(mu)
         self.T = mu.T
-        self.alpha_t = np.zeros((len(asset_index), len(mu(0.))))
+        self.alpha_t = np.zeros((len(asset_index), len(mu(0.0))))
         for j in range(len(asset_index)):
             self.alpha_t[j, int(asset_index[j])] = 1
-        self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous', fill_value="extrapolate", assume_sorted=False)
+        self.a_t = interp1d(
+            self.T,
+            self.alpha_t,
+            axis=0,
+            kind="previous",
+            fill_value="extrapolate",
+            assume_sorted=False,
+        )
 
     def Intuitive_strategy3(self, mu: Drift, nu: CholeskyTDependent) -> None:
         """
@@ -198,10 +299,17 @@ class Strategy:
         assert isinstance(mu, Drift)
         assert isinstance(nu, CholeskyTDependent)
         asset_index, self.T = Min_mu_nu_each_time(mu, nu)
-        self.alpha_t = np.zeros((len(asset_index), len(mu(0.))))
+        self.alpha_t = np.zeros((len(asset_index), len(mu(0.0))))
         for j in range(len(asset_index)):
             self.alpha_t[j, int(asset_index[j])] = 1
-        self.a_t = interp1d(self.T, self.alpha_t, axis=0, kind='previous', fill_value="extrapolate", assume_sorted=False)
+        self.a_t = interp1d(
+            self.T,
+            self.alpha_t,
+            axis=0,
+            kind="previous",
+            fill_value="extrapolate",
+            assume_sorted=False,
+        )
 
     def __call__(self, date: float or np.ndarray) -> np.ndarray:
         """
@@ -217,8 +325,16 @@ class Strategy:
 class TVSForwardCurve:
     """Forward curve of the target volatility strategy portfolio."""
 
-    def __init__(self, reference: int or float, vola_target: float, spot_price: float, mu: Drift,
-                 nu: CholeskyTDependent, discounting_curve: Curve, strategy: Strategy) -> None:
+    def __init__(
+        self,
+        reference: int or float,
+        vola_target: float,
+        spot_price: float,
+        mu: Drift,
+        nu: CholeskyTDependent,
+        discounting_curve: Curve,
+        strategy: Strategy,
+    ) -> None:
         """
         Target Volatility Strategy Forward Curve.
         :param reference (int or float): reference date in yrf
@@ -234,7 +350,7 @@ class TVSForwardCurve:
         assert isinstance(discounting_curve, DiscountingCurve)
         assert isinstance(strategy, Strategy) or strategy == None
         self.reference = reference
-        self.vol = vola_target     # target volatility
+        self.vol = vola_target  # target volatility
         self.alpha = strategy
         self.I_0 = spot_price
         self.mu = mu
@@ -259,17 +375,47 @@ class TVSForwardCurve:
         if self.alpha is None:
             raise ValueError("Please set a strategy first")
         date = np.array(date)
-        function = lambda x: self.vol * np.sum(self.alpha(x) * self.mu(x), axis=1) / np.linalg.norm(np.sum((self.alpha(x).T * (self.nu(x)).transpose(1, 0, 2)), axis=1).T, axis=1)
+        function = (
+            lambda x: self.vol
+            * np.sum(self.alpha(x) * self.mu(x), axis=1)
+            / np.linalg.norm(
+                np.sum((self.alpha(x).T * (self.nu(x)).transpose(1, 0, 2)), axis=1).T,
+                axis=1,
+            )
+        )
         if date.shape != ():
-            return np.asarray([(self.I_0 / self.D(extreme)) * exp(-quad_piecewise(function, self.alpha.T, self.reference, extreme, vectorized=False)) for extreme in date])
+            return np.asarray(
+                [
+                    (self.I_0 / self.D(extreme))
+                    * exp(
+                        -quad_piecewise(
+                            function,
+                            self.alpha.T,
+                            self.reference,
+                            extreme,
+                            vectorized=False,
+                        )
+                    )
+                    for extreme in date
+                ]
+            )
         else:
-            return (self.I_0 / self.D(date)) * exp(-quad_piecewise(function, self.alpha.T, self.reference, date, vectorized=False))
+            return (self.I_0 / self.D(date)) * exp(
+                -quad_piecewise(
+                    function, self.alpha.T, self.reference, date, vectorized=False
+                )
+            )
 
 
 class TargetVolatilityStrategy:
     """Target Volatility price process under the Black and Scholes model"""
 
-    def __init__(self, fixings: np.ndarray, forward_curve: TVSForwardCurve, sampling: str = "standard") -> None:
+    def __init__(
+        self,
+        fixings: np.ndarray,
+        forward_curve: TVSForwardCurve,
+        sampling: str = "standard",
+    ) -> None:
         """
         Target Volatility Strategy under the Black and Scholes model.
         :param fixings (np.ndarray[float]): array of fixings dates (in yrf) at which the model will be evaluated
@@ -282,13 +428,15 @@ class TargetVolatilityStrategy:
         assert fixings.ndim == 1
         self.alpha = forward_curve.alpha
         self.nu = forward_curve.nu
-        self.vol = forward_curve.vol      # target volatility
+        self.vol = forward_curve.vol  # target volatility
         simulation_dates = fixings
         self.n_times = len(fixings)
-        self.n_stocks = int(len(self.nu(0.)))  # number of assets in the risky portfolio
+        self.n_stocks = int(
+            len(self.nu(0.0))
+        )  # number of assets in the risky portfolio
         self.forward_values = forward_curve(simulation_dates)
         self.simulation_dates = simulation_dates
-        simulation_dates = np.append(0., simulation_dates)
+        simulation_dates = np.append(0.0, simulation_dates)
         self.dt = np.diff(simulation_dates)
 
         if sampling == "standard":
@@ -296,9 +444,16 @@ class TargetVolatilityStrategy:
         elif sampling == "antithetic":
             self.antithetic_sampling = True
         else:
-            raise ValueError("Sampling type not recognized. Please choose between 'standard' and 'antithetic'.")
+            raise ValueError(
+                "Sampling type not recognized. Please choose between 'standard' and 'antithetic'."
+            )
 
-    def simulate(self, random_generator: np.random = None, n_sim: int or float = 1, seed: int = 14):
+    def simulate(
+        self,
+        random_generator: np.random = None,
+        n_sim: int or float = 1,
+        seed: int = 14,
+    ):
         """
         Monte Carlo simulation of the target volatility strategy portfolio under the Black and Scholes model.
         :param random_generator (np.random, default=None): random number generator. If not provided, then then default one is used with seed as seed value for the generation.
@@ -319,11 +474,17 @@ class TargetVolatilityStrategy:
             if self.antithetic_sampling:
                 Z = np.concatenate((Z, -Z))
             if i == 0:
-                prod = self.alpha(0.) @ self.nu(0.)
+                prod = self.alpha(0.0) @ self.nu(0.0)
             else:
-                prod = self.alpha(self.simulation_dates[i-1]) @ self.nu(self.simulation_dates[i-1])
+                prod = self.alpha(self.simulation_dates[i - 1]) @ self.nu(
+                    self.simulation_dates[i - 1]
+                )
             omega_t = self.vol / np.linalg.norm(prod)
-            log_I_t[:, i] = log_I_t[:, i-1] - 0.5 * (self.vol**2) * self.dt[i] + sqrt(self.dt[i]) * ((omega_t * prod) @ Z.T)
+            log_I_t[:, i] = (
+                log_I_t[:, i - 1]
+                - 0.5 * (self.vol**2) * self.dt[i]
+                + sqrt(self.dt[i]) * ((omega_t * prod) @ Z.T)
+            )
 
         return exp(log_I_t) * self.forward_values
 
@@ -334,8 +495,12 @@ def time_grid_union(curve_array_list: list) -> np.ndarray:
     :param curve_array_list (list): list of curves.
     :return time_grid (np.ndarray[float]): union of the time grids of the curves in the list.
     """
-    assert type(curve_array_list) == list and len(curve_array_list) > 0 and all(isinstance(curve, Curve) for curve in curve_array_list)
-    time_grid = curve_array_list[0].T     # union of all the temporal grids
+    assert (
+        type(curve_array_list) == list
+        and len(curve_array_list) > 0
+        and all(isinstance(curve, Curve) for curve in curve_array_list)
+    )
+    time_grid = curve_array_list[0].T  # union of all the temporal grids
     for i in range(1, len(curve_array_list)):
         time_grid = np.union1d(time_grid, curve_array_list[i].T)
     return time_grid
@@ -365,9 +530,9 @@ def Min_mu_each_time(mu: Drift) -> np.ndarray:
     index_min_mu = np.zeros(n_times)
     for i in range(n_times):
         if i == 0:
-            index_min_mu[i] = np.argmin(mu(0.))
+            index_min_mu[i] = np.argmin(mu(0.0))
         else:
-            index_min_mu[i] = np.argmin(mu(mu.T[i-1]))
+            index_min_mu[i] = np.argmin(mu(mu.T[i - 1]))
     return index_min_mu
 
 
@@ -385,9 +550,11 @@ def Min_mu_nu_each_time(mu: Drift, nu: CholeskyTDependent) -> tuple:
     index_min_mu_nu = np.zeros(n_times)
     for i in range(n_times):
         if i == 0:
-            index_min_mu_nu[i] = np.argmin(mu(0.) / np.linalg.norm(nu(0.)))
+            index_min_mu_nu[i] = np.argmin(mu(0.0) / np.linalg.norm(nu(0.0)))
         else:
-            index_min_mu_nu[i] = np.argmin(mu(time_grid[i-1]) / np.linalg.norm(nu(time_grid[i-1])))
+            index_min_mu_nu[i] = np.argmin(
+                mu(time_grid[i - 1]) / np.linalg.norm(nu(time_grid[i - 1]))
+            )
     return index_min_mu_nu, time_grid
 
 
@@ -399,8 +566,10 @@ def Markowitz_solution(mu: np.ndarray, nu: np.ndarray, sign: float) -> np.ndarra
     :return(np.ndarray[float]): optimal strategy. The shape of the array is (n_assets,).
     """
     assert len(mu) == len(nu) == len(nu.T)
-    covariance_matrix = nu@nu.T  # covariance matrix
-    inverse_covariance_matrix = np.linalg.inv(covariance_matrix)  # inverse of covariance matrix
+    covariance_matrix = nu @ nu.T  # covariance matrix
+    inverse_covariance_matrix = np.linalg.inv(
+        covariance_matrix
+    )  # inverse of covariance matrix
     norm = sign * 0.5 * np.linalg.norm((inverse_covariance_matrix @ mu) @ nu)
     return 0.5 * (1 / norm) * (inverse_covariance_matrix @ mu)
 
@@ -415,8 +584,13 @@ def loss_function(x: np.array, mu_value: np.ndarray, nu_value: np.ndarray) -> fl
     return (x @ mu_value) / np.linalg.norm(x @ nu_value)
 
 
-def optimization_only_long(mu_value: np.ndarray, nu_value: np.ndarray, n_trial: int = 1,
-                           seed: int = 1, guess: np.ndarray = None) -> np.ndarray:
+def optimization_only_long(
+    mu_value: np.ndarray,
+    nu_value: np.ndarray,
+    n_trial: int = 1,
+    seed: int = 1,
+    guess: np.ndarray = None,
+) -> np.ndarray:
     """
     Constrained optimization with only long position and sum of weights equal to 1
     :param mu_value (np.ndarray[float]): drift of the assets.
@@ -431,36 +605,65 @@ def optimization_only_long(mu_value: np.ndarray, nu_value: np.ndarray, n_trial: 
 
     f = loss_function
     A = np.ones(len(mu_value))
-    x_low = np.array([1.])
-    x_up = np.array([1.])
+    x_low = np.array([1.0])
+    x_up = np.array([1.0])
     bounds = Bounds(np.zeros(len(mu_value)), np.ones(len(mu_value)))
     constraints = LinearConstraint(A, x_low, x_up)
     if guess is None:
-        generator = np.random; generator.seed(seed)
+        generator = np.random
+        generator.seed(seed)
         r = np.zeros((n_trial, len(mu_value)))
         valutation = np.zeros(n_trial)
         for i in range(n_trial):
-            x0 = generator.uniform(0., 1., len(mu_value))  #initial position for the optimization algorithm
-            res = minimize(f, x0, args=(mu_value, nu_value), constraints=constraints, bounds=bounds, method="SLSQP")
+            x0 = generator.uniform(
+                0.0, 1.0, len(mu_value)
+            )  # initial position for the optimization algorithm
+            res = minimize(
+                f,
+                x0,
+                args=(mu_value, nu_value),
+                constraints=constraints,
+                bounds=bounds,
+                method="SLSQP",
+            )
             r[i] = res.x
             valutation[i] = f(res.x, mu_value, nu_value)
         return r[np.argmin(valutation)]
     elif guess.ndim == 1:
-        return minimize(f, guess, args=(mu_value, nu_value), constraints=constraints, bounds=bounds, method="SLSQP").x
+        return minimize(
+            f,
+            guess,
+            args=(mu_value, nu_value),
+            constraints=constraints,
+            bounds=bounds,
+            method="SLSQP",
+        ).x
     elif guess.ndim > 1:
         n_trial = len(guess)
         r = np.zeros((n_trial, len(mu_value)))
         valutation = np.zeros(n_trial)
         for i in range(n_trial):
             x0 = guess[i]
-            res = minimize(f, x0, args=(mu_value, nu_value), constraints=constraints, bounds=bounds, method="SLSQP")
+            res = minimize(
+                f,
+                x0,
+                args=(mu_value, nu_value),
+                constraints=constraints,
+                bounds=bounds,
+                method="SLSQP",
+            )
             r[i] = res.x
             valutation[i] = f(res.x, mu_value, nu_value)
         return r[np.argmin(valutation)]
 
 
-def optimization_limit_position(mu_value: np.ndarray, nu_value: np.ndarray, limit_position: float,
-                                n_trial: int, seed: int) -> np.ndarray:
+def optimization_limit_position(
+    mu_value: np.ndarray,
+    nu_value: np.ndarray,
+    limit_position: float,
+    n_trial: int,
+    seed: int,
+) -> np.ndarray:
     """
     Constrained optimization with the constraint |alpha_i|<limit_position for all i.
     :param mu_value (np.ndarray[float]): drift of the assets.
@@ -471,9 +674,10 @@ def optimization_limit_position(mu_value: np.ndarray, nu_value: np.ndarray, limi
     :return (np.ndarray[float]): optimal strategy. The shape of the array is (n_assets,).
     """
     assert len(mu_value) == len(nu_value) == len(nu_value.T)
-    generator = np.random; generator.seed(seed)
+    generator = np.random
+    generator.seed(seed)
     f = loss_function
-    cons = ({'type': 'ineq', 'fun': lambda x: -abs(x) + limit_position})
+    cons = {"type": "ineq", "fun": lambda x: -abs(x) + limit_position}
     r = np.zeros((n_trial, len(mu_value)))
     valutation = np.zeros(n_trial)
     for i in range(n_trial):
@@ -484,8 +688,14 @@ def optimization_limit_position(mu_value: np.ndarray, nu_value: np.ndarray, limi
     return r[np.argmin(valutation)]
 
 
-def optimization_long_short_position(mu_value: np.ndarray, nu_value: np.ndarray, long_limit: float, short_limit: float,
-                                     n_trial: int, seed: int) -> np.ndarray:
+def optimization_long_short_position(
+    mu_value: np.ndarray,
+    nu_value: np.ndarray,
+    long_limit: float,
+    short_limit: float,
+    n_trial: int,
+    seed: int,
+) -> np.ndarray:
     """
     Constrained optimization where the sum of the long (alpha_i>0) allocation positions must be lower than long_limit,
     while the sum of the short (alpha_i<0) allocation positions must be lower than short_limit.
@@ -498,10 +708,16 @@ def optimization_long_short_position(mu_value: np.ndarray, nu_value: np.ndarray,
     :return (np.ndarray[float]): optimal strategy. The shape of the array is (n_assets,).
     """
     assert len(mu_value) == len(nu_value) == len(nu_value.T)
-    generator = np.random; generator.seed(seed)
+    generator = np.random
+    generator.seed(seed)
     f = loss_function
-    constraints = ({'type': 'ineq', 'fun': lambda x: -np.sum(x[np.where(x > 0)[0]]) + long_limit},
-                   {'type': 'ineq', 'fun': lambda x: -abs(np.sum(x[np.where(x < 0)[0]])) + short_limit})
+    constraints = (
+        {"type": "ineq", "fun": lambda x: -np.sum(x[np.where(x > 0)[0]]) + long_limit},
+        {
+            "type": "ineq",
+            "fun": lambda x: -abs(np.sum(x[np.where(x < 0)[0]])) + short_limit,
+        },
+    )
     r = np.zeros((n_trial, len(mu_value)))
     valutation = np.zeros(n_trial)
     for i in range(n_trial):
