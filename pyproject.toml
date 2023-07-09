@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Application of Deep Reinforcement Learning techniques for pricing options on target volatility strategies"
 authors = ["Stefano Polo <sp.stefano.polo@gmail.com>"]
 readme = "README.md"
-packages = [{include = "option_on_target_volatility_funds"}]
 
 [tool.poetry.dependencies]
 python = ">=3.7.2 <3.8"
