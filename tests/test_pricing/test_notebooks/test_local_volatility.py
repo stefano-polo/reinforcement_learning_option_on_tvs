@@ -3,15 +3,12 @@ import sys
 sys.path.insert(1, "./src")
 
 import numpy as np
+
 from pricing.closedforms import Price_to_BS_ImpliedVolatility
 from pricing.montecarlo import MC_results
+from pricing.pricing import LocalVolatilityCurve, LV_model, Vanilla_PayOff
 from pricing.read_market import LoadFromTxt
 
-from pricing.pricing import (
-    LV_model,
-    LocalVolatilityCurve,
-    Vanilla_PayOff,
-)
 
 def test_interpolation_mkt_data_monoasset():
     idx = 0
@@ -65,7 +62,7 @@ def test_interpolation_mkt_data_monoasset():
 
     kind = 1
     expiries = LV.T
-    strikes = np.exp(LV.log_moneyness)
+    np.exp(LV.log_moneyness)
     moneyness_matrix = np.exp(LV.log_moneyness)
     n_strikes = len(moneyness_matrix)
     n_expiries = len(expiries)

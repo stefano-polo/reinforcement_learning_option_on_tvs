@@ -1,14 +1,29 @@
-import numpy as np
-import pytest
 import sys
+
+import numpy as np
+
 sys.path.insert(1, "./src")
-from pricing.pricing import DiscountingCurve, EquityForwardCurve, ForwardVariance, Black, Vanilla_PayOff
-from pricing.closedforms import BS_European_option_closed_form, Price_to_BS_ImpliedVolatility
-from pricing.montecarlo import MC_Data_Blocking
 from params import *
 
+from pricing.closedforms import (
+    BS_European_option_closed_form,
+    Price_to_BS_ImpliedVolatility,
+)
+from pricing.montecarlo import MC_Data_Blocking
+from pricing.pricing import (
+    Black,
+    DiscountingCurve,
+    EquityForwardCurve,
+    ForwardVariance,
+    Vanilla_PayOff,
+)
 
-def test_convergence(discounting_curve: DiscountingCurve, forward_curve: EquityForwardCurve, variance_cuve: ForwardVariance):
+
+def test_convergence(
+    discounting_curve: DiscountingCurve,
+    forward_curve: EquityForwardCurve,
+    variance_cuve: ForwardVariance,
+):
     D = discounting_curve
     F = forward_curve
     V = variance_cuve

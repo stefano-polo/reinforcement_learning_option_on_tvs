@@ -1,13 +1,12 @@
-from math import sqrt
-
 import sys
+from math import sqrt
 
 sys.path.insert(1, "./src")
 
-import reinforcement.envs.fe_envs
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 from baselines.common import plot_util as pu
 from baselines.common.cmd_util import common_arg_parser
 from baselines.run import parse_cmdline_kwargs, remove_train_noise, train

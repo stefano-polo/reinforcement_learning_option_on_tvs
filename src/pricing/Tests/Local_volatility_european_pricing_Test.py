@@ -20,14 +20,12 @@ import sys
 
 sys.path.insert(1, "./../../../src")
 
-from time import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pricing.closedforms import Price_to_BS_ImpliedVolatility
-from pricing.montecarlo import MC_Data_Blocking, MC_results
-from pricing.read_market import LoadFromTxt
 
+from pricing.closedforms import Price_to_BS_ImpliedVolatility
+from pricing.montecarlo import MC_results
 from pricing.pricing import (
     DiscountingCurve,
     EquityForwardCurve,
@@ -36,6 +34,7 @@ from pricing.pricing import (
     LV_model,
     Vanilla_PayOff,
 )
+from pricing.read_market import LoadFromTxt
 
 # +
 idx = 0
@@ -163,5 +162,3 @@ for i in range(n_expiries):
     plt.title("Maturity = " + str(round(expiries[i], c)) + " [yr]", fontsize=font)
     plt.legend()
 # -
-
-

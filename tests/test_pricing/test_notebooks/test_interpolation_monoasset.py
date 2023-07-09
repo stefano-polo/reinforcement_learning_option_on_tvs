@@ -3,14 +3,12 @@ import sys
 sys.path.insert(1, "./src")
 
 import numpy as np
+
 from pricing.closedforms import Price_to_BS_ImpliedVolatility
 from pricing.montecarlo import MC_results
+from pricing.pricing import Black, Vanilla_PayOff
 from pricing.read_market import LoadFromTxt
 
-from pricing.pricing import (
-    Black,
-    Vanilla_PayOff,
-)
 
 def test_interpolation_mkt_data_monoasset():
     idx = 0
@@ -27,9 +25,7 @@ def test_interpolation_mkt_data_monoasset():
         "CAC 40 NTR",
         "HSI NTR EUR",
     )
-    _, F, V, _ = LoadFromTxt(
-        asset_names_list, folder, "ATM_FWD", local_vol_model=False
-    )
+    _, F, V, _ = LoadFromTxt(asset_names_list, folder, "ATM_FWD", local_vol_model=False)
     F = F[idx]
     V = V[idx]
     assert V.asset_name == F.asset_name

@@ -22,12 +22,10 @@ sys.path.insert(1, "./../../../src")
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pricing.closedforms import Price_to_BS_ImpliedVolatility
 from matplotlib import ticker
-from pricing.montecarlo import MC_results
-from pricing.read_market import LoadFromTxt
-from scipy.interpolate import interp1d
 
+from pricing.closedforms import Price_to_BS_ImpliedVolatility
+from pricing.montecarlo import MC_results
 from pricing.pricing import (
     ACT_365,
     Black,
@@ -36,6 +34,7 @@ from pricing.pricing import (
     ForwardVariance,
     Vanilla_PayOff,
 )
+from pricing.read_market import LoadFromTxt
 
 # +
 idx = 0

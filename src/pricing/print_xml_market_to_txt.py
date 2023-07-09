@@ -152,4 +152,3 @@ for name in asset_names:
     except:
         warning_string = "No local volatility data for " + name
         warnings.warn(warning_string)
-        pass

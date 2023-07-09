@@ -24,11 +24,14 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pricing.closedforms import BS_European_option_closed_form, Price_to_BS_ImpliedVolatility
 from matplotlib import ticker
 from montecarlo import MC_Data_Blocking, MC_results
 from numpy import exp, log
 
+from pricing.closedforms import (
+    BS_European_option_closed_form,
+    Price_to_BS_ImpliedVolatility,
+)
 from pricing.pricing import (
     Black,
     DiscountingCurve,

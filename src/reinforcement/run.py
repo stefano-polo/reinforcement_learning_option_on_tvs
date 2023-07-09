@@ -1,5 +1,6 @@
 import sys
 
+import reinforcement.envs.fe_envs
 from baselines.run import (
     main,
 )  # import the main function of run.py of baselines library

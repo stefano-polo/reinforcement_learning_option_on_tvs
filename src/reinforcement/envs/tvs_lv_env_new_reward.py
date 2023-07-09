@@ -1,6 +1,5 @@
-from typing import List, Tuple
-
 import sys
+from typing import List, Tuple
 
 import gym
 import numpy as np
@@ -11,6 +10,7 @@ from numpy import log, sqrt
 sys.path.insert(1, "./src")
 
 from pricing.closedforms import BS_European_option_closed_form
+from pricing.pricing import LV_model
 from pricing.read_market import LoadFromTxt
 from pricing.targetvol import (
     CholeskyTDependent,
@@ -18,9 +18,6 @@ from pricing.targetvol import (
     Markowitz_solution,
     Strategy,
     optimization_only_long,
-)
-from pricing.pricing import (
-    LV_model,
 )
 from reinforcement.envs.utils import build_allocation_time_grid, sign_renormalization
 
@@ -30,7 +27,7 @@ class TVS_LV_ENV_reward2(gym.Env):
 
     def __init__(
         self,
-        market_folder: str = "../market_data/FakeSmilesDisplacedDiffusion",
+        market_folder: str = "./src/market_data/FakeSmilesDisplacedDiffusion",
         asset_names: List[str] = ["DJ 50 EURO E", "S&P 500 NET EUR"],
         allocation_frequency: str = "monthly",
         target_volatility: float = 5 / 100,
@@ -434,9 +431,7 @@ class TVS_LV_ENV_reward2(gym.Env):
         return [seed]
 
     def render(self, mode="human") -> None:
-        print()
-        print("asset_history = ", self.asset_history)
-        print("current time = ", self.current_time)
+        pass
 
     def theoretical_price(self):
         return None  # there is no closed formulation for the theoretical price

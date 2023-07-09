@@ -1,14 +1,26 @@
+import sys
+
 import numpy as np
 import pytest
-import sys
 from scipy.stats.mstats import gmean
+
 sys.path.insert(1, "./src")
-from pricing.pricing import DiscountingCurve, EquityForwardCurve, ForwardVariance, Black, Vanilla_PayOff
-from pricing.closedforms import GA_Asian_option_closed_form, volatility_asian, Price_to_BS_ImpliedVolatility, interest_rate_asian
-from pricing.montecarlo import MC_Data_Blocking
 from params import *
 
-
+from pricing.closedforms import (
+    GA_Asian_option_closed_form,
+    Price_to_BS_ImpliedVolatility,
+    interest_rate_asian,
+    volatility_asian,
+)
+from pricing.montecarlo import MC_Data_Blocking
+from pricing.pricing import (
+    Black,
+    DiscountingCurve,
+    EquityForwardCurve,
+    ForwardVariance,
+    Vanilla_PayOff,
+)
 
 N_averages = 30
 maturity = 4.0
@@ -16,6 +28,7 @@ dates = np.linspace(0.0, maturity, N_averages)
 volatility = 0.5
 asian_vola = volatility_asian(N_averages, volatility)
 sampling = "antithetic"
+
 
 @pytest.fixture
 def variance_cuve_ga() -> ForwardVariance:
@@ -30,7 +43,12 @@ def variance_cuve_ga() -> ForwardVariance:
         strike_interp=spot_price,
     )
 
-def test_convergence(discounting_curve: DiscountingCurve, forward_curve: EquityForwardCurve, variance_cuve_ga: ForwardVariance):
+
+def test_convergence(
+    discounting_curve: DiscountingCurve,
+    forward_curve: EquityForwardCurve,
+    variance_cuve_ga: ForwardVariance,
+):
     D = discounting_curve
     F = forward_curve
     V = variance_cuve_ga
@@ -50,7 +68,13 @@ def test_convergence(discounting_curve: DiscountingCurve, forward_curve: EquityF
 
     """Calculating closed form"""
     expected_value = GA_Asian_option_closed_form(
-        F(maturity), forward_g_asian, maturity, D(maturity), volatility, N_averages, kind
+        F(maturity),
+        forward_g_asian,
+        maturity,
+        D(maturity),
+        volatility,
+        N_averages,
+        kind,
     )
     _, result, result_err = MC_Data_Blocking(pay_normalized, N_block)
     mean_price = result * D(maturity) * forward_g_asian
@@ -61,7 +85,7 @@ def test_convergence(discounting_curve: DiscountingCurve, forward_curve: EquityF
         assert price - error <= expected_value
     else:
         assert price + error >= expected_value
-    
+
     imp_volatility_mean = np.zeros(N_block)
     imp_volatility_plus = np.zeros(N_block)
     imp_volatility_minus = np.zeros(N_block)
@@ -84,7 +108,7 @@ def test_convergence(discounting_curve: DiscountingCurve, forward_curve: EquityF
         elif imp_volatility_minus[i] > imp_volatility_plus[i]:
             y_lower[i] = abs(imp_volatility_mean[i] - imp_volatility_plus[i])
             y_upper[i] = abs(imp_volatility_minus[i] - imp_volatility_mean[i])
-    
+
     vola = imp_volatility_mean[-1]
     if vola > asian_vola:
         assert vola - 2.55 * y_lower[-1] <= asian_vola

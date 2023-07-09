@@ -1,23 +1,36 @@
-import pytest
+import sys
 
 import numpy as np
-import sys
+import pytest
+
 sys.path.insert(1, "./src")
-from pricing.pricing import DiscountingCurve, EquityForwardCurve, ForwardVariance
 from params import *
+
+from pricing.pricing import DiscountingCurve, EquityForwardCurve, ForwardVariance
+
 
 @pytest.fixture
 def discounting_curve() -> DiscountingCurve:
     zero_interest_rate = np.array([r, r, r])
     zero_interest_rate_dates = np.array([0.0, 5, T_max])
-    d = np.exp(-zero_interest_rate * zero_interest_rate_dates)  # market discount factors
+    d = np.exp(
+        -zero_interest_rate * zero_interest_rate_dates
+    )  # market discount factors
     return DiscountingCurve(
         reference=t, discounts=d, discount_dates=zero_interest_rate_dates
     )
 
+
 @pytest.fixture
 def forward_curve(discounting_curve: DiscountingCurve) -> EquityForwardCurve:
-    return EquityForwardCurve(t, spot_price,discounting_curve,repo_dates=np.array([0.0, T_max]),repo_rates=np.array([0.1 / 100, 0.1 / 100]))
+    return EquityForwardCurve(
+        t,
+        spot_price,
+        discounting_curve,
+        repo_dates=np.array([0.0, T_max]),
+        repo_rates=np.array([0.1 / 100, 0.1 / 100]),
+    )
+
 
 @pytest.fixture
 def variance_cuve() -> ForwardVariance:

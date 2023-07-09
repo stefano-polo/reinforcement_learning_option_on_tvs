@@ -7,6 +7,7 @@ sys.path.insert(1, "./src")
 
 from pricing.pricing_utility import *
 
+
 class Curve:
     def __init__(self, **kwargs):
         raise Exception("do not instantiate this class.")

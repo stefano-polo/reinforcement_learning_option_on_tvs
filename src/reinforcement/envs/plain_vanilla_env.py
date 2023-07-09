@@ -1,9 +1,8 @@
+import sys
 from typing import List, Tuple
 
-import sys
-
-import numpy as np
 import gym
+import numpy as np
 from gym import spaces
 from gym.utils import seeding
 from numpy import array, exp

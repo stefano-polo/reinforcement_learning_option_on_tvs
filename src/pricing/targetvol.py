@@ -1,11 +1,13 @@
+import sys
+
+sys.path.insert(1, "./src")
 import numpy as np
 from numpy import exp, sqrt
-from numpy.linalg import cholesky
-from pricing_utility import quad_piecewise
 from scipy.interpolate import interp1d
 from scipy.optimize import Bounds, LinearConstraint, minimize
 
-from pricing import Curve, DiscountingCurve, EquityForwardCurve, ForwardVariance
+from pricing.pricing import Curve, DiscountingCurve, EquityForwardCurve, ForwardVariance
+from pricing.pricing_utility import quad_piecewise
 
 """
 Black and Scholes model for target volatility pricing.

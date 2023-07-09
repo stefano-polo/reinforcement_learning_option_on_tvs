@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from closedforms import Price_to_BS_ImpliedVolatility
 from matplotlib import ticker
-from montecarlo import MC_Data_Blocking, MC_results
+from montecarlo import MC_Data_Blocking
 from read_market import LoadFromTxt
 from targetvol import (
     CholeskyTDependent,

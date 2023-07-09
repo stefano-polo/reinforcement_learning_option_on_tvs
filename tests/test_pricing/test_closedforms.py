@@ -8,7 +8,7 @@ from pricing.closedforms import (
     BS_European_option_closed_form,
     GA_Asian_option_closed_form,
     GAM_Basket_option_closed_form,
-    Price_to_BS_ImpliedVolatility
+    Price_to_BS_ImpliedVolatility,
 )
 
 
@@ -62,13 +62,11 @@ def test_bs_model_call_put_parity() -> None:
         (-1.0, 0.15),
     ],
 )
-def test_from_price_to_iv(
-    call_put: float, iv: float
-):
+def test_from_price_to_iv(call_put: float, iv: float):
     """
     Benchmark taken from https://goodcalculators.com/black-scholes-calculator/
     """
-    
+
     spot = 300.0
     strike = 250.0
     time_to_maturity = 1.0
@@ -76,8 +74,11 @@ def test_from_price_to_iv(
     discount_factor = np.exp(-zero_interest_rate * time_to_maturity)
     forward_value = spot / discount_factor
     price = BS_European_option_closed_form(
-        forward_value, strike, time_to_maturity, discount_factor, iv, call_put)
-    assert Price_to_BS_ImpliedVolatility(time_to_maturity, forward_value, strike, price, call_put, discount_factor) == pytest.approx(iv, 0.001)
+        forward_value, strike, time_to_maturity, discount_factor, iv, call_put
+    )
+    assert Price_to_BS_ImpliedVolatility(
+        time_to_maturity, forward_value, strike, price, call_put, discount_factor
+    ) == pytest.approx(iv, 0.001)
 
 
 @pytest.mark.parametrize(
@@ -107,4 +108,3 @@ def test_geometric_average_asian_option_pricing(
         number_of_avg_points,
         call_put,
     ) == pytest.approx(expected_result, 0.01)
-

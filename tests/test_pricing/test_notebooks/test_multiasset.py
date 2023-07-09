@@ -1,8 +1,10 @@
 import sys
+
 import numpy as np
 
-
 sys.path.insert(1, "./src")
+from scipy.stats.mstats import gmean
+
 from pricing.closedforms import (
     GAM_Basket_option_closed_form,
     Price_to_BS_ImpliedVolatility,
@@ -10,8 +12,6 @@ from pricing.closedforms import (
     volatility_basket,
 )
 from pricing.montecarlo import MC_Data_Blocking
-from scipy.stats.mstats import gmean
-
 from pricing.pricing import (
     Black,
     DiscountingCurve,
@@ -37,6 +37,7 @@ corr = np.array(
 sampling = "antithetic"
 N_equity = len(corr)
 sigma_basket = volatility_basket(volatility, corr)
+
 
 def test_convergence(discounting_curve: DiscountingCurve):
     D = discounting_curve
@@ -118,7 +119,6 @@ def test_convergence(discounting_curve: DiscountingCurve):
         )
     )
 
-
     T4 = np.array([0.08, 0.17, 0.25, 0.33, 0.42, 0.50, 1.0, 2.0, T_max])
     K4 = np.array([spot_price[3], 164, 172, 180])
     sigma4 = np.array(
@@ -141,34 +141,42 @@ def test_convergence(discounting_curve: DiscountingCurve):
     )
 
     V = []  # list of variances
-    V.append(ForwardVariance(
-                reference=t,
-                market_volatility_matrix=sigma1.T,
-                strikes=K1,
-                maturity_dates=T1,
-                strike_interp=spot_price[0],
-            ))
-    V.append(ForwardVariance(
-                reference=t,
-                market_volatility_matrix=sigma2.T,
-                strikes=K2,
-                maturity_dates=T2,
-                strike_interp=spot_price[1],
-            ))
-    V.append(ForwardVariance(
-                reference=t,
-                market_volatility_matrix=sigma3.T,
-                strikes=K3,
-                maturity_dates=T3,
-                strike_interp=spot_price[2],
-            ))
-    V.append(ForwardVariance(
-                reference=t,
-                market_volatility_matrix=sigma4.T,
-                strikes=K4,
-                maturity_dates=T4,
-                strike_interp=spot_price[3],
-            ))
+    V.append(
+        ForwardVariance(
+            reference=t,
+            market_volatility_matrix=sigma1.T,
+            strikes=K1,
+            maturity_dates=T1,
+            strike_interp=spot_price[0],
+        )
+    )
+    V.append(
+        ForwardVariance(
+            reference=t,
+            market_volatility_matrix=sigma2.T,
+            strikes=K2,
+            maturity_dates=T2,
+            strike_interp=spot_price[1],
+        )
+    )
+    V.append(
+        ForwardVariance(
+            reference=t,
+            market_volatility_matrix=sigma3.T,
+            strikes=K3,
+            maturity_dates=T3,
+            strike_interp=spot_price[2],
+        )
+    )
+    V.append(
+        ForwardVariance(
+            reference=t,
+            market_volatility_matrix=sigma4.T,
+            strikes=K4,
+            maturity_dates=T4,
+            strike_interp=spot_price[3],
+        )
+    )
 
     maturities = np.arange(1, 31) * 0.15
     model = Black(

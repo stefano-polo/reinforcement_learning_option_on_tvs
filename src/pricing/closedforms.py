@@ -99,11 +99,21 @@ def Price_to_BS_ImpliedVolatility(
             )
         except ImportError:
             try:
-                from py_vollib.black_scholes.implied_volatility import implied_volatility
+                from py_vollib.black_scholes.implied_volatility import (
+                    implied_volatility,
+                )
+
                 option_flag = "c" if call_put >= 1.0 else "p"
                 zero_interest_rate = -1.0 * np.log(discount) / time_to_maturity
                 spot = forward * discount
-                return implied_volatility(price=option_price, S=spot, K=strike, t=time_to_maturity, r=zero_interest_rate, flag=option_flag)
+                return implied_volatility(
+                    price=option_price,
+                    S=spot,
+                    K=strike,
+                    t=time_to_maturity,
+                    r=zero_interest_rate,
+                    flag=option_flag,
+                )
             except:
                 raise ImportError(
                     "pyGem and LetsBeRational are not installed. Please install pyGem and LetsBeRational to use this function."

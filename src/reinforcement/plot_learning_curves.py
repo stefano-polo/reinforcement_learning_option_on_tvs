@@ -5,6 +5,7 @@ sys.path.insert(1, "./src")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import ticker
+
 from reinforcement.plot_utilities import join_curves, plot_rolling, pu
 
 ######################################################## SCRIPT INPUT ##############################################################################################

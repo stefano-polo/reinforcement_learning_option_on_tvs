@@ -1,6 +1,5 @@
-from typing import List, Tuple
-
 import sys
+from typing import List, Tuple
 
 import gym
 import numpy as np
@@ -9,6 +8,7 @@ from gym.utils import seeding
 
 sys.path.insert(1, "./src")
 from pricing.closedforms import BS_European_option_closed_form
+from pricing.pricing import Black
 from pricing.read_market import LoadFromTxt
 from pricing.targetvol import (
     CholeskyTDependent,
@@ -17,7 +17,6 @@ from pricing.targetvol import (
     TargetVolatilityStrategy,
     TVSForwardCurve,
 )
-from pricing.pricing import Black
 from reinforcement.envs.utils import build_allocation_time_grid, sign_renormalization
 
 
@@ -239,9 +238,7 @@ class TVS_BS_ENV(gym.Env):
         return [seed]
 
     def render(self, mode="human") -> None:
-        print()
-        print("asset_history = ", self.asset_history)
-        print("current time = ", self.current_time)
+        pass
 
     def theoretical_price(self) -> float:
         optimal_strategy = Strategy()

@@ -26,6 +26,10 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import ticker
+from numpy import exp, log
+from scipy.stats.mstats import gmean
+
 from pricing.closedforms import (
     BS_European_option_closed_form,
     GA_Asian_option_closed_form,
@@ -33,11 +37,7 @@ from pricing.closedforms import (
     interest_rate_asian,
     volatility_asian,
 )
-from matplotlib import ticker
 from pricing.montecarlo import MC_Data_Blocking, MC_results
-from numpy import exp, log
-from scipy.stats.mstats import gmean
-
 from pricing.pricing import (
     Black,
     DiscountingCurve,

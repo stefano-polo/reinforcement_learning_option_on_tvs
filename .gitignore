@@ -49,3 +49,6 @@ _ReSharper*/
 **/pyGem
 #Nuget packages folder
 packages/
+
+**.xml
+baselines/

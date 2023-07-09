@@ -24,17 +24,17 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import ticker
+from numpy import exp, log
+from scipy.stats.mstats import gmean
+
 from pricing.closedforms import (
     GAM_Basket_option_closed_form,
     Price_to_BS_ImpliedVolatility,
     forward_basket,
     volatility_basket,
 )
-from matplotlib import ticker
 from pricing.montecarlo import MC_Data_Blocking, MC_results
-from numpy import exp, log
-from scipy.stats.mstats import gmean
-
 from pricing.pricing import (
     Black,
     DiscountingCurve,
