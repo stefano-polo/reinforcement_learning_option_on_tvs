@@ -1,7 +1,7 @@
 # Reinforcement Learning for Options on Target Volatility Funds
 [![python](https://img.shields.io/badge/Python-3.7-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
-![Tests](https://github.com/RobertoCorti/gptravel/actions/workflows/python-tests.yml/badge.svg)
-![GitHub Tags](https://img.shields.io/github/tag/RobertoCorti/gptravel.svg)
+![Tests](https://github.com/stefano-polo/Option_on_Target_Volatility_Funds/actions/workflows/python-tests.yml/badge.svg)
+![GitHub Tags](https://img.shields.io/github/tag/stefano-polo/Option_on_Target_Volatility_Funds.svg)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
