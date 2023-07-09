@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 import sys
 
 import gym
@@ -6,26 +8,19 @@ from gym import spaces
 from gym.utils import seeding
 from numpy import log, sqrt
 
-sys.path.insert(1, "../pricing")
+sys.path.insert(1, "./src")
 
-from envs.utils import build_allocation_time_grid, sign_renormalization
-from read_market import LoadFromTxt
-from targetvol import (
+from pricing.read_market import LoadFromTxt
+from pricing.targetvol import (
     CholeskyTDependent,
     Drift,
     Markowitz_solution,
     Strategy,
-    TVSForwardCurve,
     optimization_only_long,
 )
 
-from pricing import (
-    DiscountingCurve,
-    EquityForwardCurve,
-    ForwardVariance,
-    LV_model,
-    quad_piecewise,
-)
+from pricing.pricing import LV_model
+from reinforcement.envs.utils import build_allocation_time_grid, sign_renormalization
 
 
 class TVS_LV_ENV_reward1(gym.Env):
@@ -36,7 +31,7 @@ class TVS_LV_ENV_reward1(gym.Env):
     def __init__(
         self,
         market_folder: str = "../market_data/FakeSmilesDisplacedDiffusion",
-        asset_names: list = ["DJ 50 EURO E", "S&P 500 NET EUR"],
+        asset_names: List[str] = ["DJ 50 EURO E", "S&P 500 NET EUR"],
         allocation_frequency: str = "monthly",
         target_volatility: float = 5 / 100,
         tvs_spot_value: float = 1.0,
@@ -277,7 +272,7 @@ class TVS_LV_ENV_reward1(gym.Env):
         # Useful elements for the simulation
         self.Identity = np.identity(self.N_equity)
 
-    def step(self, action: np.ndarray) -> tuple:
+    def step(self, action: np.ndarray) -> Tuple:
         assert self.action_space.contains(action)
         if not self.parameterized_action:
             if self.free_allocation_bounds:
@@ -368,7 +363,7 @@ class TVS_LV_ENV_reward1(gym.Env):
         )
         return state, reward, done, {}
 
-    def reset(self):
+    def reset(self) -> Tuple:
         if self.simulation_index == 0 or self.simulation_index == self.Nsim:
             self.simulations_logX = None  # free memory
             self.simulations_Vola = None  # free memory
@@ -399,7 +394,7 @@ class TVS_LV_ENV_reward1(gym.Env):
         )  # initial state [stock price, tvs level, time]
         return state
 
-    def seed(self, seed=None):
+    def seed(self, seed=None) -> List:
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 

@@ -1,9 +1,11 @@
+import sys
+
 from numpy import exp, log, sqrt
-from pricing_utility import *
 from scipy.interpolate import PchipInterpolator, interp1d
 
-"""Classes for my simulation"""
+sys.path.insert(1, "./src")
 
+from pricing.pricing_utility import *
 
 class Curve:
     def __init__(self, **kwargs):

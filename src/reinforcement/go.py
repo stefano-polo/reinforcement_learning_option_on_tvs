@@ -1,5 +1,8 @@
-#! python
-import envs.fe_envs
+import sys
+
+sys.path.insert(1, "./src")
+
+import reinforcement.envs.fe_envs
 from baselines.run import main
 
 

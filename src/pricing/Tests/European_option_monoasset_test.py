@@ -1,12 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: ipynb,py
+#     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.13.7
+#       jupytext_version: 1.14.7
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -18,18 +18,18 @@
 # +
 import sys
 
-sys.path.insert(1, "../")
+sys.path.insert(1, "./../../../src")
 
 import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-from closedforms import BS_European_option_closed_form, Price_to_BS_ImpliedVolatility
+from pricing.closedforms import BS_European_option_closed_form, Price_to_BS_ImpliedVolatility
 from matplotlib import ticker
 from montecarlo import MC_Data_Blocking, MC_results
 from numpy import exp, log
 
-from pricing import (
+from pricing.pricing import (
     Black,
     DiscountingCurve,
     EquityForwardCurve,
@@ -220,7 +220,7 @@ for i in range(N_block):
         y_lower[i] = abs(imp_volatility_mean[i] - imp_volatility_minus[i])
         y_upper[i] = abs(imp_volatility_plus[i] - imp_volatility_mean[i])
     elif imp_volatility_minus[i] > imp_volatility_plus[i]:
-        y_lower[i] = abs(imp_volatility[i] - imp_volatility_plus[i])
+        y_lower[i] = abs(imp_volatility_mean[i] - imp_volatility_plus[i])
         y_upper[i] = abs(imp_volatility_minus[i] - imp_volatility_mean[i])
 
 # -

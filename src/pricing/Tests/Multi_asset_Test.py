@@ -1,12 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: ipynb,py
+#     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.13.7
+#       jupytext_version: 1.14.7
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -18,24 +18,24 @@
 # +
 import sys
 
-sys.path.insert(1, "../")
+sys.path.insert(1, "./../../../src")
 
 import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-from closedforms import (
+from pricing.closedforms import (
     GAM_Basket_option_closed_form,
     Price_to_BS_ImpliedVolatility,
     forward_basket,
     volatility_basket,
 )
 from matplotlib import ticker
-from montecarlo import MC_Data_Blocking, MC_results
+from pricing.montecarlo import MC_Data_Blocking, MC_results
 from numpy import exp, log
 from scipy.stats.mstats import gmean
 
-from pricing import (
+from pricing.pricing import (
     Black,
     DiscountingCurve,
     EquityForwardCurve,
@@ -51,7 +51,7 @@ r = 1.0 / 100
 t = 0
 spot_price = np.array([110.0, 120.0, 97.0, 133.0])
 T_max = 10
-N_simulation = 1e6
+N_simulation = 1e5
 N_block = 100
 volatility = np.array([20.0, 30.0, 25.0, 32.0]) / 100
 corr = np.array(

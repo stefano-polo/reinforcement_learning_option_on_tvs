@@ -1,12 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: ipynb,py
+#     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.13.7
+#       jupytext_version: 1.14.7
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -18,17 +18,17 @@
 # +
 import sys
 
-sys.path.insert(1, "../")
+sys.path.insert(1, "./../../../src")
 
 import matplotlib.pyplot as plt
 import numpy as np
-from closedforms import Price_to_BS_ImpliedVolatility
+from pricing.closedforms import Price_to_BS_ImpliedVolatility
 from matplotlib import ticker
-from montecarlo import MC_results
-from read_market import LoadFromTxt
+from pricing.montecarlo import MC_results
+from pricing.read_market import LoadFromTxt
 from scipy.interpolate import interp1d
 
-from pricing import (
+from pricing.pricing import (
     ACT_365,
     Black,
     DiscountingCurve,

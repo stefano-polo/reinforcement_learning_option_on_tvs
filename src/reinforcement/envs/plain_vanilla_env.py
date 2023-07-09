@@ -1,14 +1,16 @@
+from typing import List, Tuple
+
 import sys
 
+import numpy as np
 import gym
 from gym import spaces
 from gym.utils import seeding
 from numpy import array, exp
 
-sys.path.insert(1, "../pricing")
-from closedforms import BS_European_option_closed_form
-
-from pricing import Black, DiscountingCurve, EquityForwardCurve, ForwardVariance
+sys.path.insert(1, "./src")
+from pricing.closedforms import BS_European_option_closed_form
+from pricing.pricing import Black, DiscountingCurve, EquityForwardCurve, ForwardVariance
 
 
 class PlainVanillaOption(gym.Env):
@@ -83,7 +85,7 @@ class PlainVanillaOption(gym.Env):
         self.seed()
         self.reset()
 
-    def step(self, action):
+    def step(self, action: np.ndarray) -> Tuple:
         assert self.action_space.contains(action)
 
         if self.current_time < self.T:
@@ -103,7 +105,7 @@ class PlainVanillaOption(gym.Env):
                 reward = 0
             return array((self.current_asset, self.current_time)), reward, done, {}
 
-    def reset(self):
+    def reset(self) -> Tuple:
         if self.simulation_index == 0 or self.simulation_index == self.Nsim:
             self.simulated_asset = self.BS.simulate(
                 random_generator=self.np_random, n_sim=self.Nsim
@@ -115,16 +117,16 @@ class PlainVanillaOption(gym.Env):
         self.asset_history.append(self.forward_curve.spot)
         return array((self.current_asset, self.current_time))
 
-    def seed(self, seed=None):
+    def seed(self, seed=None) -> List:
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def render(self, mode="human"):
+    def render(self, mode="human") -> None:
         print()
         print("asset_history = ", self.asset_history)
         print("current time = ", self.current_time)
 
-    def theoretical_price(self):
+    def theoretical_price(self) -> float:
         return BS_European_option_closed_form(
             forward=self.forward_curve(self.T),
             strike=self.strike_opt,

@@ -1,12 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: ipynb,py
+#     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.13.7
+#       jupytext_version: 1.14.7
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -18,17 +18,17 @@
 # +
 import sys
 
-sys.path.insert(1, "../")
+sys.path.insert(1, "./../../../src")
 
 from time import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-from closedforms import Price_to_BS_ImpliedVolatility
-from montecarlo import MC_Data_Blocking, MC_results
-from read_market import LoadFromTxt
+from pricing.closedforms import Price_to_BS_ImpliedVolatility
+from pricing.montecarlo import MC_Data_Blocking, MC_results
+from pricing.read_market import LoadFromTxt
 
-from pricing import (
+from pricing.pricing import (
     DiscountingCurve,
     EquityForwardCurve,
     ForwardVariance,
@@ -162,3 +162,6 @@ for i in range(n_expiries):
     plt.yticks(fontsize=font - 1)
     plt.title("Maturity = " + str(round(expiries[i], c)) + " [yr]", fontsize=font)
     plt.legend()
+# -
+
+

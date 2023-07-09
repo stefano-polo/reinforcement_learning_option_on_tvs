@@ -1,6 +1,13 @@
+import sys
+
 import numpy as np
 from numpy import log
-from plot_utilities import plot_action_space, plot_one_episode_actions
+
+import sys
+
+sys.path.insert(1, "./src")
+
+from reinforcement.plot_utilities import plot_action_space, plot_one_episode_actions
 
 ######################################################## SCRIPT INPUT ##############################################################################################
 

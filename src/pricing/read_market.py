@@ -1,8 +1,12 @@
+import sys
 import warnings
+from typing import List, Tuple, Union
+
+sys.path.insert(1, "./src")
 
 import numpy as np
 
-from pricing import (
+from pricing.pricing import (
     DiscountingCurve,
     EquityForwardCurve,
     ForwardVariance,
@@ -11,14 +15,14 @@ from pricing import (
 
 
 def LoadFromTxt(
-    asset_names: tuple or list,
+    asset_names: Union[List, Tuple],
     folder: str = None,
     strike_interpolation_rule: str = "ATM_SPOT",
     local_vol_model: bool = False,
-) -> tuple:
+) -> Tuple:
     """
     Loads discounting, equity forward, correlation matrix and local volatility curves from txt files insider a folder.
-    :param asset_names (tuple[list] or list[str]): list of the assets whose curves are to be loaded.
+    :param asset_names (Union[List, Tuple]): list of the assets whose curves are to be loaded.
     :param folder (optional str): folder where the txt files are located.
     :param strike_interpolation_rule (str): interpolation rule for market volatilities along strike direction (available: ATM_SPOT and ATM_FWD).
     :param local_vol_model (bool): if True, local volatility model is loaded.

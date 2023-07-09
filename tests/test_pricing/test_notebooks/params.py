@@ -1,0 +1,9 @@
+r = 1 / 100
+t = 0
+volatility = 20 / 100
+spot_price = 150.0
+T_max = 10.0
+N_simulations = 5e5
+N_block = 100
+reference_date = 0
+sampling = "antithetic"

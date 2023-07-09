@@ -1,6 +1,10 @@
 from math import sqrt
 
-import envs.fe_envs
+import sys
+
+sys.path.insert(1, "./src")
+
+import reinforcement.envs.fe_envs
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
